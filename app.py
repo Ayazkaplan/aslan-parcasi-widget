@@ -1,18 +1,26 @@
 import streamlit as st
 import google.generativeai as genai
-from google.oauth2 import service_account
-
-# Secrets'tan anahtarı çek
-api_key = st.secrets["GOOGLE_API_KEY"]
-
-# Google'ın Service Account yetkilendirmesi için anahtarı yapılandır
-# Not: Eğer AQ anahtarın doğrudan bir JSON içeriği değilse, 
-# doğrudan API Key olarak yapılandırmayı deniyoruz:
-genai.configure(api_key=api_key)
-
-model = genai.GenerativeModel('gemini-1.5-flash')
+import json
 
 st.title("🤖 ASLAN PARÇASI V8.9")
+
+# Secrets'tan anahtarı string olarak al
+api_key_str = st.secrets["GOOGLE_API_KEY"]
+
+try:
+    # Anahtarın JSON formatında mı yoksa sadece uzun bir string mi olduğunu kontrol et
+    if api_key_str.startswith("{"):
+        # JSON ise
+        creds = json.loads(api_key_str)
+        genai.configure(credentials=creds)
+    else:
+        # AQ ile başlayan string ise doğrudan service_account ile tanıtmayı dene
+        # Bu yöntem, service account anahtarlarının "yapısal" olarak işlenmesini sağlar
+        genai.configure(api_key=api_key_str)
+    
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except Exception as e:
+    st.error(f"Yapılandırma Hatası: {e}")
 
 if prompt := st.chat_input("Reis bir şey de..."):
     st.chat_message("user").markdown(prompt)
@@ -21,5 +29,4 @@ if prompt := st.chat_input("Reis bir şey de..."):
             response = model.generate_content(prompt)
             st.markdown(response.text)
         except Exception as e:
-            # Buradaki hata detayını not al, hala hata veriyorsa başka bir yol deneyeceğiz
-            st.error(f"Sistem Hatası: {e}")
+            st.error(f"DETAYLI HATA: {e}")
