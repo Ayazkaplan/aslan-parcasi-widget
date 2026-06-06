@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import os
+import streamlit.components.v1 as components
 
 # Ayarlar
 API_KEY = os.environ.get("API_KEY")
@@ -11,7 +12,6 @@ AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg"
 st.set_page_config(page_title="Aslan Parçası V11.0", page_icon="🤖")
 
 # --- UI LOGIC ---
-# (get_theme_data fonksiyonun aynı kalıyor, burayı kopyaladığını varsayıyorum)
 def get_theme_data(mod):
     if mod == "Kurucu":
         user_bg, assistant_bg = "rgba(10, 40, 10, 0.6)", "rgba(20, 20, 20, 0.8)"
@@ -47,21 +47,23 @@ st.markdown(f"""
     .fixed-input-area {{ position: fixed; bottom: 0; left: 0; width: 100%; padding: 10px; background: {bg_color}; z-index: 999; }}
     div.stButton > button, div.stFormSubmitButton > button {{ color: white !important; background-color: #444 !important; border: 2px solid white !important; font-weight: bold !important; }}
     </style>
-    
+    """, unsafe_allow_html=True)
+
+# JavaScript'i bir component içine alarak tetiklenmesini garanti ediyoruz
+components.html("""
     <script>
-    document.addEventListener('click', function(e) {{
-        // Asistan avatarına tıklandığında
-        if (e.target.closest('div[data-testid="stChatMessageAvatarAssistant"]')) {{
+    window.parent.document.addEventListener('click', function(e) {
+        if (e.target.closest('div[data-testid="stChatMessageAvatarAssistant"]')) {
             let toast = document.createElement('div');
             toast.innerText = 'Aslan Parçası';
-            toast.style.cssText = 'position:fixed; top:20%; left:50%; transform:translateX(-50%); background:gold; color:black; padding:15px 30px; border-radius:15px; z-index:99999; font-weight:bold; box-shadow:0px 4px 15px rgba(0,0,0,0.5); opacity:1; transition: opacity 1s ease-out;';
-            document.body.appendChild(toast);
-            setTimeout(() => {{ toast.style.opacity = '0'; }}, 2000);
-            setTimeout(() => {{ toast.remove(); }}, 3000);
-        }}
-    }});
+            toast.style.cssText = 'position:fixed; top:20%; left:50%; transform:translateX(-50%); background:gold; color:black; padding:15px 30px; border-radius:15px; z-index:999999; font-weight:bold; box-shadow:0px 4px 15px rgba(0,0,0,0.5); opacity:1; transition: opacity 1s ease-out;';
+            window.parent.document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+            setTimeout(() => { toast.remove(); }, 3000);
+        }
+    });
     </script>
-    """, unsafe_allow_html=True)
+    """, height=0)
 
 st.title("🤖 Aslan Parçası V11.0")
 
@@ -97,3 +99,4 @@ if submit_button and user_input:
         st.markdown(cevap)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
+ 
