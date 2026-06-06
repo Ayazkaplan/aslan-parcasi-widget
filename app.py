@@ -6,9 +6,9 @@ import os
 API_KEY = os.environ.get("API_KEY")
 MODEL = "anthropic/claude-3-haiku"
 KURUCU_SIFRESI = "KAPLAN_REIS_74"
-AVATAR_URL = "https://i.imgur.com/83pL6vN.png" # Siber Aslan Logon
+AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg" # Güncel Siber Aslan Logo
 
-st.set_page_config(page_title="Aslan Parçası V10.6", page_icon="🤖")
+st.set_page_config(page_title="Aslan Parçası V10.9", page_icon="🤖")
 
 # --- UI LOGIC ---
 def get_theme_data(mod):
@@ -47,11 +47,11 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🤖 Aslan Parçası V10.6")
+st.title("🤖 Aslan Parçası V10.9")
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# Mesajları yazdırırken avatarı burada tanımlıyoruz
+# Mesajları yazdırırken avatarı kullanıyoruz
 for m in st.session_state.messages:
     avatar = AVATAR_URL if m["role"] == "assistant" else None
     with st.chat_message(m["role"], avatar=avatar):
@@ -68,7 +68,7 @@ def ai_cevap(mesaj_gecmisi, mod):
 
 st.markdown("<br><br><br>", unsafe_allow_html=True)
 
-# DÜZELTİLEN KISIM BURASI
+# Sabit giriş alanı
 st.markdown('<div class="fixed-input-area">', unsafe_allow_html=True)
 with st.form(key='chat_form', clear_on_submit=True):
     user_input = st.text_input("", placeholder="Mesajını yaz...")
@@ -83,4 +83,3 @@ if submit_button and user_input:
         st.markdown(cevap)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
- 
