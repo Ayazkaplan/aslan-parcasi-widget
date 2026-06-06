@@ -35,7 +35,7 @@ with st.sidebar:
     tema_secimi = st.selectbox("Arka Plan Seç:", list(theme_map.keys()))
     bg_color, text_color = theme_map[tema_secimi]
 
-# CSS & JS - AVATAR EFEKTİ ENTEGRE EDİLDİ
+# CSS - METİN RENGİ ZORLAMASI (Süslü parantezleri escape ettik: {{ ve }})
 st.markdown(f"""
     <style>
     .stApp {{ background: {bg_color}; color: {text_color} !important; }}
@@ -69,7 +69,10 @@ st.markdown(f"""
         font-weight: bold !important;
     }}
     </style>
+    """, unsafe_allow_html=True)
 
+# JS KODUNU AYRI BİR MARKDOWN BLOĞUNDA VE ESCAPE EDEREK EKLEDİK
+st.markdown("""
     <script>
     document.addEventListener('click', function(e) {
         if(e.target.closest('[data-testid="stChatMessageAvatarAssistant"]')) {
@@ -115,3 +118,4 @@ if submit_button and user_input:
         st.markdown(cevap)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
+ 
