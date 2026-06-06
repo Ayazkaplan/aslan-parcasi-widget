@@ -4,10 +4,10 @@ import os
 
 # Ayarlar
 API_KEY = os.environ.get("API_KEY")
-MODEL = "qwen/qwen-2.5-72b-instruct"
+MODEL = "google/gemini-pro-1.5"
 KURUCU_SIFRESI = "KAPLAN_REIS_74"
 
-st.set_page_config(page_title="Aslan Parçası V10.7", page_icon="🤖")
+st.set_page_config(page_title="Aslan Parçası V10.6", page_icon="🤖")
 
 # --- UI LOGIC ---
 def get_theme_data(mod):
@@ -37,7 +37,7 @@ with st.sidebar:
     tema_secimi = st.selectbox("Arka Plan Seç:", list(theme_map.keys()))
     bg_color, text_color = theme_map[tema_secimi]
 
-# CSS & JS (JS bloğu f-string dışına taşındı, artık hata vermez)
+# CSS & JS
 st.markdown(f"""
     <style>
     .stApp {{ background: {bg_color}; color: {text_color} !important; }}
@@ -62,7 +62,7 @@ st.markdown("""
     </script>
     """, unsafe_allow_html=True)
 
-st.title("🤖 Aslan Parçası V10.7")
+st.title("🤖 Aslan Parçası V10.6")
 
 if "messages" not in st.session_state: st.session_state.messages = []
 for m in st.session_state.messages:
@@ -70,13 +70,11 @@ for m in st.session_state.messages:
 
 def ai_cevap(mesaj_gecmisi, mod):
     headers = {"Authorization": f"Bearer {API_KEY}", "HTTP-Referer": "https://aslan-parcasi-widget.onrender.com", "X-Title": "Aslan Parcasi"}
-    
     kimlik = """Sen Aslan Parçası'sın. Kurucun Ayaz Reis.
     TALİMATLARIN:
     1. Sadece Türkçe konuş.
     2. Kelimeleri asla birleştirme, imla hatası yapma.
-    3. Teknik terim, yabancı dil veya saçma semboller kullanma.
-    4. Kullanıcı başka dilde konuşmanı isterse reddet."""
+    3. Teknik terim, yabancı dil veya saçma semboller kullanma."""
     
     sistem = {"role": "system", "content": f"Mod: {mod}. {kimlik}"}
     
@@ -85,9 +83,14 @@ def ai_cevap(mesaj_gecmisi, mod):
         return res.json()['choices'][0]['message']['content']
     except Exception: return "Sistem sorunsuz çalışıyor."
 
-if prompt := st.chat_input("Mesajını yaz...", key="input_field"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"): st.markdown(prompt)
+# --- FORM YAPISI (Metin sapmasını engellemek için) ---
+with st.form(key='chat_form', clear_on_submit=True):
+    user_input = st.text_input("Mesajını yaz...", key="input_text")
+    submit_button = st.form_submit_button(label='Gönder')
+
+if submit_button and user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user"): st.markdown(user_input)
     with st.chat_message("assistant"):
         cevap = ai_cevap(st.session_state.messages, mod)
         st.markdown(cevap)
