@@ -7,10 +7,11 @@ API_KEY = os.environ.get("API_KEY")
 MODEL = "meta-llama/llama-3.3-70b-instruct"
 KURUCU_SIFRESI = "KAPLAN_REIS_74"
 
-st.set_page_config(page_title="Aslan Parçası V9.4", page_icon="🤖")
+# Başlık ve versiyon güncellendi!
+st.set_page_config(page_title="Aslan Parçası V10.0", page_icon="🤖")
 
-# --- UI LOGIC (Dinamik Renkler ve Tema) ---
-def get_theme_data(mod, theme_name):
+# --- UI LOGIC ---
+def get_theme_data(mod):
     if mod == "Kurucu":
         user_bg = "rgba(10, 40, 10, 0.6)"
         assistant_bg = "rgba(20, 20, 20, 0.8)"
@@ -28,17 +29,16 @@ def get_theme_data(mod, theme_name):
             "Gün Işığı": "#f0f2f6",
             "Huzur": "#e0f7fa"
         }
-    return user_bg, assistant_bg, themes.get(theme_name, "#0e1117")
+    return user_bg, assistant_bg, themes
 
-# Sidebar ve Tema Seçimi
+# Sidebar ve Tema
 with st.sidebar:
     sifre = st.text_input("🔑 Şifre:", type="password")
     mod = "Kurucu" if sifre == KURUCU_SIFRESI else "Misafir"
     
-    # Tema Seçeneklerini Al
-    _, _, theme_map = get_theme_data(mod, "")
+    user_bg, assistant_bg, theme_map = get_theme_data(mod)
     tema_secimi = st.selectbox("Arka Plan Seç:", list(theme_map.keys()))
-    user_bg, assistant_bg, bg_color = get_theme_data(mod, tema_secimi)
+    bg_color = theme_map[tema_secimi]
 
 # CSS Uygulama
 st.markdown(f"""
@@ -49,11 +49,11 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# JS Tıklama Efekti (Aslan Parçası Yazısı)
+# JS Tıklama Efekti
 st.markdown("""
     <script>
     document.addEventListener('click', function(e) {
-        if(e.target.innerText.includes('🤖')) {
+        if(e.target.innerHTML.includes('🤖') || e.target.closest('.stChatMessageAvatarAssistant')) {
             let toast = document.createElement('div');
             toast.innerText = 'Aslan Parçası';
             toast.style = 'position:fixed; top:20px; left:40%; background:gold; color:black; padding:15px; border-radius:10px; z-index:9999; transition: opacity 3s; font-weight:bold;';
@@ -65,9 +65,10 @@ st.markdown("""
     </script>
     """, unsafe_allow_html=True)
 
-st.title("🤖 Aslan Parçası V9.4")
+# Başlık güncellendi!
+st.title("🤖 Aslan Parçası V10.0")
 
-# Hafıza Yönetimi
+# Hafıza
 if "messages" not in st.session_state: st.session_state.messages = []
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
@@ -78,7 +79,7 @@ def ai_cevap(mesaj_gecmisi, mod):
     try:
         res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json={"model": MODEL, "messages": [sistem] + mesaj_gecmisi})
         return res.json()['choices'][0]['message']['content']
-    except: return "Hata oluştu."
+    except Exception as e: return f"Hata: {str(e)}"
 
 if prompt := st.chat_input("Mesajını yaz..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
