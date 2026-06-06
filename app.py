@@ -35,19 +35,24 @@ with st.sidebar:
     tema_secimi = st.selectbox("Arka Plan Seç:", list(theme_map.keys()))
     bg_color, text_color = theme_map[tema_secimi]
 
-# CSS - Mod bazlı metin rengi ve sabit input alanı
+# CSS - METİN RENGİ ZORLAMASI
 st.markdown(f"""
     <style>
     .stApp {{ background: {bg_color}; color: {text_color} !important; }}
     
-    /* Mesaj metinleri: Misafir modunda siyah, kurucu modunda tema rengi */
-    .stChatMessage[data-testid="stChatMessage"] {{ 
+    /* Mesaj metinleri: Misafir modunda SİYAH ZORLAMASI */
+    .stChatMessage p, .stChatMessage div {{ 
         color: {'black' if mod == "Misafir" else text_color} !important; 
+        font-weight: 500 !important;
     }}
-    .stChatMessage[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {{ background-color: {user_bg} !important; }}
-    .stChatMessage[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) {{ background-color: {assistant_bg} !important; border-left: 5px solid gold; }}
     
-    /* Sabit input kutusu */
+    .stChatMessage[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {{ 
+        background-color: {user_bg} !important; 
+    }}
+    .stChatMessage[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) {{ 
+        background-color: {assistant_bg} !important; border-left: 5px solid gold; 
+    }}
+    
     .fixed-input-area {{
         position: fixed;
         bottom: 0;
@@ -58,7 +63,6 @@ st.markdown(f"""
         z-index: 999;
     }}
     
-    /* Gönder butonu stili */
     div.stButton > button, div.stFormSubmitButton > button {{ 
         color: white !important; 
         background-color: #444 !important; 
@@ -83,10 +87,8 @@ def ai_cevap(mesaj_gecmisi, mod):
         return res.json()['choices'][0]['message']['content']
     except Exception: return "Sistem hazır."
 
-# Sabit alanın altına boşluk bırak ki mesajlar altta kalmasın
 st.markdown("<br><br><br>", unsafe_allow_html=True)
 
-# --- SABİT İNPUT ALANI ---
 st.markdown('<div class="fixed-input-area">', unsafe_allow_html=True)
 with st.form(key='chat_form', clear_on_submit=True):
     user_input = st.text_input("", placeholder="Mesajını yaz...")
@@ -101,3 +103,4 @@ if submit_button and user_input:
         st.markdown(cevap)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
+ 
