@@ -9,7 +9,7 @@ MODEL = "anthropic/claude-3-haiku"
 KURUCU_SIFRESI = "KAPLAN_REIS_74"
 AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg"
 
-st.set_page_config(page_title="Aslan Parçası V11.0", page_icon="🤖")
+st.set_page_config(page_title="Aslan Parçası V11.2", page_icon="🤖")
 
 # --- UI LOGIC ---
 def get_theme_data(mod):
@@ -37,7 +37,7 @@ with st.sidebar:
     tema_secimi = st.selectbox("Arka Plan Seç:", list(theme_map.keys()))
     bg_color, text_color = theme_map[tema_secimi]
 
-# --- STYLE & TOAST SCRIPT ---
+# --- STYLE, AVATAR İSİM & TOAST ---
 st.markdown(f"""
     <style>
     .stApp {{ background: {bg_color}; color: {text_color} !important; }}
@@ -46,15 +46,23 @@ st.markdown(f"""
     .stChatMessage[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) {{ background-color: {assistant_bg} !important; border-left: 5px solid gold; }}
     .fixed-input-area {{ position: fixed; bottom: 0; left: 0; width: 100%; padding: 10px; background: {bg_color}; z-index: 999; }}
     div.stButton > button, div.stFormSubmitButton > button {{ color: white !important; background-color: #444 !important; border: 2px solid white !important; font-weight: bold !important; }}
+    
+    /* AVATAR ÜSTÜ İSİM */
+    .avatar-name {{ font-size: 12px; font-weight: bold; color: gold; margin-bottom: 2px; display: block; }}
+    
+    /* Tarayıcı menüsünü blokla ve tıklanabilir yap */
+    div[data-testid="stChatMessageAvatarAssistant"] img {{ pointer-events: none; }}
+    div[data-testid="stChatMessageAvatarAssistant"] {{ pointer-events: auto; cursor: pointer; }}
     </style>
     """, unsafe_allow_html=True)
 
-# JavaScript'i bir component içine alarak tetiklenmesini garanti ediyoruz
 components.html("""
     <script>
     window.parent.document.addEventListener('click', function(e) {
-        if (e.target.closest('div[data-testid="stChatMessageAvatarAssistant"]')) {
-            let toast = document.createElement('div');
+        let avatarContainer = e.target.closest('div[data-testid="stChatMessageAvatarAssistant"]');
+        if (avatarContainer) {
+            e.stopPropagation();
+            let toast = window.parent.document.createElement('div');
             toast.innerText = 'Aslan Parçası';
             toast.style.cssText = 'position:fixed; top:20%; left:50%; transform:translateX(-50%); background:gold; color:black; padding:15px 30px; border-radius:15px; z-index:999999; font-weight:bold; box-shadow:0px 4px 15px rgba(0,0,0,0.5); opacity:1; transition: opacity 1s ease-out;';
             window.parent.document.body.appendChild(toast);
@@ -65,14 +73,18 @@ components.html("""
     </script>
     """, height=0)
 
-st.title("🤖 Aslan Parçası V11.0")
+st.title("🤖 Aslan Parçası V11.2")
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
 for m in st.session_state.messages:
-    avatar = AVATAR_URL if m["role"] == "assistant" else None
-    with st.chat_message(m["role"], avatar=avatar):
-        st.markdown(m["content"])
+    if m["role"] == "assistant":
+        st.markdown('<span class="avatar-name">Aslan Parçası</span>', unsafe_allow_html=True)
+        with st.chat_message(m["role"], avatar=AVATAR_URL):
+            st.markdown(m["content"])
+    else:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
 
 def ai_cevap(mesaj_gecmisi, mod):
     headers = {"Authorization": f"Bearer {API_KEY}", "HTTP-Referer": "https://aslan-parcasi-widget.onrender.com", "X-Title": "Aslan Parcasi"}
@@ -94,9 +106,10 @@ st.markdown('</div>', unsafe_allow_html=True)
 if submit_button and user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"): st.markdown(user_input)
+    
+    st.markdown('<span class="avatar-name">Aslan Parçası</span>', unsafe_allow_html=True)
     with st.chat_message("assistant", avatar=AVATAR_URL):
         cevap = ai_cevap(st.session_state.messages, mod)
         st.markdown(cevap)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
- 
