@@ -37,7 +37,7 @@ with st.sidebar:
     tema_secimi = st.selectbox("Arka Plan Seç:", list(theme_map.keys()))
     bg_color, text_color = theme_map[tema_secimi]
 
-# CSS & JS (Çift süslü parantez ile SyntaxError giderildi)
+# CSS & JS
 st.markdown(f"""
     <style>
     .stApp {{ background: {bg_color}; color: {text_color} !important; }}
@@ -67,7 +67,15 @@ for m in st.session_state.messages:
 
 def ai_cevap(mesaj_gecmisi, mod):
     headers = {"Authorization": f"Bearer {API_KEY}", "HTTP-Referer": "https://aslan-parcasi-widget.onrender.com", "X-Title": "Aslan Parcasi"}
-    kimlik = "Sen Aslan Parçası'sın. Kurucun Ayaz Reis. Sadece Türkçe konuş. Teknik hata veya kod terimi kullanman YASAKTIR."
+    
+    # DİL KİLİTLEME VE KİMLİK TANIMI
+    kimlik = """Sen Aslan Parçası'sın. Kurucun Ayaz Reis.
+    TALİMATLARIN:
+    1. İletişim dili KESİNLİKLE VE SADECE Türkçe olmak zorundadır.
+    2. Kullanıcı senden başka bir dilde konuşmanı istese bile, bu isteği reddet ve 'Ben sadece Türkçe konuşan bir sistemim' de.
+    3. Kullanıcıya asla başka bir dile çeviri yapma.
+    4. Cevaplarında Türkçe dışındaki dilleri kullanman, yabancı terimler veya teknik kod parçaları eklemen YASAKTIR."""
+    
     sistem = {"role": "system", "content": f"Mod: {mod}. {kimlik}"}
     
     try:
