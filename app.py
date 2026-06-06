@@ -1,35 +1,30 @@
 import streamlit as st
-import requests
+import google.generativeai as genai
+import json
 
-# Secrets'tan anahtarı çekiyoruz
+# Streamlit'ten anahtarı çek
+api_key = st.secrets["GOOGLE_API_KEY"]
+
+# Service Account anahtarları JSON formatındadır veya string olarak doğrudan client'a verilir.
+# Eğer API_KEY değişkenin uzun bir JSON string'i ise:
 try:
-    API_KEY = st.secrets["GOOGLE_API_KEY"]
-except Exception:
-    st.error("HATA: GOOGLE_API_KEY bulunamadı! Lütfen Streamlit Secrets ayarlarını kontrol et.")
-    st.stop()
+    # Eğer anahtarın JSON formatındaysa burayı kullan
+    info = json.loads(api_key)
+    genai.configure(credentials=info)
+except:
+    # Eğer sadece o AQ... ile başlayan string ise bunu kullan
+    # Bu yöntem çoğu modern Google Cloud servisinde çalışır
+    genai.configure(api_key=api_key)
+
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 st.title("🤖 ASLAN PARÇASI V8.9")
 
 if prompt := st.chat_input("Reis bir şey de..."):
     st.chat_message("user").markdown(prompt)
-    
     with st.chat_message("assistant"):
-        # Google Gemini API URL
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
-        
-        headers = {"Content-Type": "application/json"}
-        data = {"contents": [{"parts": [{"text": prompt}]}]}
-        
         try:
-            # API'ye isteği gönderiyoruz
-            response = requests.post(url, headers=headers, json=data)
-            
-            if response.status_code == 200:
-                result = response.json()
-                answer = result['candidates'][0]['content']['parts'][0]['text']
-                st.markdown(answer)
-            else:
-                st.error(f"Hata Kodu: {response.status_code} - Lütfen anahtarını ve bağlantını kontrol et.")
-                st.write(response.json())
+            response = model.generate_content(prompt)
+            st.markdown(response.text)
         except Exception as e:
-            st.error(f"Sistem Hatası: {e}")
+            st.error(f"Hata: {e}")
