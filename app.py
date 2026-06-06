@@ -35,7 +35,7 @@ with st.sidebar:
     tema_secimi = st.selectbox("Arka Plan Seç:", list(theme_map.keys()))
     bg_color, text_color = theme_map[tema_secimi]
 
-# CSS & JS - GÜNCEL EFEKT
+# CSS - METİN RENGİ ZORLAMASI (f-string ile)
 st.markdown(f"""
     <style>
     .stApp {{ background: {bg_color}; color: {text_color} !important; }}
@@ -69,15 +69,28 @@ st.markdown(f"""
         font-weight: bold !important;
     }}
     </style>
+    """, unsafe_allow_html=True)
 
+# JS KODU - f-string KULLANMADIK, hata vermeyecek!
+st.markdown("""
     <script>
     document.addEventListener('click', function(e) {
-        let assistantMessage = e.target.closest('[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"])');
-        if (assistantMessage) {
+        if (e.target.closest('[data-testid="stChatMessageAvatarAssistant"]')) {
             let toast = document.createElement('div');
             toast.innerText = 'Aslan Parçası';
-            toast.style = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:gold; color:black; padding:15px; border-radius:10px; z-index:99999; font-weight:bold; box-shadow: 0px 4px 10px rgba(0,0,0,0.3);';
+            toast.style.position = 'fixed';
+            toast.style.top = '20px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.backgroundColor = 'gold';
+            toast.style.color = 'black';
+            toast.style.padding = '15px';
+            toast.style.borderRadius = '10px';
+            toast.style.zIndex = '99999';
+            toast.style.fontWeight = 'bold';
+            toast.style.boxShadow = '0px 4px 10px rgba(0,0,0,0.3)';
             document.body.appendChild(toast);
+            
             setTimeout(function() { 
                 toast.style.transition = 'opacity 1s';
                 toast.style.opacity = '0'; 
