@@ -7,7 +7,7 @@ API_KEY = os.environ.get("API_KEY")
 MODEL = "meta-llama/llama-3.3-70b-instruct"
 KURUCU_SIFRESI = "KAPLAN_REIS_74"
 
-st.set_page_config(page_title="Aslan Parçası V10.5", page_icon="🤖")
+st.set_page_config(page_title="Aslan Parçası V10.6", page_icon="🤖")
 
 # --- UI LOGIC ---
 def get_theme_data(mod):
@@ -37,7 +37,7 @@ with st.sidebar:
     tema_secimi = st.selectbox("Arka Plan Seç:", list(theme_map.keys()))
     bg_color, text_color = theme_map[tema_secimi]
 
-# CSS & JS (Aynı)
+# CSS & JS (Çift süslü parantez ile SyntaxError giderildi)
 st.markdown(f"""
     <style>
     .stApp {{ background: {bg_color}; color: {text_color} !important; }}
@@ -54,12 +54,12 @@ st.markdown(f"""
             document.body.appendChild(toast);
             setTimeout(() => {{ toast.style.opacity = '0'; }}, 10);
             setTimeout(() => {{ toast.remove(); }}, 3000);
-        }
+        }}
     }});
     </script>
     """, unsafe_allow_html=True)
 
-st.title("🤖 Aslan Parçası V10.5")
+st.title("🤖 Aslan Parçası V10.6")
 
 if "messages" not in st.session_state: st.session_state.messages = []
 for m in st.session_state.messages:
@@ -67,14 +67,11 @@ for m in st.session_state.messages:
 
 def ai_cevap(mesaj_gecmisi, mod):
     headers = {"Authorization": f"Bearer {API_KEY}", "HTTP-Referer": "https://aslan-parcasi-widget.onrender.com", "X-Title": "Aslan Parcasi"}
-    
-    # SADECE TÜRKÇE VE KESİN KİMLİK
-    kimlik_tanimi = "Sen Aslan Parçası'sın. Kurucun Ayaz Reis. Sen sadece Türkçe konuşan, kısa ve net cevaplar veren bir asistansın. Teknik detaylara, yabancı dillere veya hata kayıtlarına girmen KESİNLİKLE YASAKTIR."
-    
-    sistem = {"role": "system", "content": f"Mod: {mod}. {kimlik_tanimi} Sakın başka dillerde konuşma veya teknik saçmalama."}
+    kimlik = "Sen Aslan Parçası'sın. Kurucun Ayaz Reis. Sadece Türkçe konuş. Teknik hata veya kod terimi kullanman YASAKTIR."
+    sistem = {"role": "system", "content": f"Mod: {mod}. {kimlik}"}
     
     try:
-        res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json={"model": MODEL, "messages": [sistem] + mesaj_gecmisi[-6:]}) # Son 6 mesajı tutuyoruz
+        res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json={"model": MODEL, "messages": [sistem] + mesaj_gecmisi[-6:]})
         return res.json()['choices'][0]['message']['content']
     except Exception: return "Sistem sorunsuz çalışıyor."
 
@@ -85,4 +82,3 @@ if prompt := st.chat_input("Mesajını yaz..."):
         cevap = ai_cevap(st.session_state.messages, mod)
         st.markdown(cevap)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
- 
