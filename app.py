@@ -26,7 +26,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-def ai_cevap(kullanici_mesaj):
+def ai_cevap(kullanici_mesaj, mod):
     if not API_KEY:
         return "Hata: API anahtarı tanımlanmadı."
         
@@ -35,11 +35,18 @@ def ai_cevap(kullanici_mesaj):
         "HTTP-Referer": "https://aslan-parcasi-widget.onrender.com",
         "X-Title": "Aslan Parcasi",
     }
-    # Sistem talimatını daha net ve hatasız yazması için güncelledik
+    
+    # Kişilik ve kısıtlamalar burada ayarlandı
+    system_prompt = f"""Sen Ayaz Reis'in asistanısın. Şu anki oturum modu: {mod}. 
+    Eğer kullanıcı kurucuysa ona kurucun olduğunu bilerek özel ve saygılı davran. 
+    Kullanıcı sana sormadığı sürece Java, Spring, @RequestMapping gibi teknik detaylara girme. 
+    Her zaman düzgün, Türkçe dil bilgisi kurallarına uygun, nazik ve profesyonel cevaplar ver. 
+    Asla yazım hatası yapma."""
+    
     payload = {
         "model": MODEL,
         "messages": [
-            {"role": "system", "content": "Sen Ayaz Reis'in asistanısın. Her zaman düzgün, Türkçe dil bilgisi kurallarına uygun, nazik ve profesyonel cevaplar ver. Asla yazım hatası yapma ve harfleri büyük-küçük karıştırma."},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": kullanici_mesaj}
         ]
     }
@@ -53,13 +60,14 @@ def ai_cevap(kullanici_mesaj):
     except Exception as e:
         return f"Bağlantı hatası: {str(e)}"
 
-# Mesaj girişi ve yanıt alma
+# Mesaj girişi
 if prompt := st.chat_input("Mesajını yaz..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        cevap = ai_cevap(prompt)
+        # Buraya 'mod' değişkenini de gönderiyoruz
+        cevap = ai_cevap(prompt, mod)
         st.markdown(cevap)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
