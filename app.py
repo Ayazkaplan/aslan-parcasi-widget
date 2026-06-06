@@ -2,11 +2,29 @@ import streamlit as st
 import requests
 import os
 
+# Render'dan API anahtarını alıyoruz
 API_KEY = os.environ.get("API_KEY")
 MODEL = "meta-llama/llama-3.3-70b-instruct"
 KURUCU_SIFRESI = "KAPLAN_REIS_74"
 
 st.set_page_config(page_title="Aslan Parçası V9.4", page_icon="🤖")
+
+# --- CSS TASARIM ---
+st.markdown("""
+    <style>
+    /* Kullanıcı mesajlarını sarı/turuncu tonlarında */
+    .stChatMessage[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
+        background-color: #333300; 
+        color: #FFD700;
+    }
+    /* Asistan mesajlarını koyu ve asil bir tonda */
+    .stChatMessage[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) {
+        background-color: #1a1a1a;
+        color: white;
+        border-left: 5px solid #FFD700;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 st.title("🤖 Aslan Parçası V9.4")
 
@@ -32,13 +50,12 @@ def ai_cevap(mesaj_gecmisi, mod):
         "X-Title": "Aslan Parcasi",
     }
     
-    # Çok daha sert ve net bir sistem talimatı
+    # Sert ve net talimatlar
     sistem_talimati = {
         "role": "system", 
         "content": f"Sen Ayaz Reis'in asistanısın. Kullanıcı Ayaz Reis'tir. Mod: {mod}. Sadece düzgün, profesyonel ve hatasız Türkçe konuş. Başka dillerden karakter kullanma. Teknik detaylara boğulma, net ve kısa cevap ver."
     }
     
-    # Geçmişi al ve sistem talimatıyla birleştir
     tum_mesajlar = [sistem_talimati] + mesaj_gecmisi
     
     payload = {
@@ -56,14 +73,11 @@ def ai_cevap(mesaj_gecmisi, mod):
         return f"Bağlantı hatası: {str(e)}"
 
 if prompt := st.chat_input("Mesajını yaz..."):
-    # Önce kullanıcının mesajını ekle
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        # Artık tüm geçmişi gönderiyoruz
         cevap = ai_cevap(st.session_state.messages, mod)
         st.markdown(cevap)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
- 
