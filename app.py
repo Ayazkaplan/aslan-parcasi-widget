@@ -14,16 +14,17 @@ DOSYA_ADI = "sarki_id.txt"
 def id_kaydet(yeni_id):
     with open(DOSYA_ADI, "w") as f: f.write(yeni_id)
 
+def id_sil():
+    if os.path.exists(DOSYA_ADI): os.remove(DOSYA_ADI)
+
 def id_oku():
     if os.path.exists(DOSYA_ADI):
         with open(DOSYA_ADI, "r") as f: return f.read().strip()
     return ""
 
-st.set_page_config(page_title="Aslan Parçası V13.0", page_icon="🤖")
+st.set_page_config(page_title="Aslan Parçası V14.0", page_icon="🤖")
 
-# --- SESSION STATE ---
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if "messages" not in st.session_state: st.session_state.messages = []
 
 # --- UI LOGIC ---
 def get_theme_data(mod):
@@ -64,17 +65,30 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("🎵 Müzik Motoru")
     
-    # 3 Nokta Menüsü (Bilgi Kutusu)
-    with st.expander("⋮ Bilgi: ID Nasıl Alınır?"):
-        st.info("1. YouTube'da şarkını aç.\n2. Linkin sonundaki 'v=' kısmından sonra gelen 11 haneli kodu kopyala.\n3. Örnek: .../watch?v=Ju-VnQuWoQU -> **Ju-VnQuWoQU**")
+    with st.expander("⋮ Müzik ID Nedir ve Nasıl Bulunur?"):
+        st.write("""
+        **Video ID, YouTube'daki şarkının özel kimlik kodudur.**
+        
+        **Nasıl Bulunur?**
+        1. İstediğin şarkıyı YouTube uygulamasında veya tarayıcıda aç.
+        2. Paylaş butonuna basıp **'Bağlantıyı Kopyala'** de.
+        3. Kopyaladığın link şuna benzer: `https://youtu.be/Ju-VnQuWoQU` veya `...watch?v=Ju-VnQuWoQU`
+        4. Eşittir (=) işaretinden veya son eğik çizgiden (/) sonra gelen **Ju-VnQuWoQU** kodu senin ID'ndir.
+        5. Bu kodu kutucuğa yapıştırıp 'Kaydet ve Oynat' tuşuna basman yeterlidir.
+        """)
     
     kayitli_id = id_oku()
     yeni_id = st.text_input("YouTube Video ID'si:", value=kayitli_id)
     
-    if st.button("💾 Kaydet ve Oynat"):
-        id_kaydet(yeni_id)
-        st.success("Müzik kalıcı olarak kaydedildi!")
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💾 Kaydet ve Oynat"):
+            id_kaydet(yeni_id)
+            st.rerun()
+    with col2:
+        if st.button("🗑️ Sil"):
+            id_sil()
+            st.rerun()
 
     if id_oku():
         st.markdown(f'<iframe width="100%" height="200" src="https://www.youtube.com/embed/{id_oku()}" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>', unsafe_allow_html=True)
@@ -90,9 +104,8 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🤖 Aslan Parçası V13.0")
+st.title("🤖 Aslan Parçası V14.0")
 
-# Mesajları yazdır
 for m in st.session_state.messages:
     if m["role"] == "assistant":
         st.markdown(f"""<div class="assistant-box"><div class="aslan-header"><img src="{AVATAR_URL}" width="30" style="border-radius:50%"> Aslan Parçası</div><div>{m['content']}</div></div>""", unsafe_allow_html=True)
