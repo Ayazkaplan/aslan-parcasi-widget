@@ -9,8 +9,10 @@ KURUCU_SIFRESI = "KAPLAN_REIS_74"
 AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 DOSYA_ADI = "sarki_id.txt"
-TEMA_DOSYASI = "tema_id.txt"
-MOD_DOSYASI = "mod_id.txt" # Modu kalıcı yapmak için
+MOD_DOSYASI = "mod_id.txt"
+# Modlara özel tema dosyaları
+TEMA_KURUCU = "tema_kurucu.txt"
+TEMA_MISAFIR = "tema_misafir.txt"
 
 # --- KALICI DOSYA FONKSİYONLARI ---
 def kaydet(dosya, deger):
@@ -26,11 +28,8 @@ def sil(dosya):
 
 st.set_page_config(page_title="Aslan Parçası V14.0", page_icon="🤖")
 
-# --- MOD YÖNETİMİ ---
-if oku(MOD_DOSYASI) == "Kurucu":
-    st.session_state.is_admin = True
-else:
-    st.session_state.is_admin = False
+# Mod Yönetimi
+is_admin = oku(MOD_DOSYASI) == "Kurucu"
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
@@ -57,8 +56,8 @@ def get_theme_data(mod):
     return assistant_box_bg, themes
 
 with st.sidebar:
-    # Şifre yönetimi
-    if not st.session_state.is_admin:
+    # Şifre girişi
+    if not is_admin:
         sifre = st.text_input("🔑 Şifre:", type="password")
         if sifre == KURUCU_SIFRESI:
             kaydet(MOD_DOSYASI, "Kurucu")
@@ -69,17 +68,19 @@ with st.sidebar:
             sil(MOD_DOSYASI)
             st.rerun()
 
-    mod = "Kurucu" if st.session_state.is_admin else "Misafir"
+    mod = "Kurucu" if is_admin else "Misafir"
     isim = st.selectbox("👤 Kimsin Reis?", ["Ayaz Reis", "Mehmet Reis"]) if mod == "Kurucu" else "Ziyaretçi"
         
-    # --- TEMA SEÇİMİ ---
+    # --- TEMA SEÇİMİ (MODA ÖZEL) ---
+    tema_dosyasi = TEMA_KURUCU if mod == "Kurucu" else TEMA_MISAFIR
     assistant_box_bg, theme_map = get_theme_data(mod)
-    kayitli_tema = oku(TEMA_DOSYASI)
+    
+    kayitli_tema = oku(tema_dosyasi)
     if kayitli_tema not in theme_map: kayitli_tema = list(theme_map.keys())[0]
     
     tema_secimi = st.selectbox("Arka Plan Seç:", list(theme_map.keys()), index=list(theme_map.keys()).index(kayitli_tema))
     if st.button("💾 Temayı Kaydet"):
-        kaydet(TEMA_DOSYASI, tema_secimi)
+        kaydet(tema_dosyasi, tema_secimi)
         st.rerun()
     
     bg_color, text_color = theme_map[tema_secimi]
@@ -139,4 +140,3 @@ if user_input:
     cevap = ai_cevap(st.session_state.messages, mod, isim)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
- 
