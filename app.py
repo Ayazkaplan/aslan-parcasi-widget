@@ -9,7 +9,7 @@ KURUCU_SIFRESI = "KAPLAN_REIS_74"
 AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-st.set_page_config(page_title="Aslan Parçası V12.7", page_icon="🤖")
+st.set_page_config(page_title="Aslan Parçası V13.0", page_icon="🤖")
 
 # --- UI LOGIC ---
 def get_theme_data(mod):
@@ -50,24 +50,21 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-    # --- MÜZİK MOTORU V12.7 ---
+    # --- MP3 MÜZİK MOTORU V13.0 ---
     st.markdown("---")
-    st.subheader("🎵 Müzik Motoru")
+    st.subheader("🎵 Müzik Motoru (MP3)")
     
-    sarki_arama = st.text_input("Şarkı veya Tür Ara:", key="arama_input")
-    if st.button("🔍 Ara"):
-        query = sarki_arama.replace(" ", "+")
-        st.session_state.direkt_link = f"https://www.youtube.com/results?search_query={query}"
-        st.session_state.son_sarki_adi = sarki_arama
-        st.success(f"'{sarki_arama}' bulundu Reis!")
+    # Not: Buradaki URL, doğrudan müzik çalan bir dosya olmalıdır.
+    # Örnek olarak bir demo MP3 ekledim, sen kendi linklerini buraya ekleyebilirsin.
+    sarki_link = st.text_input("MP3 Dosya Linkini Yapıştır:")
+    
+    if st.button("▶️ Müziği Başlat"):
+        st.session_state.mp3_link = sarki_link
+        st.success("Müzik hazır, çalma tuşuna bas Reis!")
 
-    if 'direkt_link' in st.session_state:
-        st.markdown(f'''
-            <a href="{st.session_state.direkt_link}" target="_blank" 
-            style="text-decoration:none; color:black; background:gold; padding:15px; border-radius:10px; display:block; text-align:center; font-weight:bold;">
-            ▶️ {st.session_state.son_sarki_adi} OYNAT
-            </a>
-        ''', unsafe_allow_html=True)
+    if 'mp3_link' in st.session_state and st.session_state.mp3_link:
+        st.audio(st.session_state.mp3_link, format="audio/mpeg")
+        st.caption("Aslan Parçası içinde çalıyorsun.")
 
 # --- STYLE ---
 st.markdown(f"""
@@ -80,7 +77,7 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🤖 Aslan Parçası V12.7")
+st.title("🤖 Aslan Parçası V13.0")
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
@@ -108,4 +105,3 @@ if user_input:
     cevap = ai_cevap(st.session_state.messages, mod, isim)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
- 
