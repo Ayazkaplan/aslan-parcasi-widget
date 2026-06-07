@@ -13,13 +13,10 @@ def get_db():
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
-    # Kullanıcılar tablosu
     cursor.execute('''CREATE TABLE IF NOT EXISTS kullanicilar 
                       (isim TEXT PRIMARY KEY, sifre TEXT, rol TEXT, tema TEXT, video_id TEXT, ozel_tag TEXT)''')
-    # Genel Sohbet tablosu
     cursor.execute('''CREATE TABLE IF NOT EXISTS genel_sohbet 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, gonderen TEXT, mesaj TEXT, zaman TIMESTAMP)''')
-    # Loglar tablosu
     cursor.execute('''CREATE TABLE IF NOT EXISTS loglar 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, mesaj TEXT, tip TEXT, zaman TIMESTAMP)''')
     conn.commit()
@@ -111,8 +108,8 @@ def get_theme_data(mod):
         }
     return assistant_box_bg, themes
 
-# --- GİRİŞ ZORUNLULUĞU ---
-if not st.session_state.logged_in:
+# --- GİRİŞ ZORUNLULUĞU (KURUCU HARİÇ) ---
+if not is_admin and not st.session_state.logged_in:
     st.title("🦁 Aslan Parçası - Giriş Sistemi")
     st.warning("Devam etmek için lütfen giriş yapın veya kayıt olun.")
     menu = st.radio("Seçim:", ["Giriş Yap", "Kayıt Ol"])
@@ -130,27 +127,22 @@ if not st.session_state.logged_in:
                 st.session_state.current_user = u_isim
                 st.rerun()
             else: st.error("Bilgiler hatalı!")
-    st.stop() # Giriş yapmayan kodu aşağıya geçirmez
+    st.stop()
 
-# --- GİRİŞ YAPMIŞ KULLANICI ALANI ---
+# --- GİRİŞ YAPMIŞ VEYA KURUCU ALANI ---
+mod = "Kurucu" if is_admin else "Misafir"
+isim = st.session_state.current_user if not is_admin else (oku(ISIM_DOSYASI) or "Mehmet Reis")
+
 with st.sidebar:
-    st.write(f"Hoş geldin, {st.session_state.current_user}")
-    if st.button("Çıkış Yap"): 
-        st.session_state.logged_in = False
-        st.session_state.current_user = None
-        st.rerun()
-    
     if not is_admin:
+        st.write(f"Hoş geldin, {st.session_state.current_user}")
+        if st.button("Çıkış Yap"): st.session_state.logged_in = False; st.rerun()
         sifre = st.text_input("🔑 Yönetici Şifresi:", type="password")
         if sifre == KURUCU_SIFRESI: kaydet(MOD_DOSYASI, "Kurucu"); st.rerun()
-        mod = "Misafir"
-        isim = st.session_state.current_user
     else:
         st.success("✅ Kurucu Modu Aktif")
         if st.button("🚪 Kurucu Moddan Çık"): sil(MOD_DOSYASI); sil(ISIM_DOSYASI); st.session_state.ayaz_yetkili = False; st.rerun()
-        mod = "Kurucu"
-        kayitli_isim = oku(ISIM_DOSYASI) or "Mehmet Reis"
-        secim = st.selectbox("👤 Kimsin Reis?", ["Mehmet Reis", "Ayaz Reis"], index=["Mehmet Reis", "Ayaz Reis"].index(kayitli_isim))
+        secim = st.selectbox("👤 Kimsin Reis?", ["Mehmet Reis", "Ayaz Reis"], index=["Mehmet Reis", "Ayaz Reis"].index(isim))
         if secim == "Ayaz Reis":
             if not st.session_state.ayaz_yetkili:
                 gizli_sifre = st.text_input("👑 Ayaz Reis Şifresi:", type="password")
@@ -188,9 +180,8 @@ with col2:
         if st.button("⚙️ Yönetici"): st.session_state.admin_panel_open = not st.session_state.admin_panel_open; st.rerun()
 
 if st.session_state.admin_panel_open:
-    with st.container(border=True):
+    with st.container():
         st.subheader("🛠️ Yönetici Paneli")
-        st.write("Sistem ayarları ve kontrol merkezi.")
         if st.button("❌ Paneli Kapat"): st.session_state.admin_panel_open = False; st.rerun()
 
 def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
@@ -216,3 +207,4 @@ if st.button("🚀 Gönder"):
         st.session_state.messages.append({"role": "assistant", "content": cevap})
         st.session_state.input_key += 1
         st.rerun()
+ 
