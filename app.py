@@ -108,25 +108,31 @@ def get_theme_data(mod):
         }
     return assistant_box_bg, themes
 
-# --- GİRİŞ ZORUNLULUĞU (KURUCU HARİÇ) ---
+# --- GİRİŞ / BYPASS SİSTEMİ ---
 if not is_admin and not st.session_state.logged_in:
     st.title("🦁 Aslan Parçası - Giriş Sistemi")
-    st.warning("Devam etmek için lütfen giriş yapın veya kayıt olun.")
+    # BYPASS: Giriş ekranında bu şifreyi girersen direkt Kurucu olursun
+    bypass = st.text_input("🔑 Geçiş Anahtarı (Opsiyonel):", type="password")
+    if bypass == NIHAI_SIFRE:
+        kaydet(MOD_DOSYASI, "Kurucu")
+        st.success("✅ Kurucu Modu Aktif Edildi!")
+        st.rerun()
+
     menu = st.radio("Seçim:", ["Giriş Yap", "Kayıt Ol"])
     u_isim = st.text_input("Kullanıcı Adı")
     u_sifre = st.text_input("Şifre", type="password")
     
     if menu == "Kayıt Ol":
         if st.button("Kayıt Ol"):
-            if kayit_ol(u_isim, u_sifre): st.success("Başarılı! Şimdi giriş yapabilirsiniz.")
-            else: st.error("Bu isim alınmış!")
+            if kayit_ol(u_isim, u_sifre): st.success("Başarılı!")
+            else: st.error("İsim alınmış!")
     else:
         if st.button("Giriş Yap"):
             if giris_yap(u_isim, u_sifre): 
                 st.session_state.logged_in = True
                 st.session_state.current_user = u_isim
                 st.rerun()
-            else: st.error("Bilgiler hatalı!")
+            else: st.error("Hatalı bilgiler!")
     st.stop()
 
 # --- GİRİŞ YAPMIŞ VEYA KURUCU ALANI ---
@@ -137,18 +143,16 @@ with st.sidebar:
     if not is_admin:
         st.write(f"Hoş geldin, {st.session_state.current_user}")
         if st.button("Çıkış Yap"): st.session_state.logged_in = False; st.session_state.current_user = None; st.rerun()
-        sifre = st.text_input("🔑 Yönetici Şifresi:", type="password")
-        if sifre == KURUCU_SIFRESI: kaydet(MOD_DOSYASI, "Kurucu"); st.rerun()
     else:
         st.success("✅ Kurucu Modu Aktif")
         if st.button("🚪 Kurucu Moddan Çık"): sil(MOD_DOSYASI); sil(ISIM_DOSYASI); st.session_state.ayaz_yetkili = False; st.rerun()
-        secim = st.selectbox("👤 Kimsin Reis?", ["Mehmet Reis", "Ayaz Reis"], index=["Mehmet Reis", "Ayaz Reis"].index(isim))
+        secim = st.selectbox("👤 Kimsin Reis?", ["Mehmet Reis", "Ayaz Reis"], index=["Mehmet Reis", "Ayaz Reis"].index(isim) if isim in ["Mehmet Reis", "Ayaz Reis"] else 0)
         if secim == "Ayaz Reis":
             if not st.session_state.ayaz_yetkili:
                 gizli_sifre = st.text_input("👑 Ayaz Reis Şifresi:", type="password")
                 if st.button("Doğrula"):
                     if gizli_sifre == NIHAI_SIFRE: st.session_state.ayaz_yetkili = True; kaydet(ISIM_DOSYASI, "Ayaz Reis"); st.rerun()
-                    else: st.error("❌ Hatalı Şifre!")
+                    else: st.error("❌ Hatalı!")
                 isim = "Mehmet Reis"
             else: isim = "Ayaz Reis"
         else: st.session_state.ayaz_yetkili = False; kaydet(ISIM_DOSYASI, "Mehmet Reis"); isim = "Mehmet Reis"
@@ -165,8 +169,8 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("🎵 Müzik Motoru")
     kayitli_id = oku(DOSYA_ADI)
-    yeni_id = st.text_input("YouTube Video ID'si:", value=kayitli_id)
-    if st.button("💾 Kaydet ve Oynat"): kaydet(DOSYA_ADI, yeni_id); st.rerun()
+    yeni_id = st.text_input("Video ID'si:", value=kayitli_id)
+    if st.button("💾 Kaydet"): kaydet(DOSYA_ADI, yeni_id); st.rerun()
     if kayitli_id: st.markdown(f'<iframe width="100%" height="200" src="https://www.youtube.com/embed/{kayitli_id}" frameborder="0" allow="autoplay"></iframe>', unsafe_allow_html=True)
 
 # --- STYLE ---
@@ -179,10 +183,10 @@ with col2:
     if isim == "Ayaz Reis":
         if st.button("⚙️ Yönetici"): st.session_state.admin_panel_open = not st.session_state.admin_panel_open; st.rerun()
 
+# Hata veren st.empty() yerine st.container kullandık
 if st.session_state.admin_panel_open:
     with st.container(border=True):
         st.subheader("🛠️ Yönetici Paneli")
-        st.write("Sistem ayarları ve kontrol merkezi.")
         if st.button("❌ Paneli Kapat"): st.session_state.admin_panel_open = False; st.rerun()
 
 def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
@@ -208,4 +212,3 @@ if st.button("🚀 Gönder"):
         st.session_state.messages.append({"role": "assistant", "content": cevap})
         st.session_state.input_key += 1
         st.rerun()
- 
