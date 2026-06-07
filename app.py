@@ -1,25 +1,24 @@
 import streamlit as st
 import requests
 import os
-import sqlite3
+import psycopg2
 from datetime import datetime, timedelta
 
-# --- VERİTABANI VE AYARLAR ---
-DB_NAME = "aslan_parcasi.db"
+# --- VERİTABANI BAĞLANTISI (BULUT) ---
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db():
-    return sqlite3.connect(DB_NAME, check_same_thread=False)
+    return psycopg2.connect(DATABASE_URL)
 
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
-    # Kullanıcılar tablosu
     cursor.execute('''CREATE TABLE IF NOT EXISTS kullanicilar 
                       (isim TEXT PRIMARY KEY, sifre TEXT, rol TEXT)''')
-    # Kullanıcı bazlı tercihler tablosu
     cursor.execute('''CREATE TABLE IF NOT EXISTS tercihler 
                       (isim TEXT PRIMARY KEY, tema TEXT, sarki_id TEXT)''')
     conn.commit()
+    cursor.close()
     conn.close()
 
 init_db()
@@ -48,12 +47,12 @@ if not st.session_state.logged_in:
         cursor = conn.cursor()
         if menu == "Kayıt Ol":
             try:
-                cursor.execute("INSERT INTO kullanicilar VALUES (?, ?, ?)", (u_isim, u_sifre, "Misafir"))
-                cursor.execute("INSERT INTO tercihler VALUES (?, ?, ?)", (u_isim, "Gün Işığı", ""))
-                conn.commit(); st.success("Kayıt başarılı, giriş yapabilirsin!"); st.rerun()
+                cursor.execute("INSERT INTO kullanicilar VALUES (%s, %s, %s)", (u_isim, u_sifre, "Misafir"))
+                cursor.execute("INSERT INTO tercihler VALUES (%s, %s, %s)", (u_isim, "Gün Işığı", ""))
+                conn.commit(); st.success("Kayıt başarılı!"); st.rerun()
             except: st.error("İsim zaten alınmış!")
         else:
-            cursor.execute("SELECT * FROM kullanicilar WHERE isim=? AND sifre=?", (u_isim, u_sifre))
+            cursor.execute("SELECT * FROM kullanicilar WHERE isim=%s AND sifre=%s", (u_isim, u_sifre))
             user = cursor.fetchone()
             if user:
                 st.session_state.logged_in = True
@@ -61,9 +60,8 @@ if not st.session_state.logged_in:
                 st.session_state.rol = user[2]
                 st.rerun()
             else: st.error("Hatalı bilgiler!")
-        conn.close()
+        cursor.close(); conn.close()
 
-    # Bypass
     gizli_bypass = st.sidebar.text_input("🔧 Sistem Ayarları", type="password")
     if gizli_bypass == KURUCU_ANAHTARI:
         yeni_kurucu_adi = st.sidebar.text_input("Kurucu Adın:")
@@ -78,10 +76,9 @@ if not st.session_state.logged_in:
 isim = st.session_state.current_user
 mod = st.session_state.rol
 
-# Kullanıcı tercihlerini çek
 conn = get_db()
 cursor = conn.cursor()
-cursor.execute("SELECT tema, sarki_id FROM tercihler WHERE isim=?", (isim,))
+cursor.execute("SELECT tema, sarki_id FROM tercihler WHERE isim=%s", (isim,))
 tercih = cursor.fetchone()
 tema_secimi, kayitli_sarki = tercih if tercih else ("Gün Işığı", "")
 
@@ -93,12 +90,12 @@ with st.sidebar:
     yeni_id = st.text_input("Video ID:", value=kayitli_sarki)
     
     if st.button("💾 Profili Güncelle"):
-        cursor.execute("UPDATE tercihler SET tema=?, sarki_id=? WHERE isim=?", (yeni_tema, yeni_id, isim))
+        cursor.execute("UPDATE tercihler SET tema=%s, sarki_id=%s WHERE isim=%s", (yeni_tema, yeni_id, isim))
         conn.commit(); st.rerun()
 
     if st.button("🔄 Sohbeti Temizle"): st.session_state.messages = []; st.rerun()
     if yeni_id: st.markdown(f'<iframe width="100%" height="200" src="https://www.youtube.com/embed/{yeni_id}" frameborder="0"></iframe>', unsafe_allow_html=True)
-conn.close()
+cursor.close(); conn.close()
 
 # --- STYLE VE MANTIK ---
 bg_color = "#1a1a00" if yeni_tema == "Aslan İni" else "#f0f2f6"
