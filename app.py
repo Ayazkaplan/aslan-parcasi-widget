@@ -49,13 +49,18 @@ def get_theme_data(mod):
         themes = {
             "Aslan İni": ("linear-gradient(to bottom, #1a1a00, #000000)", "white"),
             "Kraliyet": ("linear-gradient(to bottom, #2c0000, #000000)", "white"),
-            "Orman Derinliği": ("linear-gradient(to bottom, #003300, #000000)", "white")
+            "Orman Derinliği": ("linear-gradient(to bottom, #003300, #000000)", "white"),
+            "Uzay": ("linear-gradient(to bottom, #1a0033, #000000)", "white"),
+            "Teknoloji": ("linear-gradient(to bottom, #001a33, #000000)", "white")
         }
     else:
         assistant_box_bg = "rgba(144, 238, 144, 0.3)"
         themes = {
             "Gün Işığı": ("#f0f2f6", "black"),
-            "Gece": ("#263238", "white")
+            "Huzur": ("#e0f7fa", "black"),
+            "Orman": ("#e8f5e9", "black"),
+            "Gece": ("#263238", "white"),
+            "Deniz": ("#e1f5fe", "black")
         }
     return assistant_box_bg, themes
 
@@ -88,6 +93,7 @@ with st.sidebar:
     kayitli_id = oku(DOSYA_ADI)
     yeni_id = st.text_input("YouTube Video ID'si:", value=kayitli_id)
     if st.button("💾 Kaydet ve Oynat"): kaydet(DOSYA_ADI, yeni_id); st.rerun()
+    if st.button("🗑️ Sil"): sil(DOSYA_ADI); st.rerun()
 
     if kayitli_id:
         st.markdown(f'<iframe width="100%" height="200" src="https://www.youtube.com/embed/{kayitli_id}" frameborder="0" allow="autoplay"></iframe>', unsafe_allow_html=True)
@@ -98,6 +104,8 @@ st.markdown(f"""
     .stApp {{ background: {bg_color}; color: {text_color} !important; }}
     .assistant-box {{ background-color: {assistant_box_bg}; padding: 15px; border-radius: 10px; border-left: 5px solid gold; margin-bottom: 10px; }}
     .user-box {{ background-color: rgba(128, 128, 128, 0.2); padding: 15px; border-radius: 10px; margin-bottom: 10px; text-align: right; }}
+    .aslan-header {{ display: flex; align-items: center; gap: 10px; font-weight: bold; border-bottom: 1px solid gold; padding-bottom: 5px; margin-bottom: 5px; }}
+    .user-header {{ display: flex; align-items: center; justify-content: flex-end; gap: 10px; font-weight: bold; margin-bottom: 8px; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -131,11 +139,11 @@ st.title("🤖 Aslan Parçası V16.1")
 # Sohbet Ekranı
 for m in st.session_state.messages:
     if m["role"] == "assistant":
-        st.markdown(f'<div class="assistant-box"><b>Aslan Parçası:</b><br>{m["content"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="assistant-box"><div class="aslan-header"><img src="{AVATAR_URL}" width="30" style="border-radius:50%"> Aslan Parçası</div>{m["content"]}</div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="user-box"><b>{isim}:</b><br>{m["content"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="user-box"><div class="user-header">{isim} <img src="{USER_AVATAR}" width="30" style="border-radius:50%"></div>{m["content"]}</div>', unsafe_allow_html=True)
 
-# Giriş Alanı: key dinamik, her gönderimde kutucuk boşalır
+# Giriş Alanı (Key ile otomatik temizleme)
 user_input = st.text_area("Mesajını yaz:", height=100, key=f"chat_input_{st.session_state.input_key}")
 
 if st.button("🚀 Gönder"):
@@ -143,8 +151,5 @@ if st.button("🚀 Gönder"):
         st.session_state.messages.append({"role": "user", "content": user_input})
         cevap = ai_cevap(st.session_state.messages, mod, isim, user_input)
         st.session_state.messages.append({"role": "assistant", "content": cevap})
-        
-        # Kutucuğu sıfırlamak için key'i güncelle ve Rerun yap
         st.session_state.input_key += 1
         st.rerun()
- 
