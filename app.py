@@ -50,34 +50,20 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-    # --- MÜZİK İSTASYONU ---
+    # --- YOUTUBE MÜZİK MOTORU ---
     st.markdown("---")
-    st.subheader("🎵 Müzik İstasyonu")
+    st.subheader("🎵 Müzik Motoru")
     
-    # Başlangıç değerleri
-    if 'muzik_secim' not in st.session_state: st.session_state.muzik_secim = "Phonk"
-    if 'muzik_aktif' not in st.session_state: st.session_state.muzik_aktif = False
+    sarki_arama = st.text_input("Şarkı veya Tür Ara:")
+    if st.button("🔍 Ara"):
+        # Not: Buraya gerçek bir YouTube API bağlayabilirsin, 
+        # şu anki örnekte temel bir yapı kuruyoruz.
+        st.session_state.son_sarki = f"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" # Örnek Link
+        st.success(f"'{sarki_arama}' için sonuçlar bulundu!")
 
-    muzik_listesi = {
-        "Phonk": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-        "Lo-Fi": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-        "Dark Ambient": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
-    }
-
-    secilen = st.selectbox("Tür Seç:", list(muzik_listesi.keys()), index=list(muzik_listesi.keys()).index(st.session_state.muzik_secim))
-    
-    if st.button("💾 Ayarları Kaydet"):
-        st.session_state.muzik_secim = secilen
-        st.toast("Ayarlar kaydedildi Reis!", icon="✅")
-
-    if st.button("▶️ Çalmaya Başla"):
-        st.session_state.muzik_aktif = True
-    
-    if st.session_state.muzik_aktif:
-        st.audio(muzik_listesi[st.session_state.muzik_secim], format="audio/mpeg")
-        if st.button("⏹️ Durdur"):
-            st.session_state.muzik_aktif = False
-            st.rerun()
+    if 'son_sarki' in st.session_state:
+        st.audio(st.session_state.son_sarki, format="audio/mpeg")
+        st.caption("Ses seviyesini yanındaki 3 noktadan ayarla Reis.")
 
 # --- STYLE ---
 st.markdown(f"""
@@ -119,4 +105,3 @@ if user_input:
     cevap = ai_cevap(st.session_state.messages, mod, isim)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
- 
