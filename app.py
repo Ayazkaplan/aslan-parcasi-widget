@@ -9,7 +9,7 @@ KURUCU_SIFRESI = "KAPLAN_REIS_74"
 AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-st.set_page_config(page_title="Aslan Parçası V12.6", page_icon="🤖")
+st.set_page_config(page_title="Aslan Parçası V12.7", page_icon="🤖")
 
 # --- UI LOGIC ---
 def get_theme_data(mod):
@@ -50,20 +50,24 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-    # --- YOUTUBE GÖMÜLÜ MÜZİK MOTORU V12.6 ---
+    # --- MÜZİK MOTORU V12.7 ---
     st.markdown("---")
-    st.subheader("🎵 Müzik Motoru (Dahili)")
+    st.subheader("🎵 Müzik Motoru")
     
     sarki_arama = st.text_input("Şarkı veya Tür Ara:", key="arama_input")
     if st.button("🔍 Ara"):
-        # Burası arama terimini doğrudan YouTube arama embed'ine dönüştürür
         query = sarki_arama.replace(" ", "+")
-        st.session_state.video_url = f"https://www.youtube.com/embed?listType=search&list={query}"
-        st.success(f"'{sarki_arama}' çalmaya hazır Reis!")
+        st.session_state.direkt_link = f"https://www.youtube.com/results?search_query={query}"
+        st.session_state.son_sarki_adi = sarki_arama
+        st.success(f"'{sarki_arama}' bulundu Reis!")
 
-    if 'video_url' in st.session_state:
-        st.video(st.session_state.video_url)
-        st.caption("Şarkı Aslan Parçası'nın içinde çalıyor. Keyfini çıkar!")
+    if 'direkt_link' in st.session_state:
+        st.markdown(f'''
+            <a href="{st.session_state.direkt_link}" target="_blank" 
+            style="text-decoration:none; color:black; background:gold; padding:15px; border-radius:10px; display:block; text-align:center; font-weight:bold;">
+            ▶️ {st.session_state.son_sarki_adi} OYNAT
+            </a>
+        ''', unsafe_allow_html=True)
 
 # --- STYLE ---
 st.markdown(f"""
@@ -76,7 +80,7 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🤖 Aslan Parçası V12.6")
+st.title("🤖 Aslan Parçası V12.7")
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
