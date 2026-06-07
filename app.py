@@ -114,11 +114,15 @@ with col2:
     if isim == "Ayaz Reis":
         if st.button("⚙️ Yönetici"): st.session_state.admin_panel_open = not st.session_state.admin_panel_open; st.rerun()
 
+# --- YÖNETİCİ PANELİ (İZOLASYON ALANI) ---
+admin_placeholder = st.empty()
 if st.session_state.admin_panel_open:
-    with st.container(border=True):
+    with admin_placeholder.container(border=True):
         st.subheader("🛠️ Yönetici Paneli")
         st.write("Sistem ayarları ve kontrol merkezi.")
         if st.button("❌ Paneli Kapat"): st.session_state.admin_panel_open = False; st.rerun()
+else:
+    admin_placeholder.empty()
 
 def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
     headers = {"Authorization": f"Bearer {API_KEY}"}
@@ -143,4 +147,3 @@ if st.button("🚀 Gönder"):
         st.session_state.messages.append({"role": "assistant", "content": cevap})
         st.session_state.input_key += 1
         st.rerun()
- 
