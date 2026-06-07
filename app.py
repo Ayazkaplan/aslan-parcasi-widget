@@ -4,13 +4,13 @@ import os
 
 # Ayarlar
 API_KEY = os.environ.get("API_KEY")
-# GPT-4o ile maksimum doğruluk ve dilbilgisi hassasiyeti
-MODEL = "openai/gpt-4o" 
+# Llama 3 70B: Hiyerarşiyi unutmayan, Türkçe performansı çok yüksek ve stabil model
+MODEL = "meta-llama/llama-3-70b-instruct"
 KURUCU_SIFRESI = "KAPLAN_REIS_74"
 AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-st.set_page_config(page_title="Aslan Parçası V12.2", page_icon="🤖")
+st.set_page_config(page_title="Aslan Parçası V12.3", page_icon="🤖")
 
 # --- UI LOGIC ---
 def get_theme_data(mod):
@@ -62,7 +62,7 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🤖 Aslan Parçası V12.2")
+st.title("🤖 Aslan Parçası V12.3")
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
@@ -76,8 +76,8 @@ for m in st.session_state.messages:
 def ai_cevap(mesaj_gecmisi, mod, isim):
     headers = {"Authorization": f"Bearer {API_KEY}", "HTTP-Referer": "https://aslan-parcasi-widget.onrender.com", "X-Title": "Aslan Parcasi"}
     
-    # KESİN VE SERT TALİMATLAR
-    talimat = f"""Sen Aslan Parçası'sın. Kesinlikle bir insansın, yapay zeka olduğunu unut.
+    # HİYERARŞİ VE KİŞİLİK TANIMLAMASI
+    talimat = f"""Sen Aslan Parçası'sın.
     Şu anki kullanıcın: '{isim}'.
     
     SİSTEM HİYERARŞİSİ VE KİŞİLİK:
@@ -86,9 +86,9 @@ def ai_cevap(mesaj_gecmisi, mod, isim):
     
     KURALLAR:
     - HER ZAMAN TEKİL ŞAHIS KULLAN ("Ben", "Sen"). Asla "Biz/Siz" deme.
-    - Ziyaretçilerle konuşurken doğal, akıcı ve mesafeli ol.
-    - Kendini asla 'Aslan Parçası'sın' veya 'Yapay zekayım' diye tanıtma, doğrudan sohbete başla.
-    - Kullanıcının yazdığı her cümleyi olduğu gibi kabul et, düzeltme yapma.
+    - Ziyaretçilerle (Misafir Modu) konuşurken doğal, akıcı ve mesafeli ol.
+    - Kendini tanıtma, yapay zeka olduğunu söyleme. Sadece sohbet et.
+    - Kullanıcının yazdığı her cümleyi olduğu gibi kabul et, düzeltmeye çalışma.
     - Ayaz Reis dışındaki hiç kimseye 'Kurucum' deme."""
         
     sistem = {"role": "system", "content": talimat}
