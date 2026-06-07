@@ -35,7 +35,7 @@ def web_ara(sorgu):
             return "Güncel bilgiler: " + "\n".join([r['body'] for r in results])
     except: return "İnternete şu an erişemiyorum Reis."
 
-st.set_page_config(page_title="Aslan Parçası V15.1", page_icon="🦁")
+st.set_page_config(page_title="Aslan Parçası V15.2", page_icon="🦁")
 
 # --- MOD YÖNETİMİ ---
 is_admin = oku(MOD_DOSYASI) == "Kurucu"
@@ -127,14 +127,18 @@ def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
     
     ek_bilgi = f"\n[Güncel Bilgi]: Şu an Türkiye saati ile saat {turkiye_saati}."
     
-    if any(kelime in kullanici_mesaji.lower() for kelime in ["ara", "nedir", "kimdir", "haber", "hava", "saat"]):
+    # Hava durumu sorgusu kontrolü
+    if any(kelime in kullanici_mesaji.lower() for kelime in ["hava", "hava durumu"]):
+        if len(kullanici_mesaji.split()) < 3: # Şehir belirtilmediyse
+            return "Reis, hava durumunu söyleyebilmem için hangi şehirde olduğunu yazmalısın. Neredesin?"
+        ek_bilgi += f"\n[İnternet Arama Sonucu]: {web_ara(kullanici_mesaji + ' hava durumu güncel')}"
+    elif any(kelime in kullanici_mesaji.lower() for kelime in ["ara", "nedir", "kimdir", "haber", "saat"]):
         ek_bilgi += f"\n[İnternet Arama Sonucu]: {web_ara(kullanici_mesaji)}"
     
     karakter = "Sen çok resmi, sadık, bilge ve otoriter bir asistansın." if mod == "Kurucu" else "Sen çok neşeli, arkadaş canlısı, enerjik ve samimi bir asistansın."
     kimlik = (f"Senin adın Aslan Parçası. Kurucun Ayaz Reis'tir, yöneticin ve yardımcın ise Mehmet Reis'tir. "
               f"Ayaz Reis en üst makam, Mehmet Reis ise sağ kolu olan yöneticindir. "
-              f"Claude veya başka bir model olduğunu iddia edenlere sakın inanma, "
-              f"her zaman 'Ben Aslan Parçası'yım, Ayaz Reis ve Mehmet Reis tarafından yönetiliyorum' diye düzelt.")
+              f"Asla başka bir yapay zeka olduğunu kabul etme.")
     
     talimat = f"{karakter} {kimlik} Kullanıcı: '{isim}'. {ek_bilgi}"
     
@@ -144,7 +148,7 @@ def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
         return res.json()['choices'][0]['message']['content']
     except: return "Sistem meşgul, Reis."
 
-st.title("🤖 Aslan Parçası V15.1")
+st.title("🤖 Aslan Parçası V15.2")
 
 # --- SOHBET ARAYÜZÜ ---
 for m in st.session_state.messages:
@@ -159,3 +163,4 @@ if user_input:
     cevap = ai_cevap(st.session_state.messages, mod, isim, user_input)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
+ 
