@@ -15,6 +15,8 @@ def init_db():
     cursor = conn.cursor()
     cursor.execute('''CREATE TABLE IF NOT EXISTS kullanicilar 
                       (isim TEXT PRIMARY KEY, sifre TEXT, rol TEXT)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS genel_sohbet 
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT, gonderen TEXT, mesaj TEXT, zaman TIMESTAMP)''')
     conn.commit()
     conn.close()
 
@@ -23,10 +25,12 @@ init_db()
 # --- AYARLAR ---
 API_KEY = os.environ.get("API_KEY")
 MODEL = "anthropic/claude-3-haiku"
-KURUCU_ANAHTARI = "NiHAi_-kuRucU-AyAz" # Senin özel bypass anahtarın
+KURUCU_ANAHTARI = "NiHAi_-kuRucU-AyAz" # Bypass şifren
 AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 DOSYA_ADI = "sarki_id.txt"
+MOD_DOSYASI = "mod_id.txt"
+ISIM_DOSYASI = "isim_id.txt"
 TEMA_KURUCU = "tema_kurucu.txt"
 TEMA_MISAFIR = "tema_misafir.txt"
 
@@ -38,6 +42,9 @@ def oku(dosya):
     if os.path.exists(dosya):
         with open(dosya, "r") as f: return f.read().strip()
     return ""
+
+def sil(dosya):
+    if os.path.exists(dosya): os.remove(dosya)
 
 def web_ara(sorgu):
     try:
@@ -52,53 +59,65 @@ st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁")
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "current_user" not in st.session_state: st.session_state.current_user = None
 if "rol" not in st.session_state: st.session_state.rol = "Misafir"
-if "messages" not in st.session_state: st.session_state.messages = []
-if "input_key" not in st.session_state: st.session_state.input_key = 0
-if "admin_panel_open" not in st.session_state: st.session_state.admin_panel_open = False
+
+def kayit_ol(isim, sifre):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO kullanicilar VALUES (?, ?, ?)", (isim, sifre, "Misafir"))
+        conn.commit()
+        return True
+    except: return False
+    finally: conn.close()
+
+def giris_yap(isim, sifre):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM kullanicilar WHERE isim=? AND sifre=?", (isim, sifre))
+    user = cursor.fetchone()
+    conn.close()
+    return user
 
 # --- GİRİŞ EKRANI ---
 if not st.session_state.logged_in:
     st.title("🦁 Aslan Parçası - Giriş Sistemi")
+    
+    # 1. GİZLİ BYPASS (Sadece sidebar'da ve sadece sence gözükür)
+    st.sidebar.markdown("---")
+    gizli_bypass = st.sidebar.text_input("🔧 Sistem Ayarları", type="password")
+    if gizli_bypass == KURUCU_ANAHTARI:
+        yeni_ad = st.sidebar.text_input("Kurucu Adın:")
+        if st.sidebar.button("Kurucu Hesabı Oluştur"):
+            st.session_state.logged_in = True
+            st.session_state.current_user = yeni_ad
+            st.session_state.rol = "Kurucu"
+            st.rerun()
+
+    # 2. STANDART KULLANICI GİRİŞİ
     menu = st.radio("Seçim:", ["Giriş Yap", "Kayıt Ol"])
     u_isim = st.text_input("Kullanıcı Adı")
     u_sifre = st.text_input("Şifre", type="password")
     
-    if st.button("🚀 Giriş / Kayıt İşlemi"):
-        conn = get_db()
-        cursor = conn.cursor()
+    if st.button("🚀 İşlemi Başlat"):
         if menu == "Kayıt Ol":
-            try:
-                cursor.execute("INSERT INTO kullanicilar VALUES (?, ?, ?)", (u_isim, u_sifre, "Misafir"))
-                conn.commit(); st.success("Kayıt başarılı!"); st.rerun()
-            except: st.error("İsim alınmış.")
+            if kayit_ol(u_isim, u_sifre): st.success("Kayıt tamam!"); st.rerun()
+            else: st.error("İsim alınmış!")
         else:
-            cursor.execute("SELECT * FROM kullanicilar WHERE isim=? AND sifre=?", (u_isim, u_sifre))
-            user = cursor.fetchone()
+            user = giris_yap(u_isim, u_sifre)
             if user:
                 st.session_state.logged_in = True
                 st.session_state.current_user = u_isim
-                st.session_state.rol = user[2]
+                st.session_state.rol = "Misafir"
                 st.rerun()
             else: st.error("Hatalı bilgiler!")
-        conn.close()
-
-    # --- SANA ÖZEL GİZLİ BYPASS (Sidebar en altı) ---
-    st.sidebar.markdown("---")
-    gizli_bypass = st.sidebar.text_input("🔧 Sistem Ayarları", type="password")
-    if gizli_bypass == KURUCU_ANAHTARI:
-        st.sidebar.success("Kurucu Modu Aktif!")
-        yeni_kurucu_adi = st.sidebar.text_input("Yeni Kurucu Adı:")
-        if st.sidebar.button("Kurucu Hesabı Oluştur"):
-            st.session_state.logged_in = True
-            st.session_state.current_user = yeni_kurucu_adi
-            st.session_state.rol = "Kurucu"
-            st.rerun()
     st.stop()
 
 # --- GİRİŞ YAPMIŞ ALAN ---
 mod = st.session_state.rol
+isim = st.session_state.current_user
+
 with st.sidebar:
-    st.write(f"Hoş geldin Reis: {st.session_state.current_user}")
+    st.write(f"Hoş geldin: {isim} ({mod})")
     if st.button("🚪 Çıkış Yap"): st.session_state.logged_in = False; st.rerun()
     
     # Tema Ayarları
@@ -109,8 +128,7 @@ with st.sidebar:
     tema_secimi = st.selectbox("Arka Plan:", list(theme_map.keys()))
     if st.button("💾 Temayı Kaydet"): kaydet(tema_dosyasi, tema_secimi); st.rerun()
     bg_color, text_color = theme_map[tema_secimi]
-    if st.button("🔄 Sohbeti Temizle"): st.session_state.messages = []; st.rerun()
-
+    
     st.markdown("---")
     st.subheader("🎵 Müzik Motoru")
     kayitli_id = oku(DOSYA_ADI)
@@ -134,21 +152,21 @@ def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
     headers = {"Authorization": f"Bearer {API_KEY}"}
     ek_bilgi = f"\n[Bilgi]: Saat {(datetime.utcnow() + timedelta(hours=3)).strftime('%H:%M')}."
     if any(k in kullanici_mesaji.lower() for k in ["hava", "ara", "nedir"]): ek_bilgi += f"\n[İnternet]: {web_ara(kullanici_mesaji)}"
-    karakter = "Sen otoriter bir asistansın." if mod == "Kurucu" else "Sen neşeli bir asistansın."
+    karakter = "Sen neşeli, samimi ve sadık bir asistansın." if mod == "Kurucu" else "Sen ciddi ve otoriter bir asistansın."
     try:
         res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json={"model": MODEL, "messages": [{"role": "system", "content": f"{karakter} Adın Aslan Parçası. {ek_bilgi}"}] + mesaj_gecmisi[-6:]})
         return res.json()['choices'][0]['message']['content']
     except: return "Sistem meşgul, Reis."
 
+if "messages" not in st.session_state: st.session_state.messages = []
 for m in st.session_state.messages:
     if m["role"] == "assistant": st.markdown(f'<div class="assistant-box">{m["content"]}</div>', unsafe_allow_html=True)
     else: st.markdown(f'<div class="user-box">{m["content"]}</div>', unsafe_allow_html=True)
 
-user_input = st.text_area("Mesajını yaz:", key=f"chat_input_{st.session_state.input_key}")
+user_input = st.text_area("Mesajını yaz:")
 if st.button("🚀 Gönder"):
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
-        cevap = ai_cevap(st.session_state.messages, mod, st.session_state.current_user, user_input)
+        cevap = ai_cevap(st.session_state.messages, mod, isim, user_input)
         st.session_state.messages.append({"role": "assistant", "content": cevap})
-        st.session_state.input_key += 1
         st.rerun()
