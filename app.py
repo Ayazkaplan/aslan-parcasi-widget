@@ -2,21 +2,23 @@ import streamlit as st
 import requests
 import os
 import psycopg2
-from datetime import datetime, timedelta
+import socket
 
 # --- VERİTABANI BAĞLANTISI (BULUT) ---
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db():
-    # Transaction modunda (6543 portu) bağlantı için sslmode=require gereklidir.
-    # Bu, "no tenant identifier" hatasını aşmak için en kararlı yöntemdir.
+    # IPv6 hatasını aşmak için: host ismini IP'ye çevirip bağlantıyı zorluyoruz.
     try:
-        if not DATABASE_URL:
-            st.error("DATABASE_URL ayarlanmamış!")
-            st.stop()
-        # sslmode=require ekleyerek bağlantıyı güvenli hale getiriyoruz
-        conn_string = DATABASE_URL if "?sslmode=" in DATABASE_URL else f"{DATABASE_URL}?sslmode=require"
-        return psycopg2.connect(conn_string, connect_timeout=10)
+        # Host adını URL'den alıyoruz (örnek: db.imacor...supabase.co)
+        host = DATABASE_URL.split("@")[1].split(":")[0]
+        # Hostu IP adresine çevirerek IPv4'e zorluyoruz
+        ip = socket.gethostbyname(host)
+        # Orijinal URL'deki host ismini IP ile değiştiriyoruz
+        dsn = DATABASE_URL.replace(host, ip)
+        
+        # Bağlantı
+        return psycopg2.connect(dsn, connect_timeout=10)
     except Exception as e:
         st.error(f"Veritabanı bağlantı hatası: {e}")
         st.stop()
@@ -139,4 +141,3 @@ if st.button("🚀 Gönder"):
         cevap = ai_cevap(st.session_state.messages, mod, user_input)
         st.session_state.messages.append({"role": "assistant", "content": cevap})
         st.rerun()
- 
