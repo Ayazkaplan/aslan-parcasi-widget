@@ -13,9 +13,9 @@ def get_db():
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
-    # Kullanıcılar tablosu
+    # Kullanıcılar tablosu (Şifre eklendi)
     cursor.execute('''CREATE TABLE IF NOT EXISTS kullanicilar 
-                      (isim TEXT PRIMARY KEY, rol TEXT, tema TEXT, video_id TEXT, ozel_tag TEXT)''')
+                      (isim TEXT PRIMARY KEY, sifre TEXT, rol TEXT, tema TEXT, video_id TEXT, ozel_tag TEXT)''')
     # Genel Sohbet tablosu
     cursor.execute('''CREATE TABLE IF NOT EXISTS genel_sohbet 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, gonderen TEXT, mesaj TEXT, zaman TIMESTAMP)''')
@@ -61,6 +61,28 @@ def web_ara(sorgu):
 
 st.set_page_config(page_title="Aslan Parçası V16.3", page_icon="🦁")
 
+# --- HESAP SİSTEMİ ---
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if "current_user" not in st.session_state: st.session_state.current_user = None
+
+def kayit_ol(isim, sifre):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO kullanicilar (isim, sifre, rol) VALUES (?, ?, ?)", (isim, sifre, "Misafir"))
+        conn.commit()
+        return True
+    except: return False
+    finally: conn.close()
+
+def giris_yap(isim, sifre):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM kullanicilar WHERE isim=? AND sifre=?", (isim, sifre))
+    user = cursor.fetchone()
+    conn.close()
+    return user
+
 # --- MOD YÖNETİMİ ---
 is_admin = oku(MOD_DOSYASI) == "Kurucu"
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -90,25 +112,45 @@ def get_theme_data(mod):
     return assistant_box_bg, themes
 
 with st.sidebar:
-    if not is_admin:
-        sifre = st.text_input("🔑 Şifre:", type="password")
-        if sifre == KURUCU_SIFRESI: kaydet(MOD_DOSYASI, "Kurucu"); st.rerun()
+    if not st.session_state.logged_in:
+        st.subheader("Giriş / Kayıt")
+        menu = st.radio("Seçim:", ["Giriş Yap", "Kayıt Ol"])
+        u_isim = st.text_input("Kullanıcı Adı")
+        u_sifre = st.text_input("Şifre", type="password")
+        if menu == "Kayıt Ol":
+            if st.button("Kayıt Ol"):
+                if kayit_ol(u_isim, u_sifre): st.success("Başarılı!")
+                else: st.error("Bu isim alınmış!")
+        else:
+            if st.button("Giriş"):
+                if giris_yap(u_isim, u_sifre): st.session_state.logged_in = True; st.session_state.current_user = u_isim; st.rerun()
+                else: st.error("Bilgiler hatalı!")
         mod, isim = "Misafir", "Ziyaretçi"
     else:
-        st.success("✅ Kurucu Modu Aktif")
-        if st.button("🚪 Çıkış Yap"): sil(MOD_DOSYASI); sil(ISIM_DOSYASI); st.session_state.ayaz_yetkili = False; st.rerun()
-        mod = "Kurucu"
-        kayitli_isim = oku(ISIM_DOSYASI) or "Mehmet Reis"
-        secim = st.selectbox("👤 Kimsin Reis?", ["Mehmet Reis", "Ayaz Reis"], index=["Mehmet Reis", "Ayaz Reis"].index(kayitli_isim))
-        if secim == "Ayaz Reis":
-            if not st.session_state.ayaz_yetkili:
-                gizli_sifre = st.text_input("👑 Ayaz Reis Şifresi:", type="password")
-                if st.button("Doğrula"):
-                    if gizli_sifre == NIHAI_SIFRE: st.session_state.ayaz_yetkili = True; kaydet(ISIM_DOSYASI, "Ayaz Reis"); st.rerun()
-                    else: st.error("❌ Hatalı Şifre!")
-                isim = "Mehmet Reis"
-            else: isim = "Ayaz Reis"
-        else: st.session_state.ayaz_yetkili = False; kaydet(ISIM_DOSYASI, "Mehmet Reis"); isim = "Mehmet Reis"
+        st.write(f"Hoş geldin, {st.session_state.current_user}")
+        if st.button("Çıkış Yap"): st.session_state.logged_in = False; st.rerun()
+        
+        # Orijinal Mod/Admin mantığı devamı
+        if not is_admin:
+            sifre = st.text_input("🔑 Şifre:", type="password")
+            if sifre == KURUCU_SIFRESI: kaydet(MOD_DOSYASI, "Kurucu"); st.rerun()
+            mod = "Misafir"
+            isim = st.session_state.current_user
+        else:
+            st.success("✅ Kurucu Modu Aktif")
+            if st.button("🚪 Çıkış Yap"): sil(MOD_DOSYASI); sil(ISIM_DOSYASI); st.session_state.ayaz_yetkili = False; st.rerun()
+            mod = "Kurucu"
+            kayitli_isim = oku(ISIM_DOSYASI) or "Mehmet Reis"
+            secim = st.selectbox("👤 Kimsin Reis?", ["Mehmet Reis", "Ayaz Reis"], index=["Mehmet Reis", "Ayaz Reis"].index(kayitli_isim))
+            if secim == "Ayaz Reis":
+                if not st.session_state.ayaz_yetkili:
+                    gizli_sifre = st.text_input("👑 Ayaz Reis Şifresi:", type="password")
+                    if st.button("Doğrula"):
+                        if gizli_sifre == NIHAI_SIFRE: st.session_state.ayaz_yetkili = True; kaydet(ISIM_DOSYASI, "Ayaz Reis"); st.rerun()
+                        else: st.error("❌ Hatalı Şifre!")
+                    isim = "Mehmet Reis"
+                else: isim = "Ayaz Reis"
+            else: st.session_state.ayaz_yetkili = False; kaydet(ISIM_DOSYASI, "Mehmet Reis"); isim = "Mehmet Reis"
 
     tema_dosyasi = TEMA_KURUCU if mod == "Kurucu" else TEMA_MISAFIR
     assistant_box_bg, theme_map = get_theme_data(mod)
@@ -137,15 +179,12 @@ with col2:
     if isim == "Ayaz Reis":
         if st.button("⚙️ Yönetici"): st.session_state.admin_panel_open = not st.session_state.admin_panel_open; st.rerun()
 
-# --- YÖNETİCİ PANELİ (İZOLASYON ALANI) ---
 admin_placeholder = st.empty()
 if st.session_state.admin_panel_open:
     with admin_placeholder.container(border=True):
         st.subheader("🛠️ Yönetici Paneli")
         st.write("Sistem ayarları ve kontrol merkezi.")
         if st.button("❌ Paneli Kapat"): st.session_state.admin_panel_open = False; st.rerun()
-else:
-    admin_placeholder.empty()
 
 def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
     headers = {"Authorization": f"Bearer {API_KEY}"}
@@ -162,11 +201,15 @@ for m in st.session_state.messages:
     if m["role"] == "assistant": st.markdown(f'<div class="assistant-box"><div class="aslan-header"><img src="{AVATAR_URL}" width="30" style="border-radius:50%"> Aslan Parçası</div>{m["content"]}</div>', unsafe_allow_html=True)
     else: st.markdown(f'<div class="user-box"><div class="user-header">{isim} <img src="{USER_AVATAR}" width="30" style="border-radius:50%"></div>{m["content"]}</div>', unsafe_allow_html=True)
 
-user_input = st.text_area("Mesajını yaz:", height=100, key=f"chat_input_{st.session_state.input_key}")
-if st.button("🚀 Gönder"):
-    if user_input:
-        st.session_state.messages.append({"role": "user", "content": user_input})
-        cevap = ai_cevap(st.session_state.messages, mod, isim, user_input)
-        st.session_state.messages.append({"role": "assistant", "content": cevap})
-        st.session_state.input_key += 1
-        st.rerun()
+if st.session_state.logged_in:
+    user_input = st.text_area("Mesajını yaz:", height=100, key=f"chat_input_{st.session_state.input_key}")
+    if st.button("🚀 Gönder"):
+        if user_input:
+            st.session_state.messages.append({"role": "user", "content": user_input})
+            cevap = ai_cevap(st.session_state.messages, mod, isim, user_input)
+            st.session_state.messages.append({"role": "assistant", "content": cevap})
+            st.session_state.input_key += 1
+            st.rerun()
+else:
+    st.info("Sohbeti başlatmak için lütfen giriş yapın veya kayıt olun.")
+ 
