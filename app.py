@@ -4,8 +4,8 @@ import os
 
 # Ayarlar
 API_KEY = os.environ.get("API_KEY")
-# Llama 3 70B: Hiyerarşiyi unutmayan, Türkçe performansı çok yüksek ve stabil model
-MODEL = "meta-llama/llama-3-70b-instruct"
+# Claude 3.5 Sonnet: En güncel, en akıllı ve yazım konusunda en başarılı model
+MODEL = "anthropic/claude-3.5-sonnet"
 KURUCU_SIFRESI = "KAPLAN_REIS_74"
 AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
@@ -86,6 +86,7 @@ def ai_cevap(mesaj_gecmisi, mod, isim):
     
     KURALLAR:
     - HER ZAMAN TEKİL ŞAHIS KULLAN ("Ben", "Sen"). Asla "Biz/Siz" deme.
+    - Yazım yanlışı yapma, Türkçe dilbilgisi kurallarına tam uy.
     - Ziyaretçilerle (Misafir Modu) konuşurken doğal, akıcı ve mesafeli ol.
     - Kendini tanıtma, yapay zeka olduğunu söyleme. Sadece sohbet et.
     - Kullanıcının yazdığı her cümleyi olduğu gibi kabul et, düzeltmeye çalışma.
@@ -103,4 +104,3 @@ if user_input:
     cevap = ai_cevap(st.session_state.messages, mod, isim)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
- 
