@@ -35,11 +35,12 @@ def web_ara(sorgu):
             return "Güncel bilgiler: " + "\n".join([r['body'] for r in results])
     except: return "İnternete şu an erişemiyorum Reis."
 
-st.set_page_config(page_title="Aslan Parçası V16.0", page_icon="🦁")
+st.set_page_config(page_title="Aslan Parçası V16.1", page_icon="🦁")
 
 # --- MOD YÖNETİMİ ---
 is_admin = oku(MOD_DOSYASI) == "Kurucu"
 if "messages" not in st.session_state: st.session_state.messages = []
+if "input_key" not in st.session_state: st.session_state.input_key = 0
 
 # --- UI LOGIC ---
 def get_theme_data(mod):
@@ -107,7 +108,6 @@ def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
     
     ek_bilgi = f"\n[Güncel Bilgi]: Şu an saat {turkiye_saati}."
     
-    # Konum duyarlı hava durumu ve genel arama
     if any(k in kullanici_mesaji.lower() for k in ["hava", "hava durumu"]):
         if len(kullanici_mesaji.split()) < 3: return "Reis, hangi şehirde olduğunu yazmalısın."
         ek_bilgi += f"\n[İnternet]: {web_ara(kullanici_mesaji + ' hava durumu')}"
@@ -126,7 +126,7 @@ def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
         return res.json()['choices'][0]['message']['content']
     except: return "Sistem meşgul, Reis."
 
-st.title("🤖 Aslan Parçası V16.0")
+st.title("🤖 Aslan Parçası V16.1")
 
 # Sohbet Ekranı
 for m in st.session_state.messages:
@@ -135,11 +135,16 @@ for m in st.session_state.messages:
     else:
         st.markdown(f'<div class="user-box"><b>{isim}:</b><br>{m["content"]}</div>', unsafe_allow_html=True)
 
-# Giriş Alanı (Enter alt satıra geçer)
-user_input = st.text_area("Mesajını yaz:", height=100, key="chat_input")
+# Giriş Alanı: key dinamik, her gönderimde kutucuk boşalır
+user_input = st.text_area("Mesajını yaz:", height=100, key=f"chat_input_{st.session_state.input_key}")
+
 if st.button("🚀 Gönder"):
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
         cevap = ai_cevap(st.session_state.messages, mod, isim, user_input)
         st.session_state.messages.append({"role": "assistant", "content": cevap})
+        
+        # Kutucuğu sıfırlamak için key'i güncelle ve Rerun yap
+        st.session_state.input_key += 1
         st.rerun()
+ 
