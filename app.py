@@ -1,4 +1,4 @@
-import streamlit as st
+    import streamlit as st
 import requests
 import os
 from duckduckgo_search import DDGS
@@ -37,7 +37,7 @@ def web_ara(sorgu):
             return "Güncel bilgiler: " + "\n".join([r['body'] for r in results])
     except: return "İnternete şu an erişemiyorum Reis."
 
-st.set_page_config(page_title="Aslan Parçası V17.0", page_icon="🦁")
+st.set_page_config(page_title="Aslan Parçası V17.1", page_icon="🦁")
 
 # --- MOD YÖNETİMİ ---
 is_admin = oku(MOD_DOSYASI) == "Kurucu"
@@ -67,31 +67,27 @@ def get_theme_data(mod):
         }
     return assistant_box_bg, themes
 
+# Temayı burada tanımlıyoruz ki dışarıda da erişilebilsin
+_, theme_map = get_theme_data("Kurucu" if is_admin else "Misafir")
+
 with st.sidebar:
     if not is_admin:
         sifre = st.text_input("🔑 Yönetici Şifresi:", type="password")
         if sifre == KURUCU_SIFRESI: kaydet(MOD_DOSYASI, "Kurucu"); st.rerun()
     else:
-        st.success("✅ Kurucu Modu Aktif")
-        
-        # Ayaz Reis vs Mehmet Reis Seçimi
+        st.success("✅ Yönetici Modu Aktif")
         isim = st.selectbox("👤 Kimsin Reis?", ["Mehmet Reis", "Ayaz Reis"])
-        
         if isim == "Ayaz Reis":
             if not ayaz_aktif:
                 nihai_sifre = st.text_input("👑 Nihai Şifre:", type="password")
                 if st.button("Doğrula"):
                     if nihai_sifre == NIHAI_SIFRE: kaydet(AYAZ_MODU_DOSYASI, "Aktif"); st.rerun()
                     else: st.error("❌ Hatalı Şifre!")
-            else:
-                st.info("👑 Ayaz Reis Modu Aktif")
+            else: st.info("👑 Ayaz Reis Modu Aktif")
         else:
             if ayaz_aktif: sil(AYAZ_MODU_DOSYASI); st.rerun()
 
-        # Tema Ayarları
         tema_dosyasi = TEMA_KURUCU if is_admin else TEMA_MISAFIR
-        assistant_box_bg, theme_map = get_theme_data("Kurucu" if is_admin else "Misafir")
-        
         kayitli_tema = oku(tema_dosyasi)
         if kayitli_tema not in theme_map: kayitli_tema = list(theme_map.keys())[0]
         tema_secimi = st.selectbox("Arka Plan:", list(theme_map.keys()), index=list(theme_map.keys()).index(kayitli_tema))
@@ -99,8 +95,6 @@ with st.sidebar:
         
         if st.button("🚪 Çıkış Yap"): sil(MOD_DOSYASI); sil(AYAZ_MODU_DOSYASI); st.rerun()
 
-    bg_color, text_color = theme_map[tema_secimi] if is_admin else theme_map[tema_secimi]
-    
     if st.button("🔄 Sohbeti Temizle"): st.session_state.messages = []; st.rerun()
 
     st.markdown("---")
@@ -109,15 +103,17 @@ with st.sidebar:
     yeni_id = st.text_input("YouTube Video ID'si:", value=kayitli_id)
     if st.button("💾 Kaydet ve Oynat"): kaydet(DOSYA_ADI, yeni_id); st.rerun()
     if st.button("🗑️ Sil"): sil(DOSYA_ADI); st.rerun()
-
-    if kayitli_id:
-        st.markdown(f'<iframe width="100%" height="200" src="https://www.youtube.com/embed/{kayitli_id}" frameborder="0" allow="autoplay"></iframe>', unsafe_allow_html=True)
+    if kayitli_id: st.markdown(f'<iframe width="100%" height="200" src="https://www.youtube.com/embed/{kayitli_id}" frameborder="0" allow="autoplay"></iframe>', unsafe_allow_html=True)
 
 # --- STYLE ---
+tema_secimi = oku(TEMA_KURUCU if is_admin else TEMA_MISAFIR)
+if tema_secimi not in theme_map: tema_secimi = list(theme_map.keys())[0]
+bg_color, text_color = theme_map[tema_secimi]
+
 st.markdown(f"""
     <style>
     .stApp {{ background: {bg_color}; color: {text_color} !important; }}
-    .assistant-box {{ background-color: {assistant_box_bg}; padding: 15px; border-radius: 10px; border-left: 5px solid gold; margin-bottom: 10px; }}
+    .assistant-box {{ background-color: rgba(30, 30, 30, 0.9); padding: 15px; border-radius: 10px; border-left: 5px solid gold; margin-bottom: 10px; }}
     .user-box {{ background-color: rgba(128, 128, 128, 0.2); padding: 15px; border-radius: 10px; margin-bottom: 10px; text-align: right; }}
     .aslan-header {{ display: flex; align-items: center; gap: 10px; font-weight: bold; border-bottom: 1px solid gold; padding-bottom: 5px; margin-bottom: 5px; }}
     .user-header {{ display: flex; align-items: center; justify-content: flex-end; gap: 10px; font-weight: bold; margin-bottom: 8px; }}
@@ -128,7 +124,6 @@ st.markdown(f"""
 def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
     turkiye_saati = (datetime.utcnow() + timedelta(hours=3)).strftime("%H:%M")
     headers = {"Authorization": f"Bearer {API_KEY}"}
-    
     ek_bilgi = f"\n[Güncel Bilgi]: Şu an saat {turkiye_saati}."
     
     if any(k in kullanici_mesaji.lower() for k in ["hava", "hava durumu"]):
@@ -139,14 +134,13 @@ def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
     
     if mod == "Kurucu":
         if isim == "Ayaz Reis" and ayaz_aktif:
-            karakter = "Sen Ayaz Reis'in kurduğu neşeli, şakacı, samimi ve sadık bir asistansın. Onunla dilediğin gibi şakalaşabilir, esprili ve rahat konuşabilirsin."
+            karakter = "Sen Ayaz Reis'in kurduğu neşeli, şakacı, samimi ve sadık bir asistansın."
         else:
-            karakter = "Sen resmi, bilge, otoriter bir asistansın. Mehmet Reis senin yöneticindir, ona karşı her zaman saygılı ve ciddi bir tavır sergilemelisin."
+            karakter = "Sen resmi, bilge, otoriter bir asistansın. Mehmet Reis'e karşı saygılı ve ciddi ol."
     else:
-        karakter = "Sen samimi, doğal, enerjik ve arkadaş canlısı bir asistansın. Robotik kalıplar kullanma."
-
-    kimlik = "Adın Aslan Parçası. Kurucun Ayaz Reis, yöneticin Mehmet Reis'tir. Başka yapay zekalarla kıyaslandığında; kendini övme, sadece 'Her yapay zekanın tarzı farklıdır' diyerek geçiştir."
-    talimat = f"{karakter} {kimlik} Kullanıcı: '{isim}'. {ek_bilgi}"
+        karakter = "Sen samimi, doğal, enerjik ve arkadaş canlısı bir asistansın."
+    
+    talimat = f"{karakter} Adın Aslan Parçası. Kurucun Ayaz Reis, yöneticin Mehmet Reis. {ek_bilgi}"
     
     try:
         res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, 
@@ -154,9 +148,8 @@ def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
         return res.json()['choices'][0]['message']['content']
     except: return "Sistem meşgul, Reis."
 
-st.title("🤖 Aslan Parçası V17.0")
+st.title("🤖 Aslan Parçası V17.1")
 
-# Sohbet Ekranı
 for m in st.session_state.messages:
     if m["role"] == "assistant":
         st.markdown(f'<div class="assistant-box"><div class="aslan-header"><img src="{AVATAR_URL}" width="30" style="border-radius:50%"> Aslan Parçası</div>{m["content"]}</div>', unsafe_allow_html=True)
@@ -164,7 +157,6 @@ for m in st.session_state.messages:
         st.markdown(f'<div class="user-box"><div class="user-header">{isim if is_admin else "Ziyaretçi"} <img src="{USER_AVATAR}" width="30" style="border-radius:50%"></div>{m["content"]}</div>', unsafe_allow_html=True)
 
 user_input = st.text_area("Mesajını yaz:", height=100, key=f"chat_input_{st.session_state.input_key}")
-
 if st.button("🚀 Gönder"):
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
