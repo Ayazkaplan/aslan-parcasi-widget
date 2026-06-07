@@ -27,7 +27,7 @@ def oku(dosya):
 def sil(dosya):
     if os.path.exists(dosya): os.remove(dosya)
 
-# --- WEB ARAMA & HAVA DURUMU ---
+# --- WEB ARAMA ---
 def web_ara(sorgu):
     try:
         with DDGS() as ddgs:
@@ -35,7 +35,7 @@ def web_ara(sorgu):
             return "Güncel bilgiler: " + "\n".join([r['body'] for r in results])
     except: return "İnternete şu an erişemiyorum Reis."
 
-st.set_page_config(page_title="Aslan Parçası V15.0", page_icon="🦁")
+st.set_page_config(page_title="Aslan Parçası V15.1", page_icon="🦁")
 
 # --- MOD YÖNETİMİ ---
 is_admin = oku(MOD_DOSYASI) == "Kurucu"
@@ -107,7 +107,7 @@ with st.sidebar:
         st.rerun()
 
     if kayitli_id:
-        st.markdown(f'<iframe width="100%" height="200" src="https://www.youtube.com/embed/{kayitli_id}" frameborder="0" allow="autoplay"></iframe>', unsafe_html=True)
+        st.markdown(f'<iframe width="100%" height="200" src="https://www.youtube.com/embed/{kayitli_id}" frameborder="0" allow="autoplay"></iframe>', unsafe_allow_html=True)
 
 # --- STYLE ---
 st.markdown(f"""
@@ -118,7 +118,7 @@ st.markdown(f"""
     .aslan-header {{ display: flex; align-items: center; gap: 10px; font-weight: bold; border-bottom: 1px solid gold; padding-bottom: 5px; margin-bottom: 5px; }}
     .user-header {{ display: flex; align-items: center; justify-content: flex-end; gap: 10px; font-weight: bold; margin-bottom: 8px; }}
     </style>
-    """, unsafe_html=True)
+    """, unsafe_allow_html=True)
 
 # --- AI CEVAP MOTORU ---
 def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
@@ -144,7 +144,7 @@ def ai_cevap(mesaj_gecmisi, mod, isim, kullanici_mesaji):
         return res.json()['choices'][0]['message']['content']
     except: return "Sistem meşgul, Reis."
 
-st.title("🤖 Aslan Parçası V15.0")
+st.title("🤖 Aslan Parçası V15.1")
 
 # --- SOHBET ARAYÜZÜ ---
 for m in st.session_state.messages:
