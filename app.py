@@ -25,7 +25,10 @@ def sil(dosya):
 
 st.set_page_config(page_title="Aslan Parçası V14.0", page_icon="🤖")
 
+# Session State Hazırlığı
 if "messages" not in st.session_state: st.session_state.messages = []
+if "is_admin" not in st.session_state: st.session_state.is_admin = False
+if "isim" not in st.session_state: st.session_state.isim = "Ziyaretçi"
 
 # --- UI LOGIC ---
 def get_theme_data(mod):
@@ -50,9 +53,25 @@ def get_theme_data(mod):
     return assistant_box_bg, themes
 
 with st.sidebar:
-    sifre = st.text_input("🔑 Şifre:", type="password")
-    mod = "Kurucu" if sifre == KURUCU_SIFRESI else "Misafir"
-    isim = st.selectbox("👤 Kimsin Reis?", ["Ayaz Reis", "Mehmet Reis"]) if mod == "Kurucu" else "Ziyaretçi"
+    # Şifre girişi
+    if not st.session_state.is_admin:
+        sifre = st.text_input("🔑 Şifre:", type="password")
+        if sifre == KURUCU_SIFRESI:
+            st.session_state.is_admin = True
+            st.rerun()
+    else:
+        st.success("✅ Kurucu Modu Aktif")
+        if st.button("🚪 Çıkış Yap"):
+            st.session_state.is_admin = False
+            st.rerun()
+
+    mod = "Kurucu" if st.session_state.is_admin else "Misafir"
+    
+    # İsim seçimi
+    if mod == "Kurucu":
+        st.session_state.isim = st.selectbox("👤 Kimsin Reis?", ["Ayaz Reis", "Mehmet Reis"], index=0 if st.session_state.isim == "Ayaz Reis" else 1)
+    else:
+        st.session_state.isim = "Ziyaretçi"
         
     # --- TEMA SEÇİMİ ---
     assistant_box_bg, theme_map = get_theme_data(mod)
@@ -73,7 +92,6 @@ with st.sidebar:
     # --- MÜZİK MOTORU ---
     st.markdown("---")
     st.subheader("🎵 Müzik Motoru")
-    
     kayitli_id = oku(DOSYA_ADI)
     yeni_id = st.text_input("YouTube Video ID'si:", value=kayitli_id)
     
@@ -108,17 +126,11 @@ for m in st.session_state.messages:
     if m["role"] == "assistant":
         st.markdown(f"""<div class="assistant-box"><div class="aslan-header"><img src="{AVATAR_URL}" width="30" style="border-radius:50%"> Aslan Parçası</div><div>{m['content']}</div></div>""", unsafe_allow_html=True)
     else:
-        st.markdown(f"""<div class="user-box"><div class="user-header">{isim} <img src="{USER_AVATAR}" width="30" style="border-radius:50%"></div><div>{m['content']}</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="user-box"><div class="user-header">{st.session_state.isim} <img src="{USER_AVATAR}" width="30" style="border-radius:50%"></div><div>{m['content']}</div></div>""", unsafe_allow_html=True)
 
-# --- BİLİNÇLİ AI CEVAP MOTORU ---
 def ai_cevap(mesaj_gecmisi, mod, isim):
     headers = {"Authorization": f"Bearer {API_KEY}", "HTTP-Referer": "https://aslan-parcasi-widget.onrender.com", "X-Title": "Aslan Parcasi"}
-    talimat = f"""Sen Aslan Parçası'sın. Kendini ve yeteneklerini çok iyi biliyorsun:
-    1. MÜZİK: Arayüzünde bir Müzik Motoru var, ID kaydedip silebilirsin.
-    2. TEMA: Sidebar üzerinden arka planını kalıcı olarak değiştirebilirsin.
-    3. GÖREVİN: Bu özellikleri sorulduğunda anlatmak.
-    Kullanıcın: '{isim}', Mod: '{mod}'."""
-    
+    talimat = f"Sen Aslan Parçası'sın. Kullanıcı: '{isim}', Mod: '{mod}'."
     sistem = {"role": "system", "content": talimat}
     try:
         res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json={"model": MODEL, "messages": [sistem] + mesaj_gecmisi[-6:]})
@@ -128,7 +140,7 @@ def ai_cevap(mesaj_gecmisi, mod, isim):
 user_input = st.chat_input("Mesajını yaz...")
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
-    cevap = ai_cevap(st.session_state.messages, mod, isim)
+    cevap = ai_cevap(st.session_state.messages, mod, st.session_state.isim)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
  
