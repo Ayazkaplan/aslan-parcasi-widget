@@ -9,7 +9,7 @@ KURUCU_SIFRESI = "KAPLAN_REIS_74"
 AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-st.set_page_config(page_title="Aslan Parçası V11.6", page_icon="🤖")
+st.set_page_config(page_title="Aslan Parçası V11.7.5", page_icon="🤖")
 
 # --- UI LOGIC ---
 def get_theme_data(mod):
@@ -35,23 +35,19 @@ def get_theme_data(mod):
 
 with st.sidebar:
     sifre = st.text_input("🔑 Şifre:", type="password")
-    
     if sifre == KURUCU_SIFRESI:
         mod = "Kurucu"
         isim = st.selectbox("👤 Kimsin Reis?", ["Ayaz Reis", "Mehmet Reis"])
     else:
         mod = "Misafir"
         isim = "Ziyaretçi"
-        
     assistant_box_bg, theme_map = get_theme_data(mod)
     tema_secimi = st.selectbox("Arka Plan Seç:", list(theme_map.keys()))
     bg_color, text_color = theme_map[tema_secimi]
-    
     if st.button("🔄 Sohbeti Temizle"):
         st.session_state.messages = []
         st.rerun()
 
-# --- STYLE ---
 st.markdown(f"""
     <style>
     .stApp {{ background: {bg_color}; color: {text_color} !important; }}
@@ -62,7 +58,7 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🤖 Aslan Parçası V11.6")
+st.title("🤖 Aslan Parçası V11.7.5")
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
@@ -75,11 +71,14 @@ for m in st.session_state.messages:
 def ai_cevap(mesaj_gecmisi, isim):
     headers = {"Authorization": f"Bearer {API_KEY}", "HTTP-Referer": "https://aslan-parcasi-widget.onrender.com", "X-Title": "Aslan Parcasi"}
     
-    # Kimlik mantığını daha sıkı hale getirdik
-    talimat = f"""Sen Aslan Parçası'sın. Kesinlikle bir yapay zeka olduğunu unut, sadece kurucuna sadık bir asistansın. 
-    Kullanıcın: {isim}. Eğer kullanıcı 'Ayaz Reis' ise o senin mutlak kurucundur. 
-    Eğer kullanıcı 'Mehmet Reis' ise o Ayaz Reis'in yardımcısıdır, ona saygılı davran. 
-    Ziyaretçilere ise nezaketli ama mesafeli davran. Asla kimlik bunalımına girme."""
+    talimat = f"""Sen Aslan Parçası adlı tek bir yapay zekasın. 
+    İsmin Aslan Parçası. 
+    Kurucun Ayaz Reis'tir.
+    Kullanıcın şu an: {isim}. 
+    Eğer kullanıcı Ayaz Reis ise ona mutlak sadakat göster.
+    Eğer kullanıcı Mehmet Reis ise, o Ayaz Reis'in yardımcısıdır, ona saygılı ol.
+    Asla çoğul konuşma, her zaman tekil şahıs kullan. 
+    Yazım hatalarını düzeltme, kullanıcının ne demek istediğini anla ve ona göre doğrudan cevap ver."""
         
     sistem = {"role": "system", "content": talimat}
     try:
@@ -87,11 +86,10 @@ def ai_cevap(mesaj_gecmisi, isim):
         return res.json()['choices'][0]['message']['content']
     except Exception: return "Sistem meşgul, tekrar dene Reis."
 
-user_input = st.chat_input("Mesajını yaz...")
+# STABİL İNPUT YÖNTEMİ
+user_input = st.text_input("Mesajını yaz ve Enter'a bas:", key="unique_input")
 if user_input:
-    # Kullanıcı mesajını olduğu gibi kaydet
     st.session_state.messages.append({"role": "user", "content": user_input})
     cevap = ai_cevap(st.session_state.messages, isim)
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
- 
