@@ -5,6 +5,9 @@ import json
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
 
+# --- SAYFA AYARI (TEK SEFER) ---
+st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁", layout="centered")
+
 # --- AYARLAR ---
 KURUCU_EMAIL = "ayazscma92@gmail.com"
 MODEL = "anthropic/claude-3-haiku"
@@ -38,7 +41,6 @@ def firebase_login(email, password):
 
 # --- GİRİŞ VE KAYIT EKRANI ---
 if not st.session_state.user_logged_in:
-    st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁")
     st.title("🦁 Aslan Parçası V16.4")
     email = st.text_input("📧 E-posta:")
     password = st.text_input("🔑 Şifre:", type="password")
@@ -54,24 +56,22 @@ if not st.session_state.user_logged_in:
                     st.session_state.user_data = {**user_doc.to_dict(), "uid": auth_res['localId']}
                     st.session_state.user_logged_in = True
                     st.rerun()
-                else: st.error("❌ İsim bilgisi hatalı!")
+                else: st.error("❌ İsim bilgisi kayıtla eşleşmiyor!")
             else: st.error("❌ E-posta veya şifre yanlış!")
     with col2:
         if st.button("Kayıt Ol"):
             try:
                 user = auth.create_user(email=email, password=password)
                 db.collection("users").document(user.uid).set({"isim": isim_input, "email": email, "videos": []})
-                st.success("✅ Kayıt başarılı!")
+                st.success("✅ Kayıt başarılı! Giriş yapabilirsin.")
             except Exception as e: st.error(f"❌ Hata: {e}")
     st.stop()
 
-# --- ANA EKRAN AYARLARI ---
-st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁", layout="centered")
-
+# --- ANA EKRAN ---
 uid = st.session_state.user_data['uid']
 user_ref = db.collection("users").document(uid)
 user_doc = user_ref.get().to_dict()
-gorunen_isim = user_doc.get('isim')
+gorunen_isim = user_doc.get('isim', 'Kullanıcı')
 saved_videos = user_doc.get("videos", [])
 
 with st.sidebar:
@@ -97,9 +97,9 @@ st.title("🤖 Aslan Parçası V16.4")
 
 for m in st.session_state.messages:
     if m["role"] == "assistant":
-        st.markdown(f'<div class="assistant-box">{m["content"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="assistant-box" style="padding:10px; background:#222; border-left:5px solid gold; margin-bottom:10px;">{m["content"]}</div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="user-box">{m["content"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="user-box" style="padding:10px; background:#444; margin-bottom:10px; text-align:right;">{m["content"]}</div>', unsafe_allow_html=True)
 
 def ai_cevap(mesajlar):
     payload = {"model": MODEL, "messages": [{"role": "system", "content": "Nazik bir asistansın."}] + mesajlar}
@@ -114,7 +114,7 @@ def send_message():
         st.session_state.messages.append({"role": "user", "content": st.session_state.my_input})
         cevap = ai_cevap(st.session_state.messages[-6:])
         st.session_state.messages.append({"role": "assistant", "content": cevap})
-        st.session_state.my_input = "" # Kutu temizleme
+        st.session_state.my_input = "" # KUTU BURADA TEMİZLENİYOR
 
 st.text_area("Mesajını yaz:", key="my_input", height=100)
 st.button("🚀 Gönder", on_click=send_message)
