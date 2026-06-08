@@ -6,9 +6,14 @@ import firebase_admin
 from firebase_admin import credentials, auth, firestore
 from datetime import datetime, timedelta
 
-# --- AVATAR URL'LERİ ---
+# --- AYARLAR ---
+KURUCU_EMAIL = "ayazscma92@gmail.com" # Burayı kendi mailinle güncelle
 AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+DOSYA_ADI = "sarki_id.txt"
+
+# --- STREAMLIT CONFIG ---
+st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁")
 
 # --- FIREBASE BAŞLATMA ---
 if not firebase_admin._apps:
@@ -27,11 +32,7 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
-# --- AYARLAR ---
-API_KEY = os.environ.get("API_KEY")
-MODEL = "anthropic/claude-3-haiku"
-DOSYA_ADI = "sarki_id.txt"
-
+# --- YARDIMCI FONKSİYONLAR ---
 def kaydet(dosya, deger): 
     with open(dosya, "w") as f: f.write(deger.strip())
 
@@ -42,43 +43,35 @@ def oku(dosya):
 if "user_logged_in" not in st.session_state: st.session_state.user_logged_in = False
 if "user_data" not in st.session_state: st.session_state.user_data = {"isim": "", "email": ""}
 if "messages" not in st.session_state: st.session_state.messages = []
+if "is_kurucu" not in st.session_state: st.session_state.is_kurucu = False
 
-# --- GİRİŞ VE KAYIT EKRANI ---
+# --- GİRİŞ EKRANI ---
 if not st.session_state.user_logged_in:
-    st.title("🦁 Aslan Parçası V16.4")
+    st.title("🦁 Aslan Parçası V16.4 - Giriş")
     email = st.text_input("📧 E-posta:")
     password = st.text_input("🔑 Şifre:", type="password")
-    isim_input = st.text_input("👤 Profil İsmin (Kayıt olurken):")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Giriş Yap"):
-            try:
-                user = auth.get_user_by_email(email)
-                user_doc = db.collection("users").document(user.uid).get()
-                if user_doc.exists:
-                    st.session_state.user_data = user_doc.to_dict()
-                    st.session_state.user_logged_in = True
-                    st.rerun()
-                else:
-                    st.error("❌ Kullanıcı profili bulunamadı!")
-            except Exception: st.error("❌ E-posta veya şifre hatalı.")
-    with col2:
-        if st.button("Kayıt Ol"):
-            if isim_input and email and password:
-                try:
-                    user = auth.create_user(email=email, password=password)
-                    db.collection("users").document(user.uid).set({"isim": isim_input, "email": email})
-                    st.success("✅ Kayıt başarılı!")
-                except Exception as e: st.error(f"❌ Hata: {e}")
+    if st.button("Giriş Yap"):
+        try:
+            user = auth.get_user_by_email(email)
+            user_doc = db.collection("users").document(user.uid).get()
+            if user_doc.exists:
+                st.session_state.user_data = user_doc.to_dict()
+                st.session_state.user_logged_in = True
+                # Kurucu kontrolü
+                if email.lower() == KURUCU_EMAIL.lower():
+                    st.session_state.is_kurucu = True
+                st.rerun()
+        except: st.error("❌ Giriş başarısız.")
     st.stop()
 
 # --- ANA EKRAN ---
-st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁")
-
 with st.sidebar:
     st.markdown("### 👤 Profilim")
+    if st.session_state.is_kurucu:
+        st.markdown("👑 **STATÜ:** KURUCU")
     st.success(f"**İsim:** {st.session_state.user_data.get('isim')}")
+    
     if st.button("🚪 Çıkış Yap"): 
         st.session_state.clear()
         st.rerun()
@@ -92,47 +85,31 @@ with st.sidebar:
     if st.button("💾 Kaydet"): kaydet(DOSYA_ADI, yeni_id); st.rerun()
     if kayitli_id: st.markdown(f'<iframe width="100%" height="150" src="https://www.youtube.com/embed/{kayitli_id}" frameborder="0"></iframe>', unsafe_allow_html=True)
 
-# --- STYLE VE SOHBET ---
+# --- STYLE ---
 st.markdown(f"""<style>
     .stApp {{ background: linear-gradient(to bottom, {theme_map[tema_secimi]}, #000000); color: white; }} 
-    .assistant-box {{ background-color: rgba(30,30,30,0.9); padding: 15px; border-radius: 10px; border-left: 5px solid gold; margin-bottom: 15px; }} 
+    .assistant-box {{ background-color: rgba(30,30,30,0.9); padding: 15px; border-radius: 10px; border-left: 5px solid {'gold' if not st.session_state.is_kurucu else 'red'}; margin-bottom: 15px; }} 
     .user-box {{ background-color: rgba(128,128,128,0.2); padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: right; }}
-    .header-box {{ display: flex; align-items: center; gap: 10px; font-weight: bold; margin-bottom: 5px; }}
-    .user-header {{ justify-content: flex-end; }}
 </style>""", unsafe_allow_html=True)
 
 st.title("🤖 Aslan Parçası V16.4")
 
-# --- MESAJLARI İKONLU YAZDIR ---
+# --- SOHBET ---
 for m in st.session_state.messages:
-    if m["role"] == "assistant":
-        st.markdown(f"""
-            <div class="assistant-box">
-                <div class="header-box"><img src="{AVATAR_URL}" width="30" style="border-radius:50%"> Aslan Parçası</div>
-                <div>{m['content']}</div>
-            </div>""", unsafe_allow_html=True)
-    else:
-        st.markdown(f"""
-            <div class="user-box">
-                <div class="header-box user-header">{st.session_state.user_data.get('isim')} <img src="{USER_AVATAR}" width="30" style="border-radius:50%"></div>
-                <div>{m['content']}</div>
-            </div>""", unsafe_allow_html=True)
-
-def ai_cevap(mesajlar):
-    headers = {"Authorization": f"Bearer {API_KEY}"}
-    payload = {
-        "model": MODEL,
-        "messages": [{"role": "system", "content": f"Sen Aslan Parçası'sın. Saat: {(datetime.utcnow() + timedelta(hours=3)).strftime('%H:%M')}."}] + mesajlar
-    }
-    try:
-        res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
-        return res.json()['choices'][0]['message']['content']
-    except: return "Sistem yorgun, Reis."
+    role_icon = AVATAR_URL if m["role"] == "assistant" else USER_AVATAR
+    st.markdown(f"""<div class="{'assistant-box' if m['role']=='assistant' else 'user-box'}">{m['content']}</div>""", unsafe_allow_html=True)
 
 if user_input := st.chat_input("Mesajını yaz..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.spinner("Aslan cevaplıyor..."):
-        cevap = ai_cevap(st.session_state.messages[-6:])
-        st.session_state.messages.append({"role": "assistant", "content": cevap})
+    
+    # AI Çağrısı
+    headers = {"Authorization": f"Bearer {os.environ.get('API_KEY')}"}
+    payload = {
+        "model": "anthropic/claude-3-haiku",
+        "messages": [{"role": "system", "content": "Sen Aslan Parçası'sın. Kurucu ayazscma92."}] + st.session_state.messages
+    }
+    res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+    cevap = res.json()['choices'][0]['message']['content']
+    
+    st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
- 
