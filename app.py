@@ -54,7 +54,9 @@ if not st.session_state.user_logged_in:
                 user = auth.get_user_by_email(email)
                 user_doc = db.collection("users").document(user.uid).get()
                 if user_doc.exists:
-                    st.session_state.user_data = {**user_doc.to_dict(), "uid": user.uid}
+                    # Firestore'daki ismi çekerek güncel tutuyoruz
+                    data = user_doc.to_dict()
+                    st.session_state.user_data = {**data, "uid": user.uid}
                     st.session_state.user_logged_in = True
                     st.rerun()
             except Exception as e:
@@ -70,6 +72,7 @@ if not st.session_state.user_logged_in:
     st.stop()
 
 # --- ANA EKRAN ---
+# Her sayfayı yenilediğinde güncel veriyi kullan
 is_kurucu = st.session_state.user_data.get('email') == KURUCU_EMAIL
 gorunen_isim = st.session_state.user_data.get('isim')
 rozet = " 🛠️" if is_kurucu else ""
@@ -129,8 +132,8 @@ for m in st.session_state.messages:
 
 def ai_cevap(mesajlar):
     sistem_mesaji = f"""
-    Sen Aslan Parçası'sın. Kurucun Ayaz Kaplan. Kullanıcın: {gorunen_isim}.
-    Asla başka bir isimle (Captainnes vb.) hitap etme.
+    Sen Aslan Parçası'sın. Kurucun Ayaz Kaplan. Kullanıcın: {st.session_state.user_data.get('isim')}.
+    Asla başka bir isimle hitap etme.
     
     İşte çalışma ilkelerin:
     1. Dinamik ve Kişiselleştirilmiş Yardım: Bilgiyi kişiselleştirirken süreci görünmez kıl, 'verilerine göre' gibi ifadeler kullanma.
@@ -152,4 +155,3 @@ if user_input := st.chat_input("Mesajını yaz..."):
     cevap = ai_cevap(st.session_state.messages[-6:])
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
- 
