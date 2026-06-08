@@ -7,7 +7,7 @@ from firebase_admin import credentials, auth, firestore
 from datetime import datetime, timedelta
 
 # --- AYARLAR ---
-KURUCU_EMAIL = "senin_emailin@example.com" # Buraya kendi mailini yazmalısın!
+KURUCU_EMAIL = "ayazscma92@gmail.com"  # KENDİ MAİLİNİ BURAYA YAZ!
 AVATAR_URL = "https://i.imgur.com/3EfO8Ae.jpeg"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
@@ -28,7 +28,7 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
-# --- AYARLAR ---
+# --- YARDIMCI AYARLAR ---
 API_KEY = os.environ.get("API_KEY")
 MODEL = "anthropic/claude-3-haiku"
 DOSYA_ADI = "sarki_id.txt"
@@ -44,28 +44,29 @@ if "user_logged_in" not in st.session_state: st.session_state.user_logged_in = F
 if "user_data" not in st.session_state: st.session_state.user_data = {"isim": "", "email": ""}
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# --- KURUCU KONTROLÜ ---
-is_kurucu = st.session_state.user_data.get('email') == KURUCU_EMAIL
-
 # --- GİRİŞ VE KAYIT EKRANI ---
 if not st.session_state.user_logged_in:
     st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁")
     st.title("🦁 Aslan Parçası V16.4")
     email = st.text_input("📧 E-posta:")
     password = st.text_input("🔑 Şifre:", type="password")
-    isim_input = st.text_input("👤 Profil İsmin (Kayıt olurken):")
+    isim_input = st.text_input("👤 Profil İsmin:")
     
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Giriş Yap"):
-            try:
-                user = auth.get_user_by_email(email)
-                user_doc = db.collection("users").document(user.uid).get()
-                if user_doc.exists:
-                    st.session_state.user_data = user_doc.to_dict()
-                    st.session_state.user_logged_in = True
-                    st.rerun()
-            except: st.error("❌ Hata.")
+            if email and password:
+                try:
+                    user = auth.get_user_by_email(email)
+                    user_doc = db.collection("users").document(user.uid).get()
+                    if user_doc.exists:
+                        st.session_state.user_data = user_doc.to_dict()
+                        st.session_state.user_logged_in = True
+                        st.rerun()
+                    else:
+                        st.error("❌ Kullanıcı dökümanı bulunamadı.")
+                except Exception as e:
+                    st.error(f"❌ Giriş başarısız: {e}")
     with col2:
         if st.button("Kayıt Ol"):
             if isim_input and email and password:
@@ -76,15 +77,20 @@ if not st.session_state.user_logged_in:
                 except Exception as e: st.error(f"❌ Hata: {e}")
     st.stop()
 
+# --- KURUCU KONTROLÜ (SAYFA İÇİ) ---
+is_kurucu = st.session_state.user_data.get('email') == KURUCU_EMAIL
+gorunen_isim = st.session_state.user_data.get('isim')
+
 # --- ANA EKRAN ---
 st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁")
 
 with st.sidebar:
     st.markdown("### 👤 Profilim")
-    # Kurucu rozeti ekleme
-    gorunen_isim = f"{st.session_state.user_data.get('isim')} 👑" if is_kurucu else st.session_state.user_data.get('isim')
-    st.success(f"**İsim:** {gorunen_isim}")
-    if is_kurucu: st.info("Sistem Kurucusu")
+    if is_kurucu:
+        st.markdown(f"**İsim:** <span style='color:#FF4B4B; font-weight:bold;'>{gorunen_isim} 👑</span>", unsafe_allow_html=True)
+        st.info("Sistem Kurucusu")
+    else:
+        st.success(f"**İsim:** {gorunen_isim}")
     
     if st.button("🚪 Çıkış Yap"): 
         st.session_state.clear()
@@ -106,6 +112,7 @@ st.markdown(f"""<style>
     .user-box {{ background-color: rgba(128,128,128,0.2); padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: right; }}
     .header-box {{ display: flex; align-items: center; gap: 10px; font-weight: bold; margin-bottom: 5px; }}
     .user-header {{ justify-content: flex-end; }}
+    .kurucu-isim {{ color: #FF4B4B !important; font-weight: bold; text-shadow: 0 0 5px red; }}
 </style>""", unsafe_allow_html=True)
 
 st.title("🤖 Aslan Parçası V16.4")
@@ -115,7 +122,8 @@ for m in st.session_state.messages:
     if m["role"] == "assistant":
         st.markdown(f"""<div class="assistant-box"><div class="header-box"><img src="{AVATAR_URL}" width="30" style="border-radius:50%"> Aslan Parçası</div><div>{m['content']}</div></div>""", unsafe_allow_html=True)
     else:
-        st.markdown(f"""<div class="user-box"><div class="header-box user-header">{gorunen_isim} <img src="{USER_AVATAR}" width="30" style="border-radius:50%"></div><div>{m['content']}</div></div>""", unsafe_allow_html=True)
+        isim_style = "kurucu-isim" if is_kurucu else ""
+        st.markdown(f"""<div class="user-box"><div class="header-box user-header"><span class="{isim_style}">{gorunen_isim}</span> <img src="{USER_AVATAR}" width="30" style="border-radius:50%"></div><div>{m['content']}</div></div>""", unsafe_allow_html=True)
 
 def ai_cevap(mesajlar):
     headers = {"Authorization": f"Bearer {API_KEY}"}
