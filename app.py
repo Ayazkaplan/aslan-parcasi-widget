@@ -34,6 +34,9 @@ def emoji_kontrol(isim):
     return bool(re.search(r'[^\w\s]', isim))
 
 # --- OTURUM YÖNETİMİ ---
+# Session state verilerini korumak için cookie yerine st.session_state kullanıyoruz, 
+# ancak Streamlit'in doğası gereği sayfa yenilenince session sıfırlanabilir.
+# Giriş durumunu korumak için en sağlam yöntem budur.
 if "user_logged_in" not in st.session_state: st.session_state.user_logged_in = False
 if "user_data" not in st.session_state: st.session_state.user_data = {"isim": "", "email": "", "uid": ""}
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -57,6 +60,8 @@ if not st.session_state.user_logged_in:
                     st.session_state.user_data = {**user_doc.to_dict(), "uid": user.uid}
                     st.session_state.user_logged_in = True
                     st.rerun()
+                else:
+                    st.error("❌ Kullanıcı profili bulunamadı!")
             except Exception as e:
                 st.error("❌ Giriş Başarısız!")
     with col2:
@@ -118,12 +123,18 @@ st.title("🤖 Aslan Parçası V16.4")
 
 for m in st.session_state.messages:
     if m["role"] == "assistant":
-        st.markdown(f"""<div class="assistant-box"><div class="header-box"><img src="{AVATAR_URL}" width="30" style="border-radius:50%"> Aslan Parçası 🛠️</div><div>{m['content']}</div></div>""", unsafe_allow_html=True)
+        # Rozet AI'dan kaldırıldı
+        st.markdown(f"""<div class="assistant-box"><div class="header-box"><img src="{AVATAR_URL}" width="30" style="border-radius:50%"> Aslan Parçası</div><div>{m['content']}</div></div>""", unsafe_allow_html=True)
     else:
+        # Rozet sadece kurucuda görünür
         st.markdown(f"""<div class="user-box"><div class="header-box user-header"><span class="{'kurucu-isim' if is_kurucu else ''}">{gorunen_isim}{rozet}</span> <img src="{USER_AVATAR}" width="30" style="border-radius:50%"></div><div>{m['content']}</div></div>""", unsafe_allow_html=True)
 
 def ai_cevap(mesajlar):
-    sistem_mesaji = f"Sen Aslan Parçası'sın. Asla başka bir isimle hitap etme. Kurucun Ayaz Kaplan. Kullanıcı: {gorunen_isim}."
+    # AI'ın kimliği ve esnekliği için güncellenmiş sistem mesajı
+    sistem_mesaji = (f"Sen Aslan Parçası'sın. Asla kendini başka bir isimle tanıtma. "
+                     f"Kurucun Ayaz Kaplan. Kullanıcı: {gorunen_isim}. "
+                     f"Yardımcı ol, esnek ve arkadaş canlısı konuş. Çok katı kurallar koyma.")
+    
     payload = {"model": MODEL, "messages": [{"role": "system", "content": sistem_mesaji}] + mesajlar}
     headers = {"Authorization": f"Bearer {os.environ.get('API_KEY')}"}
     try:
@@ -136,4 +147,3 @@ if user_input := st.chat_input("Mesajını yaz..."):
     cevap = ai_cevap(st.session_state.messages[-6:])
     st.session_state.messages.append({"role": "assistant", "content": cevap})
     st.rerun()
- 
