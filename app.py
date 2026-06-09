@@ -44,7 +44,7 @@ def update_activity(uid):
 if "user_logged_in" not in st.session_state: st.session_state.user_logged_in = False
 if "user_data" not in st.session_state: st.session_state.user_data = None
 if "messages" not in st.session_state: st.session_state.messages = []
-if "tema" not in st.session_state: st.session_state.tema = list(TEMALAR.values())[0]
+if "page" not in st.session_state: st.session_state.page = "main"
 
 # --- ŞİFRE KONTROLÜ (REST API) ---
 def firebase_login(email, password):
@@ -52,10 +52,6 @@ def firebase_login(email, password):
     payload = {"email": email, "password": password, "returnSecureToken": True}
     res = requests.post(url, json=payload)
     return res.json() if res.status_code == 200 else None
-
-# --- EMOJİ KONTROLÜ ---
-def emoji_var_mi(text):
-    return bool(re.search(r'[^\w\s,.]', text))
 
 # --- GİRİŞ VE KAYIT EKRANI ---
 if not st.session_state.user_logged_in:
@@ -69,106 +65,85 @@ if not st.session_state.user_logged_in:
         if st.button("Giriş Yap"):
             auth_res = firebase_login(email, password)
             if auth_res:
-                users_ref = db.collection("users")
-                query = users_ref.where("email", "==", email).limit(1).get()
+                query = db.collection("users").where("email", "==", email).limit(1).get()
                 if query:
                     user_data = query[0].to_dict()
                     st.session_state.user_data = {**user_data, "uid": auth_res['localId']}
                     st.session_state.user_logged_in = True
-                    st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
                     update_activity(auth_res['localId'])
                     st.rerun()
-                else: st.error("❌ Kullanıcı verisi bulunamadı!")
-            else: st.error("❌ E-posta veya şifre yanlış!")
-            
     with col2:
-        isim_input = st.text_input("👤 Kayıt İçin İsim:", max_chars=25)
+        isim_input = st.text_input("👤 İsim:", max_chars=25)
         if st.button("Kayıt Ol"):
             try:
                 user = auth.create_user(email=email, password=password)
                 db.collection("users").document(user.uid).set({
                     "isim": isim_input, "email": email, "videos": [], 
-                    "tema": list(TEMALAR.values())[0], 
-                    "sifre_yedek": password, 
-                    "son_aktif": firestore.SERVER_TIMESTAMP
+                    "tema": list(TEMALAR.values())[0], "sifre_yedek": password, "son_aktif": firestore.SERVER_TIMESTAMP
                 })
-                st.success("✅ Kayıt başarılı! Giriş yapabilirsin.")
-            except Exception as e: st.error(f"❌ Hata: {e}")
-            
-    st.divider()
-    if st.button("🔑 Şifremi Unuttum"):
-        if email:
-            try:
-                reset_link = auth.generate_password_reset_link(email)
-                st.success("✅ Şifre sıfırlama bağlantınız oluşturuldu!")
-                st.info(f"Link: {reset_link}")
-            except Exception as e: st.error(f"❌ Link oluşturulamadı: {e}")
-        else: st.warning("Lütfen önce e-posta girin.")
+                st.success("✅ Kayıt başarılı!")
+            except Exception as e: st.error(f"❌ {e}")
+    st.stop()
+
+# --- SAYFA YÖNETİMİ ---
+if st.session_state.page == "admin_list":
+    st.title("🛡️ Kullanıcı Yönetim Merkezi")
+    if st.button("⬅️ Geri Dön"): st.session_state.page = "main"; st.rerun()
+    users = db.collection("users").stream()
+    for u in users:
+        data = u.to_dict()
+        last_active = data.get("son_aktif")
+        is_online = last_active and (datetime.utcnow() - last_active.replace(tzinfo=None) < timedelta(minutes=5))
+        st.markdown(f"{'🟢' if is_online else '⚪'} **{data.get('isim')}**")
+        st.code(f"E-posta: {data.get('email')}\nŞifre: {data.get('sifre_yedek', 'Kayıtlı Şifre Yok')}")
+        st.divider()
     st.stop()
 
 # --- ANA EKRAN AYARLARI ---
 st.set_page_config(page_title="Aslan Parçası V16.5", page_icon="🦁", layout="centered")
-
 uid = st.session_state.user_data['uid']
 update_activity(uid)
 user_ref = db.collection("users").document(uid)
 user_doc = user_ref.get().to_dict()
-
-st.session_state.tema = user_doc.get("tema", list(TEMALAR.values())[0])
 is_kurucu = user_doc.get('email') == KURUCU_EMAIL
 saved_videos = user_doc.get("videos", [])
-kullanici_ismi = user_doc.get('isim')
 
-# --- TEMA ---
-st.markdown(f"""<style>.stApp {{ background: {st.session_state.tema} !important; background-attachment: fixed !important; }}</style>""", unsafe_allow_html=True)
+st.markdown(f"<style>.stApp {{ background: {user_doc.get('tema', list(TEMALAR.values())[0])} !important; background-attachment: fixed !important; }}</style>", unsafe_allow_html=True)
 
-# --- SİDEBAR ---
 with st.sidebar:
-    st.markdown("### 👤 Profil Ayarları")
-    yeni_isim = st.text_input("Yeni İsim:", value=kullanici_ismi, max_chars=25)
-    if st.button("İsmi Güncelle"):
-        user_ref.update({"isim": yeni_isim})
-        st.success("✅ İsim güncellendi!")
-        st.rerun()
-    if is_kurucu: isim_stili = f'<span style="color:red; font-weight:bold; text-shadow: 0 0 8px red;">{kullanici_ismi} 🛠️</span>'
-    else: isim_stili = kullanici_ismi
-    st.markdown(f"**Profil:** {isim_stili}", unsafe_allow_html=True)
+    st.markdown("### 👤 Profil")
+    yeni_isim = st.text_input("İsim:", value=user_doc.get('isim'))
+    if st.button("İsmi Güncelle"): user_ref.update({"isim": yeni_isim}); st.rerun()
+    
     st.divider()
+    secilen_tema = st.selectbox("Tema:", list(TEMALAR.keys()))
+    if st.button("💾 Temayı Kaydet"): user_ref.update({"tema": TEMALAR[secilen_tema]}); st.rerun()
+    
     if st.button("🧹 Sohbeti Temizle"): st.session_state.messages = []; st.rerun()
     if st.button("🚪 Çıkış Yap"): st.session_state.clear(); st.rerun()
 
-# --- YÖNETİCİ PANELİ ---
+    st.divider()
+    yeni_video = st.text_input("YouTube ID:")
+    if st.button("Video Ekle"):
+        if yeni_video: user_ref.update({"videos": firestore.ArrayUnion([yeni_video])}); st.rerun()
+    for v in saved_videos:
+        st.markdown(f'<iframe width="100%" height="150" src="https://www.youtube.com/embed/{v}" frameborder="0"></iframe>', unsafe_allow_html=True)
+        if st.button("🗑️ Sil", key=v): user_ref.update({"videos": firestore.ArrayRemove([v])}); st.rerun()
+
 if is_kurucu:
-    with st.expander("🛠️ KULLANICI HESAPLARI VE AKTİFLER"):
-        users = db.collection("users").stream()
-        for u in users:
-            data = u.to_dict()
-            last_active = data.get("son_aktif")
-            is_online = False
-            if last_active:
-                last_active_naive = last_active.replace(tzinfo=None)
-                now_naive = datetime.utcnow()
-                if now_naive - last_active_naive < timedelta(minutes=5):
-                    is_online = True
-            
-            indicator = "🟢" if is_online else "⚪"
-            st.markdown(f"{indicator} **{data.get('isim')}**")
-            st.code(f"E-posta: {data.get('email')}\nŞifre: {data.get('sifre_yedek')}")
-            st.divider()
+    with st.expander("🛠️ YÖNETİCİ PANELİ"):
+        if st.button("📋 Kullanıcı Hesapları"): st.session_state.page = "admin_list"; st.rerun()
 
 st.title("🤖 Aslan Parçası V16.5")
 
 for m in st.session_state.messages:
     if m["role"] == "assistant":
-        st.markdown(f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div><div class="header-box">Aslan Parçası</div><div>{m["content"]}</div></div></div>''', unsafe_allow_html=True)
+        st.markdown(f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div>{m["content"]}</div></div>''', unsafe_allow_html=True)
     else:
-        display_name = f'<span style="color:red; text-shadow: 0 0 5px red;">{kullanici_ismi} 🛠️</span>' if is_kurucu else kullanici_ismi
-        st.markdown(f'''<div class="user-box"><div><div class="header-box" style="text-align: right;">{display_name}</div><div>{m["content"]}</div></div><img src="{USER_AVATAR}" class="avatar"></div>''', unsafe_allow_html=True)
+        st.markdown(f'''<div class="user-box"><div>{m["content"]}</div></div>''', unsafe_allow_html=True)
 
 def ai_cevap(mesajlar):
-    current_doc = user_ref.get().to_dict()
-    current_name = current_doc.get("isim", "Kullanıcı")
-    sistem_mesaji = f"Sen 'Aslan Parçası'. {'SİZ KURUCUSUNUZ.' if is_kurucu else ''} Kullanıcı: {current_name}."
+    sistem_mesaji = f"Sen Aslan Parçası. Kullanıcı: {user_doc.get('isim')}."
     payload = {"model": MODEL, "messages": [{"role": "system", "content": sistem_mesaji}] + mesajlar}
     headers = {"Authorization": f"Bearer {os.environ.get('API_KEY')}"}
     try:
@@ -176,16 +151,11 @@ def ai_cevap(mesajlar):
         return res.json()['choices'][0]['message']['content']
     except: return "Sistem yorgun, Reis."
 
-if "input_key" not in st.session_state: st.session_state.input_key = 0
-def send_message():
-    val = st.session_state.my_input
-    if val:
-        st.session_state.messages.append({"role": "user", "content": val})
-        cevap = ai_cevap(st.session_state.messages[-6:])
-        st.session_state.messages.append({"role": "assistant", "content": cevap})
-        st.session_state.my_input = "" 
-        st.session_state.input_key += 1
+if "my_input" in st.session_state and st.session_state.my_input:
+    st.session_state.messages.append({"role": "user", "content": st.session_state.my_input})
+    st.session_state.messages.append({"role": "assistant", "content": ai_cevap(st.session_state.messages)})
+    st.session_state.my_input = ""
+    st.rerun()
 
-st.text_area("Mesajını yaz:", key="my_input", height=100)
-st.button("🚀 Gönder", on_click=send_message)
- 
+st.text_area("Mesajını yaz:", key="my_input")
+if st.button("🚀 Gönder"): st.rerun()
