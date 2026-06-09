@@ -64,7 +64,6 @@ if not st.session_state.user_logged_in:
         if st.button("Giriş Yap"):
             auth_res = firebase_login(email, password)
             if auth_res:
-                # E-posta ile veritabanındaki kullanıcıyı otomatik bul
                 users_ref = db.collection("users")
                 query = users_ref.where("email", "==", email).limit(1).get()
                 if query:
@@ -99,6 +98,17 @@ if not st.session_state.user_logged_in:
 # --- ANA EKRAN AYARLARI ---
 st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁", layout="centered")
 
+uid = st.session_state.user_data['uid']
+user_ref = db.collection("users").document(uid)
+user_doc = user_ref.get().to_dict()
+
+# Güncel temayı veritabanından tazele
+st.session_state.tema = user_doc.get("tema", list(TEMALAR.values())[0])
+
+is_kurucu = user_doc.get('email') == KURUCU_EMAIL
+saved_videos = user_doc.get("videos", [])
+kullanici_ismi = user_doc.get('isim')
+
 # --- TEMA GÜNCELLEME ---
 st.markdown(f"""
     <style>
@@ -108,13 +118,6 @@ st.markdown(f"""
         }}
     </style>
 """, unsafe_allow_html=True)
-
-uid = st.session_state.user_data['uid']
-user_ref = db.collection("users").document(uid)
-user_doc = user_ref.get().to_dict()
-is_kurucu = user_doc.get('email') == KURUCU_EMAIL
-saved_videos = user_doc.get("videos", [])
-kullanici_ismi = user_doc.get('isim')
 
 # --- SİDEBAR & PROFİL DÜZENLEME ---
 with st.sidebar:
