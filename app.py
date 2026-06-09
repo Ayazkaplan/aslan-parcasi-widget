@@ -68,16 +68,14 @@ if not st.session_state.user_logged_in:
                 query = users_ref.where("email", "==", email).limit(1).get()
                 if query:
                     user_data = query[0].to_dict()
-                    
-                    # Giriş yapıldığında durumunu 'Aktif' (Yeşil) olarak güncelliyoruz
-                    uid_temp = auth_res['localId']
-                    db.collection("users").document(uid_temp).update({"durum": "Aktif"})
-                    user_data["durum"] = "Aktif"
-                    
-                    st.session_state.user_data = {**user_data, "uid": uid_temp}
-                    st.session_state.user_logged_in = True
-                    st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
-                    st.rerun()
+                    # Pasif durum kontrolü
+                    if user_data.get("durum", "Aktif") == "Pasif":
+                        st.error("❌ Hesabınız pasifleştirilmiştir. Giriş yapamazsınız!")
+                    else:
+                        st.session_state.user_data = {**user_data, "uid": auth_res['localId']}
+                        st.session_state.user_logged_in = True
+                        st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
+                        st.rerun()
                 else: st.error("❌ Kullanıcı verisi bulunamadı!")
             else: st.error("❌ E-posta veya şifre yanlış!")
             
@@ -86,13 +84,13 @@ if not st.session_state.user_logged_in:
         if st.button("Kayıt Ol"):
             try:
                 user = auth.create_user(email=email, password=password)
-                # Kayıt esnasında varsayılan durum 'Sarı' (Kayıtlı) olarak belirleniyor
+                # Kayıt esnasında "durum" alanı ekleniyor
                 db.collection("users").document(user.uid).set({
                     "isim": isim_input, 
                     "email": email, 
                     "videos": [], 
                     "tema": list(TEMALAR.values())[0],
-                    "durum": "Sarı"
+                    "durum": "Aktif"
                 })
                 st.success("✅ Kayıt başarılı! Giriş yapabilirsin.")
             except Exception as e: st.error(f"❌ Hata: {e}")
@@ -113,7 +111,21 @@ st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁", layout=
 
 uid = st.session_state.user_data['uid']
 user_ref = db.collection("users").document(uid)
-user_doc = user_ref.get().to_dict()
+user_snap = user_ref.get()
+
+# Veritabanında kullanıcı yoksa oturumu temizle (Yönetici tarafından silinme durumu)
+if not user_snap.exists:
+    st.error("❌ Hesabınız silinmiş veya bulunamadı!")
+    st.session_state.clear()
+    st.rerun()
+
+user_doc = user_snap.to_dict()
+
+# Oturum esnasında pasif duruma getirilmişse oturumu kapat
+if user_doc.get("durum", "Aktif") == "Pasif":
+    st.error("❌ Hesabınız yönetici tarafından pasif duruma getirilmiştir!")
+    st.session_state.clear()
+    st.rerun()
 
 # Güncel temayı veritabanından tazele
 st.session_state.tema = user_doc.get("tema", list(TEMALAR.values())[0])
@@ -168,14 +180,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
         
-    if st.button("🚪 Çıkış Yap"): 
-        # Çıkış yaparken durumu 'Sarı' (Kayıtlı) olarak güncelliyoruz
-        try:
-            db.collection("users").document(uid).update({"durum": "Sarı"})
-        except Exception:
-            pass
-        st.session_state.clear()
-        st.rerun()
+    if st.button("🚪 Çıkış Yap"): st.session_state.clear(); st.rerun()
     
     st.divider()
     yeni_video = st.text_input("YouTube ID ekle:")
@@ -203,91 +208,52 @@ st.markdown(f"""<style>
 if is_kurucu:
     with st.expander("🛠️ YÖNETİCİ PANELİ (Kurucu Özel)"):
         st.write("Kurucu paneline hoş geldiniz, Reis.")
+        st.markdown("### 👥 Kayıtlı Kullanıcılar")
         
-        # --- OTOMATİK TEMİZLİK MEKANİZMASI ---
-        # Panel açıldığı anda durum alanı 'Beyaz' (çöp hesap) olan kullanıcılar listelenir ve otomatik olarak silinir.
-        temizlenen_hesaplar = 0
         try:
-            tum_kullanicilar = db.collection("users").get()
-            for k_doc in tum_kullanicilar:
-                k_data = k_doc.to_dict()
-                k_id = k_doc.id
-                k_durum = k_data.get("durum", "Sarı")
-                k_email = k_data.get("email", "")
-                
-                # Kurucu hesabı koruma altına alınır ve 'Beyaz' olarak işaretlenenler silinir
-                if k_email != KURUCU_EMAIL and k_durum == "Beyaz":
-                    try:
-                        # Firebase Auth üzerinden silme denemesi
-                        try:
-                            auth.delete_user(k_id)
-                        except Exception:
-                            pass # Auth tarafında kayıt mevcut değilse hatasız atla
-                        
-                        # Firestore veritabanından silme işlemi
-                        db.collection("users").document(k_id).delete()
-                        temizlenen_hesaplar += 1
-                    except Exception as clean_err:
-                        st.error(f"⚠️ {k_email} silinirken hata oluştu: {clean_err}")
-                        
-            if temizlenen_hesaplar > 0:
-                st.success(f"🧹 Otomatik Temizlik: {temizlenen_hesaplar} adet çöp hesap (Beyaz) başarıyla kaldırıldı.")
-                st.rerun()
-        except Exception as scan_err:
-            st.error(f"Yönetici paneli tarama hatası: {scan_err}")
+            # Firestore veritabanındaki tüm kullanıcıları çekiyoruz
+            all_users_ref = db.collection("users").get()
             
-        # --- KULLANICI LİSTELEME EKRANI ---
-        if "kullanicilari_goster" not in st.session_state:
-            st.session_state.kullanicilari_goster = False
-            
-        if st.button("👥 Kullanıcıları Listele"):
-            st.session_state.kullanicilari_goster = not st.session_state.kullanicilari_goster
-            st.rerun()
-            
-        if st.session_state.kullanicilari_goster:
-            st.markdown("### 📋 Sistem Kullanıcı Listesi")
-            guncel_liste = db.collection("users").get()
-            
-            for doc in guncel_liste:
+            for doc in all_users_ref:
                 u_data = doc.to_dict()
                 u_id = doc.id
                 u_email = u_data.get("email", "Bilinmiyor")
                 u_isim = u_data.get("isim", "Bilinmiyor")
-                u_durum = u_data.get("durum", "Sarı")
+                u_durum = u_data.get("durum", "Aktif")
                 
-                # Kurucu listede işlem dışı tutulur
+                # Kurucu kendini kazara silmesin veya pasifleştirmesin diye listede atlanıyor
                 if u_email == KURUCU_EMAIL:
                     continue
                 
-                # Durum görsel indikatörleri
-                if u_durum == "Aktif":
-                    durum_stili = "🟢 Aktif (Giriş Yapmış)"
-                elif u_durum == "Beyaz":
-                    durum_stili = "⚪ Beyaz (Çöp Hesap)"
-                else:
-                    durum_stili = "🟡 Kayıtlı (Oturum Pasif)"
-                    
-                st.markdown(f"👤 **Hesap İsmi:** {u_isim}")
-                st.markdown(f"✉️ **E-posta:** {u_email}")
-                st.markdown(f"🔑 **ID/Hash Bilgisi:** `{u_id}`")
-                st.markdown(f"📊 **Mevcut Durum:** {durum_stili}")
+                # Streamlit kolonları ile kullanıcı satırlarının oluşturulması
+                col_info, col_act1, col_act2 = st.columns([5, 2.5, 2.5])
                 
-                # Durum güncelleme butonları
-                col_a, col_b, col_c = st.columns(3)
-                with col_a:
-                    if st.button("🟢 Aktif Yap", key=f"set_aktif_{u_id}"):
-                        db.collection("users").document(u_id).update({"durum": "Aktif"})
-                        st.rerun()
-                with col_b:
-                    if st.button("🟡 Kayıtlı Yap", key=f"set_kayit_{u_id}"):
-                        db.collection("users").document(u_id).update({"durum": "Sarı"})
-                        st.rerun()
-                with col_c:
-                    if st.button("⚪ Çöp Yap (Sil)", key=f"set_cop_{u_id}"):
-                        db.collection("users").document(u_id).update({"durum": "Beyaz"})
+                with col_info:
+                    durum_emoji = "🟢 Aktif" if u_durum == "Aktif" else "🔴 Pasif"
+                    st.markdown(f"**{u_isim}** ({u_email})  \n*{durum_emoji}*")
+                    
+                with col_act1:
+                    btn_label = "Pasifleştir" if u_durum == "Aktif" else "Aktifleştir"
+                    if st.button(btn_label, key=f"status_{u_id}"):
+                        yeni_durum = "Pasif" if u_durum == "Aktif" else "Aktif"
+                        db.collection("users").document(u_id).update({"durum": yeni_durum})
+                        st.success(f"Durum '{yeni_durum}' olarak güncellendi.")
                         st.rerun()
                         
-                st.divider()
+                with col_act2:
+                    if st.button("🗑️ Sil", key=f"del_{u_id}"):
+                        try:
+                            # 1. Firebase Auth'dan sil
+                            auth.delete_user(u_id)
+                            # 2. Firestore veritabanından sil
+                            db.collection("users").document(u_id).delete()
+                            st.success(f"{u_isim} sistemden tamamen silindi.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Hata oluştu: {e}")
+                            
+        except Exception as e:
+            st.error(f"Kullanıcı listesi alınamadı: {e}")
 
 st.title("🤖 Aslan Parçası V16.4")
 
@@ -337,4 +303,4 @@ def send_message():
         st.session_state.input_key += 1
 
 st.text_area("Mesajını yaz:", key="my_input", height=100)
-st.button("🚀 Gönder", on_click=send_message) 
+st.button("🚀 Gönder", on_click=send_message)
