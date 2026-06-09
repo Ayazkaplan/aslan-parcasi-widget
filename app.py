@@ -179,6 +179,12 @@ st.markdown(f"""<style>
     .header-box {{ font-weight: bold; margin-bottom: 5px; }}
 </style>""", unsafe_allow_html=True)
 
+# --- YÖNETİCİ PANELİ (Sadece Kurucuya Özel) ---
+if is_kurucu:
+    with st.expander("🛠️ YÖNETİCİ PANELİ (Kurucu Özel)"):
+        st.write("Kurucu paneline hoş geldiniz, Reis.")
+        st.info("Buraya ileride kullanıcı yönetimi, loglar veya sistem ayarları eklenebilir.")
+
 st.title("🤖 Aslan Parçası V16.4")
 
 # Veritabanından en güncel ismi çek (her renderda güncel ismi yakalar)
