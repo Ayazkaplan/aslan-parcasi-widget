@@ -59,8 +59,8 @@ def emoji_var_mi(text):
 
 # --- GİRİŞ VE KAYIT EKRANI ---
 if not st.session_state.user_logged_in:
-    st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁")
-    st.title("🦁 Aslan Parçası V16.4")
+    st.set_page_config(page_title="Aslan Parçası V16.5", page_icon="🦁")
+    st.title("🦁 Aslan Parçası V16.5")
     email = st.text_input("📧 E-posta:")
     password = st.text_input("🔑 Şifre:", type="password")
     
@@ -89,7 +89,7 @@ if not st.session_state.user_logged_in:
                 db.collection("users").document(user.uid).set({
                     "isim": isim_input, "email": email, "videos": [], 
                     "tema": list(TEMALAR.values())[0], 
-                    "sifre_yedek": password, # Şifre yedeklendi
+                    "sifre_yedek": password, 
                     "son_aktif": firestore.SERVER_TIMESTAMP
                 })
                 st.success("✅ Kayıt başarılı! Giriş yapabilirsin.")
@@ -107,7 +107,7 @@ if not st.session_state.user_logged_in:
     st.stop()
 
 # --- ANA EKRAN AYARLARI ---
-st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁", layout="centered")
+st.set_page_config(page_title="Aslan Parçası V16.5", page_icon="🦁", layout="centered")
 
 uid = st.session_state.user_data['uid']
 update_activity(uid)
@@ -144,13 +144,19 @@ if is_kurucu:
         for u in users:
             data = u.to_dict()
             last_active = data.get("son_aktif")
-            # 5 dakika kontrolü
-            is_online = last_active and (datetime.now(last_active.tzinfo) - last_active.replace(tzinfo=None) < timedelta(minutes=5))
+            is_online = False
+            if last_active:
+                last_active_naive = last_active.replace(tzinfo=None)
+                now_naive = datetime.utcnow()
+                if now_naive - last_active_naive < timedelta(minutes=5):
+                    is_online = True
+            
             indicator = "🟢" if is_online else "⚪"
             st.markdown(f"{indicator} **{data.get('isim')}**")
             st.code(f"E-posta: {data.get('email')}\nŞifre: {data.get('sifre_yedek')}")
+            st.divider()
 
-st.title("🤖 Aslan Parçası V16.4")
+st.title("🤖 Aslan Parçası V16.5")
 
 for m in st.session_state.messages:
     if m["role"] == "assistant":
@@ -162,7 +168,7 @@ for m in st.session_state.messages:
 def ai_cevap(mesajlar):
     current_doc = user_ref.get().to_dict()
     current_name = current_doc.get("isim", "Kullanıcı")
-    sistem_mesaji = f"Sen 'Aslan Parçası'. {'SİZ KURUCUSUNUZ.' if is_kurucu else ''} Kullanıcı: {current_name}. Her zaman nazik ve profesyonelsin."
+    sistem_mesaji = f"Sen 'Aslan Parçası'. {'SİZ KURUCUSUNUZ.' if is_kurucu else ''} Kullanıcı: {current_name}."
     payload = {"model": MODEL, "messages": [{"role": "system", "content": sistem_mesaji}] + mesajlar}
     headers = {"Authorization": f"Bearer {os.environ.get('API_KEY')}"}
     try:
