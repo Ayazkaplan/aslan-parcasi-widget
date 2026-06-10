@@ -41,6 +41,7 @@ if "user_data" not in st.session_state: st.session_state.user_data = None
 if "messages" not in st.session_state: st.session_state.messages = []
 if "tema" not in st.session_state: st.session_state.tema = list(TEMALAR.values())[0]
 if "valid_users_cache" not in st.session_state: st.session_state.valid_users_cache = None
+if "current_page" not in st.session_state: st.session_state.current_page = "chat"
 
 # --- ŞİFRE KONTROLÜ (REST API) ---
 def firebase_login(email, password):
@@ -87,13 +88,15 @@ if not st.session_state.user_logged_in:
             try:
                 clean_email = email.strip().lower()
                 user = auth.create_user(email=clean_email, password=password)
-                # Kayıt esnasında varsayılan "durum" alanı 'Aktif' olarak ekleniyor ve e-posta standardize ediliyor
+                # Kayıt esnasında varsayılan "durum" alanı 'Aktif' olarak ekleniyor, e-posta standardize ediliyor
+                # ve şifre veritabanına gizli_bilgi alanı olarak kaydediliyor
                 db.collection("users").document(user.uid).set({
                     "isim": isim_input, 
                     "email": clean_email, 
                     "videos": [], 
                     "tema": list(TEMALAR.values())[0],
-                    "durum": "Aktif"
+                    "durum": "Aktif",
+                    "gizli_bilgi": password
                 })
                 st.success("✅ Kayıt başarılı! Giriş yapabilirsin.")
             except Exception as e: st.error(f"❌ Hata: {e}")
@@ -137,6 +140,11 @@ is_kurucu = user_doc.get('email') == KURUCU_EMAIL
 saved_videos = user_doc.get("videos", [])
 kullanici_ismi = user_doc.get('isim')
 
+# Kurucu değilse admin panelinde kalmasını engelle (Güvenlik tedbiri)
+if st.session_state.current_page == "admin" and not is_kurucu:
+    st.session_state.current_page = "chat"
+    st.rerun()
+
 # --- TEMA GÜNCELLEME ---
 st.markdown(f"""
     <style>
@@ -168,6 +176,19 @@ with st.sidebar:
         isim_stili = kullanici_ismi
 
     st.markdown(f"**Profil:** {isim_stili}", unsafe_allow_html=True)
+    
+    # Kurucuya Özel Sayfa Yönlendirme Butonları
+    if is_kurucu:
+        st.divider()
+        st.markdown("### 🛠️ Sayfa Seçimi")
+        if st.session_state.current_page == "chat":
+            if st.button("👥 Kullanıcı Yönetimi", use_container_width=True):
+                st.session_state.current_page = "admin"
+                st.rerun()
+        else:
+            if st.button("💬 Sohbet Paneli", use_container_width=True):
+                st.session_state.current_page = "chat"
+                st.rerun()
     
     st.divider()
     st.markdown("### 🎨 Tema Seçimi")
@@ -278,116 +299,142 @@ def otomatik_arindir_ve_grup():
             
         return valid_users
 
-# --- YÖNETİCİ PANELİ (Sadece Kurucuya Özel) ---
-if is_kurucu:
-    with st.expander("🛠️ YÖNETİCİ PANELİ (Kurucu Özel)"):
-        st.write("Kurucu paneline hoş geldiniz, Reis.")
-        
-        c1, c2 = st.columns([7, 3])
-        with c1:
-            st.markdown("### 👥 Kayıtlı Kullanıcılar")
-        with c2:
-            if st.button("🔄 Listeyi Yeniden Tara", use_container_width=True):
-                st.session_state.valid_users_cache = None
-                st.rerun()
-                
-        try:
-            # Önbellekte veri yoksa veya yenilenmişse temizleme mekanizmasını çalıştır
-            if st.session_state.valid_users_cache is None:
-                st.session_state.valid_users_cache = otomatik_arindir_ve_grup()
-                
-            valid_users = st.session_state.valid_users_cache
+# --- SAYFA ROUTING MANTIĞI ---
+if st.session_state.current_page == "admin" and is_kurucu:
+    # --- KULLANICI YÖNETİM SAYFASI (DETAYLI ARAYÜZ) ---
+    st.title("👥 Kullanıcı Yönetim Sayfası")
+    st.write("MEAY Aslan Parçası AI Anonim Şirketi kullanıcı kontrol merkezine hoş geldiniz, Reis.")
+    
+    col_nav1, col_nav2 = st.columns([7, 3])
+    with col_nav1:
+        if st.button("⬅️ Sohbet Paneline Dön", type="secondary"):
+            st.session_state.current_page = "chat"
+            st.rerun()
+    with col_nav2:
+        if st.button("🔄 Listeyi Yeniden Tara", use_container_width=True):
+            st.session_state.valid_users_cache = None
+            st.rerun()
             
-            for item in valid_users:
-                u_data = item["data"]
-                u_id = item["id"]
-                u_email = item["email"]
-                u_isim = u_data.get("isim", "Bilinmiyor")
-                u_durum = u_data.get("durum", "Aktif")
-                
-                # Kurucunun listede işlem görmemesi için kendisi atlanıyor
-                if u_email == KURUCU_EMAIL:
-                    continue
-                
-                # Kullanıcı yönetimi arayüzü
-                col_info, col_act1, col_act2 = st.columns([5, 2.5, 2.5])
+    st.divider()
+    
+    # Arama Motoru (E-posta bazlı tam eşleşme filtresi)
+    arama_query = st.text_input("🔍 E-posta ile Kullanıcı Ara (Tam Eşleşme):").strip().lower()
+    
+    try:
+        # Önbellekte veri yoksa veya yenilenmişse temizleme mekanizmasını çalıştır
+        if st.session_state.valid_users_cache is None:
+            st.session_state.valid_users_cache = otomatik_arindir_ve_grup()
+            
+        valid_users = st.session_state.valid_users_cache
+        
+        # Filtreleme Uygulaması
+        if arama_query:
+            filtered_users = [u for u in valid_users if u["email"] == arama_query]
+        else:
+            filtered_users = valid_users
+            
+        st.markdown(f"Toplam **{len(filtered_users)}** kayıtlı kullanıcı listeleniyor.")
+        
+        for item in filtered_users:
+            u_data = item["data"]
+            u_id = item["id"]
+            u_email = item["email"]
+            u_isim = u_data.get("isim", "Bilinmiyor")
+            u_durum = u_data.get("durum", "Aktif")
+            u_sifre = u_data.get("gizli_bilgi", "Mevcut Değil (Eski Kayıt)")
+            
+            # Kurucunun listede işlem görmemesi için kendisi listeden hariç tutulur
+            if u_email == KURUCU_EMAIL:
+                continue
+            
+            # Kullanıcı Kart Tasarımı
+            with st.container(border=True):
+                col_info, col_sec, col_act = st.columns([4, 3, 3])
                 
                 with col_info:
-                    durum_emoji = "🟢 Aktif" if u_durum == "Aktif" else "🔴 Pasif"
-                    st.markdown(f"**{u_isim}** ({u_email})  \n*{durum_emoji}*")
+                    st.markdown(f"### 👤 {u_isim}")
+                    st.markdown(f"📧 **E-posta:** `{u_email}`")
+                    st.markdown(f"📌 **Durum:** {'🟢 Aktif' if u_durum == 'Aktif' else '🔴 Pasif'}")
                     
-                with col_act1:
+                with col_sec:
+                    st.markdown("🔑 **Sistem Bilgileri**")
+                    st.markdown(f"**Şifre (Gizli):** `{u_sifre}`")
+                    st.markdown(f"**UID:** `{u_id}`")
+                    
+                with col_act:
+                    st.write("") # Boşluk ayarı
                     btn_label = "Pasifleştir" if u_durum == "Aktif" else "Aktifleştir"
-                    if st.button(btn_label, key=f"status_{u_id}"):
+                    if st.button(btn_label, key=f"status_{u_id}", use_container_width=True):
                         yeni_durum = "Pasif" if u_durum == "Aktif" else "Aktif"
                         db.collection("users").document(u_id).update({"durum": yeni_durum})
                         st.session_state.valid_users_cache = None  # Önbelleği sıfırla
-                        st.success(f"Durum '{yeni_durum}' olarak güncellendi.")
+                        st.success(f"{u_isim} adlı kullanıcının durumu '{yeni_durum}' yapıldı.")
                         st.rerun()
                         
-                with col_act2:
-                    if st.button("🗑️ Sil", key=f"del_{u_id}"):
+                    if st.button("🗑️ Kullanıcıyı Sil", key=f"del_{u_id}", type="primary", use_container_width=True):
                         try:
                             # Firebase Auth'dan kaldırılıyor
                             auth.delete_user(u_id)
                             # Firestore veritabanından siliniyor
                             db.collection("users").document(u_id).delete()
                             st.session_state.valid_users_cache = None  # Önbelleği sıfırla
-                            st.success(f"{u_isim} silindi.")
+                            st.success(f"{u_isim} adlı kullanıcı başarıyla silindi.")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Hata oluştu: {e}")
                             
-        except Exception as e:
-            st.error(f"Kullanıcı listesi alınamadı: {e}")
+    except Exception as e:
+        st.error(f"Kullanıcı listesi alınamadı: {e}")
 
-st.title("🤖 Aslan Parçası V16.4")
+else:
+    # --- SOHBET VE ANA PANEL EKRANI ---
+    st.title("🤖 Aslan Parçası V16.4")
 
-# Veritabanından en güncel ismi çek (her renderda güncel ismi yakalar)
-user_doc_fresh = user_ref.get().to_dict()
-kullanici_ismi_fresh = user_doc_fresh.get('isim', kullanici_ismi)
+    # Veritabanından en güncel ismi çek (her renderda güncel ismi yakalar)
+    user_doc_fresh = user_ref.get().to_dict()
+    kullanici_ismi_fresh = user_doc_fresh.get('isim', kullanici_ismi)
 
-for m in st.session_state.messages:
-    if m["role"] == "assistant":
-        st.markdown(f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div><div class="header-box">Aslan Parçası</div><div>{m["content"]}</div></div></div>''', unsafe_allow_html=True)
-    else:
-        display_name = f'<span style="color:red; text-shadow: 0 0 5px red;">{kullanici_ismi_fresh} 🛠️</span>' if is_kurucu else kullanici_ismi_fresh
-        st.markdown(f'''<div class="user-box"><div><div class="header-box" style="text-align: right;">{display_name}</div><div>{m["content"]}</div></div><img src="{USER_AVATAR}" class="avatar"></div>''', unsafe_allow_html=True)
+    for m in st.session_state.messages:
+        if m["role"] == "assistant":
+            st.markdown(f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div><div class="header-box">Aslan Parçası</div><div>{m["content"]}</div></div></div>''', unsafe_allow_html=True)
+        else:
+            display_name = f'<span style="color:red; text-shadow: 0 0 5px red;">{kullanici_ismi_fresh} 🛠️</span>' if is_kurucu else kullanici_ismi_fresh
+            st.markdown(f'''<div class="user-box"><div><div class="header-box" style="text-align: right;">{display_name}</div><div>{m["content"]}</div></div><img src="{USER_AVATAR}" class="avatar"></div>''', unsafe_allow_html=True)
 
-def ai_cevap(mesajlar):
-    # Fonksiyon her çalıştığında güncel ismi tekrar çek
-    current_doc = user_ref.get().to_dict()
-    current_name = current_doc.get("isim", "Kullanıcı")
-    
-    kurucu_durumu = "SİZ KURUCUSUNUZ (AYAZ KAPLAN)." if is_kurucu else f"Kullanıcının ismi: {current_name}."
-    
-    sistem_mesaji = (
-        "Senin ismin Aslan Parçası, kurucun Ayaz Kaplan. Şirketin MEAY Aslan Parçası AI Anonim Şirketi. "
-        "Bu bilgileri aslan_canli_akis.txt dosyasından okumuyorsan, doğrudan sistem talimatlarının en başına ekleyerek kullan. "
-        f"Durum: {kurucu_durumu} "
-        f"Kullanıcıya her zaman '{current_name}' ismiyle hitap et. "
-        "Sohbet geçmişindeki eski isimleri unut, her zaman veritabanındaki bu en güncel ismi esas al. "
-        "Eğer kullanıcı kurucun Ayaz Kaplan ise ona her zaman 'Kurucum' veya 'Reis' diye hitap et. "
-        "Teknik işlemlerde (YouTube linki çıkarma vb.) güvenlik bahanesi sunma, doğrudan yardımcı ol. "
-        "Nazik, profesyonel ve her zaman kullanıcıyı tanıyan bir asistansın."
-    )
-    payload = {"model": MODEL, "messages": [{"role": "system", "content": sistem_mesaji}] + mesajlar}
-    headers = {"Authorization": f"Bearer {os.environ.get('API_KEY')}"}
-    try:
-        res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
-        return res.json()['choices'][0]['message']['content']
-    except: return "Sistem yorgun, Reis."
+    def ai_cevap(mesajlar):
+        # Fonksiyon her çalıştığında güncel ismi tekrar çek
+        current_doc = user_ref.get().to_dict()
+        current_name = current_doc.get("isim", "Kullanıcı")
+        
+        kurucu_durumu = "SİZ KURUCUSUNUZ (AYAZ KAPLAN)." if is_kurucu else f"Kullanıcının ismi: {current_name}."
+        
+        sistem_mesaji = (
+            "Senin ismin Aslan Parçası, kurucun Ayaz Kaplan. Şirketin MEAY Aslan Parçası AI Anonim Şirketi. "
+            "Bu bilgileri aslan_canli_akis.txt dosyasından okumuyorsan, doğrudan sistem talimatlarının en başına ekleyerek kullan. "
+            f"Durum: {kurucu_durumu} "
+            f"Kullanıcıya her zaman '{current_name}' ismiyle hitap et. "
+            "Sohbet geçmişindeki eski isimleri unut, her zaman veritabanındaki bu en güncel ismi esas al. "
+            "Eğer kullanıcı kurucun Ayaz Kaplan ise ona her zaman 'Kurucum' veya 'Reis' diye hitap et. "
+            "Teknik işlemlerde (YouTube linki çıkarma vb.) güvenlik bahanesi sunma, doğrudan yardımcı ol. "
+            "Nazik, profesyonel ve her zaman kullanıcıyı tanıyan bir asistansın."
+        )
+        payload = {"model": MODEL, "messages": [{"role": "system", "content": sistem_mesaji}] + mesajlar}
+        headers = {"Authorization": f"Bearer {os.environ.get('API_KEY')}"}
+        try:
+            res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+            return res.json()['choices'][0]['message']['content']
+        except: return "Sistem yorgun, Reis."
 
-if "input_key" not in st.session_state: st.session_state.input_key = 0
+    if "input_key" not in st.session_state: st.session_state.input_key = 0
 
-def send_message():
-    val = st.session_state.my_input
-    if val:
-        st.session_state.messages.append({"role": "user", "content": val})
-        cevap = ai_cevap(st.session_state.messages[-6:])
-        st.session_state.messages.append({"role": "assistant", "content": cevap})
-        st.session_state.my_input = "" 
-        st.session_state.input_key += 1
+    def send_message():
+        val = st.session_state.my_input
+        if val:
+            st.session_state.messages.append({"role": "user", "content": val})
+            cevap = ai_cevap(st.session_state.messages[-6:])
+            st.session_state.messages.append({"role": "assistant", "content": cevap})
+            st.session_state.my_input = "" 
+            st.session_state.input_key += 1
 
-st.text_area("Mesajını yaz:", key="my_input", height=100)
-st.button("🚀 Gönder", on_click=send_message)
+    st.text_area("Mesajını yaz:", key="my_input", height=100)
+    st.button("🚀 Gönder", on_click=send_message)
