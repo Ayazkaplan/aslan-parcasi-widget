@@ -36,13 +36,61 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
-# --- OTURUM YÖNETİMİ ---
+# --- OTURUM YÖNETİMİ & KALICILIK ---
 if "user_logged_in" not in st.session_state: st.session_state.user_logged_in = False
 if "user_data" not in st.session_state: st.session_state.user_data = None
 if "messages" not in st.session_state: st.session_state.messages = []
 if "tema" not in st.session_state: st.session_state.tema = list(TEMALAR.values())[0]
 if "valid_users_cache" not in st.session_state: st.session_state.valid_users_cache = None
 if "current_page" not in st.session_state: st.session_state.current_page = "chat"
+
+# Kalıcı Oturum Desteği (Query Params Kontrolü)
+# Sayfa yenilendiğinde st.session_state sıfırlansa bile URL'deki session_uid parametresinden oturum geri yüklenir.
+if not st.session_state.user_logged_in and "session_uid" in st.query_params:
+    stored_uid = st.query_params["session_uid"]
+    try:
+        user_snap = db.collection("users").document(stored_uid).get()
+        if user_snap.exists:
+            user_data = user_snap.to_dict()
+            user_durum = user_data.get("durum", "Aktif")
+            ban_bitis = user_data.get("ban_bitis_zamani")
+            
+            is_banned = False
+            if user_durum == "Pasif":
+                if ban_bitis:
+                    if ban_bitis.tzinfo is None:
+                        ban_bitis = ban_bitis.replace(tzinfo=timezone.utc)
+                    now = datetime.now(timezone.utc)
+                    if now < ban_bitis:
+                        is_banned = True
+                else:
+                    is_banned = True
+            
+            if not is_banned:
+                st.session_state.user_data = {**user_data, "uid": stored_uid}
+                st.session_state.user_logged_in = True
+                st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
+                
+                # Kalıcı Sohbet: Veritabanındaki sohbet_gecmisi alanından aktif mesajları çekiyoruz
+                sohbet_list = user_data.get("sohbet_gecmisi", [])
+                if isinstance(sohbet_list, list):
+                    active_messages = []
+                    last_separator_idx = -1
+                    for idx, msg in enumerate(sohbet_list):
+                        if msg.get("role") == "separator":
+                            last_separator_idx = idx
+                    if last_separator_idx != -1:
+                        active_messages = sohbet_list[last_separator_idx + 1:]
+                    else:
+                        active_messages = [m for m in sohbet_list if m.get("role") in ["user", "assistant"]]
+                    st.session_state.messages = active_messages
+                else:
+                    st.session_state.messages = []
+            else:
+                # Kullanıcı banlıysa kalıcı oturum parametresini URL'den temizle
+                st.query_params.pop("session_uid", None)
+    except Exception:
+        pass
 
 # --- ŞİFRE KONTROLÜ (REST API) ---
 def firebase_login(email, password):
@@ -113,6 +161,26 @@ if not st.session_state.user_logged_in:
                         st.session_state.user_data = {**user_data, "uid": auth_res['localId']}
                         st.session_state.user_logged_in = True
                         st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
+                        
+                        # Kalıcı Oturum: Tarayıcı URL'sine session_uid parametresini ekliyoruz
+                        st.query_params["session_uid"] = auth_res['localId']
+                        
+                        # Kalıcı Sohbet: Veritabanındaki sohbet_gecmisi alanından aktif mesajları çekiyoruz
+                        sohbet_list = user_data.get("sohbet_gecmisi", [])
+                        if isinstance(sohbet_list, list):
+                            active_messages = []
+                            last_separator_idx = -1
+                            for idx, msg in enumerate(sohbet_list):
+                                if msg.get("role") == "separator":
+                                    last_separator_idx = idx
+                            if last_separator_idx != -1:
+                                active_messages = sohbet_list[last_separator_idx + 1:]
+                            else:
+                                active_messages = [m for m in sohbet_list if m.get("role") in ["user", "assistant"]]
+                            st.session_state.messages = active_messages
+                        else:
+                            st.session_state.messages = []
+                            
                         st.rerun()
                 else: st.error("❌ Kullanıcı verisi bulunamadı!")
             else: st.error("❌ E-posta veya şifre yanlış!")
@@ -157,7 +225,7 @@ if not st.session_state.user_logged_in:
                     "durum": "Aktif",
                     "gizli_bilgi": password,
                     "ban_bitis_zamani": None,
-                    "sohbet_gecmisi": ""
+                    "sohbet_gecmisi": [] # Veritabanı odaklı sohbet listesi formatı
                 })
                 st.success("✅ Kayıt başarılı! Giriş yapabilirsin.")
             except Exception as e: st.error(f"❌ Hata: {e}")
@@ -182,6 +250,7 @@ user_snap = user_ref.get()
 
 # Veritabanında kullanıcı yoksa oturumu temizle
 if not user_snap.exists:
+    st.query_params.pop("session_uid", None) # Tarayıcı oturum kalıcılık parametresini kaldır
     st.error("❌ Hesabınız silinmiş veya bulunamadı!")
     st.session_state.clear()
     st.rerun()
@@ -223,12 +292,29 @@ if user_durum == "Pasif":
         is_banned = True
         ban_hata_mesaji = "❌ Hesabınız yönetici tarafından pasif duruma getirilmiştir!"
 
-    if is_banned:
-        # Oturumu anlık sonlandır ve giriş sayfasına yönlendir
-        st.session_state.user_logged_in = False
-        st.session_state.user_data = None
-        st.session_state.ban_error_on_logout = ban_hata_mesaji
-        st.rerun()
+if user_durum == "Pasif" and is_banned:
+    # Oturumu anlık sonlandır, tarayıcı kalıcılığını sıfırla ve giriş sayfasına yönlendir
+    st.query_params.pop("session_uid", None)
+    st.session_state.user_logged_in = False
+    st.session_state.user_data = None
+    st.session_state.ban_error_on_logout = ban_hata_mesaji
+    st.rerun()
+
+# Kalıcı Sohbet: Her sayfa yenilemesinde veya rerun'da veritabanındaki sohbet_gecmisi alanından aktif mesajları çekerek st.session_state.messages yüklemesini tazeliyoruz.
+sohbet_list = user_doc.get("sohbet_gecmisi", [])
+if isinstance(sohbet_list, list):
+    active_messages = []
+    last_separator_idx = -1
+    for idx, msg in enumerate(sohbet_list):
+        if msg.get("role") == "separator":
+            last_separator_idx = idx
+    if last_separator_idx != -1:
+        active_messages = sohbet_list[last_separator_idx + 1:]
+    else:
+        active_messages = [m for m in sohbet_list if m.get("role") in ["user", "assistant"]]
+    st.session_state.messages = active_messages
+else:
+    st.session_state.messages = []
 
 # Güncel temayı veritabanından tazele
 st.session_state.tema = user_doc.get("tema", list(TEMALAR.values())[0])
@@ -285,30 +371,20 @@ with st.sidebar:
         st.success("✅ Tema kaydedildi!")
         st.rerun()
     
-    # Sohbeti Arşivleyerek Temizleme Özelliği
+    # Sohbeti Arşivleyerek Temizleme Özelliği (Separator Ekleme)
     if st.button("🧹 Sohbeti Temizle"):
-        if st.session_state.messages:
-            existing_backup = user_doc.get("sohbet_gecmisi", "")
-            
-            # Mesajları biçimlendirerek stringe çeviriyoruz
-            formatted_messages = []
-            for m in st.session_state.messages:
-                role = "Aslan Parçası" if m["role"] == "assistant" else "Kullanıcı"
-                formatted_messages.append(f"[{role}]: {m['content']}")
-            new_session_backup = "\n".join(formatted_messages)
-            
-            if existing_backup:
-                updated_backup = existing_backup + "\n\n--- SOHBET TEMİZLENDİ ---\n\n" + new_session_backup
-            else:
-                updated_backup = new_session_backup
-            
-            user_ref.update({"sohbet_gecmisi": updated_backup})
-            
+        # Veritabanındaki listeye kalıcı ayracı ekliyoruz
+        user_ref.update({
+            "sohbet_gecmisi": firestore.ArrayUnion([{"role": "separator", "content": "--- SOHBET TEMİZLENDİ / YENİ OTURUM ---"}])
+        })
         st.session_state.messages = []
-        st.success("Sohbet arşivlendi ve temizlendi!")
+        st.success("Sohbet başarıyla temizlendi ve yeni oturum başlatıldı!")
         st.rerun()
         
-    if st.button("🚪 Çıkış Yap"): st.session_state.clear(); st.rerun()
+    if st.button("🚪 Çıkış Yap"): 
+        st.query_params.pop("session_uid", None) # Çıkışta tarayıcı kalıcılık parametresini temizle
+        st.session_state.clear()
+        st.rerun()
     
     # Hesabımı Sil Arayüzü (2 Aşamalı Onay)
     if "confirm_delete_self" not in st.session_state:
@@ -326,9 +402,9 @@ with st.sidebar:
                 try:
                     auth.delete_user(uid)
                     db.collection("users").document(uid).delete()
-                    # Varsa kilitli e-posta kaydını da sil
                     u_email = user_doc.get("email", "").strip().lower()
                     db.collection("banlanan_emails").document(u_email).delete()
+                    st.query_params.pop("session_uid", None) # Tarayıcı oturumunu sil
                     st.session_state.clear()
                     st.rerun()
                 except Exception as e:
@@ -510,7 +586,7 @@ if st.session_state.current_page == "admin" and is_kurucu:
             u_durum = u_data.get("durum", "Aktif")
             u_sifre = u_data.get("gizli_bilgi", "Mevcut Değil (Eski Kayıt)")
             u_ban_bitis = u_data.get("ban_bitis_zamani")
-            u_sohbet_gecmisi = u_data.get("sohbet_gecmisi", "")
+            u_sohbet_gecmisi = u_data.get("sohbet_gecmisi", [])
             
             if u_email == KURUCU_EMAIL:
                 continue
@@ -541,10 +617,27 @@ if st.session_state.current_page == "admin" and is_kurucu:
                     else:
                         st.markdown("📌 **Durum:** 🟢 Aktif")
                     
-                    # Yönetici Panelinde Arşivlenmiş Sohbeti Gösterme Alanı
-                    if u_sohbet_gecmisi:
-                        with st.expander("💾 Arşivlenmiş Sohbet Geçmişi"):
-                            st.text_area("Yedeklenen Sohbetler:", value=u_sohbet_gecmisi, height=180, disabled=True, key=f"backup_view_{u_id}")
+                    # Yönetici Panelinde Kesintisiz Sohbet Geçmişi İzleme
+                    # Veritabanında liste formatında tutulan sohbet geçmişini aradaki çizgilerle tam bir döküm halinde kronolojik olarak gösteriyoruz.
+                    if isinstance(u_sohbet_gecmisi, list) and u_sohbet_gecmisi:
+                        formatted_lines = []
+                        for msg in u_sohbet_gecmisi:
+                            role = msg.get("role")
+                            content = msg.get("content", "")
+                            if role == "separator":
+                                formatted_lines.append(f"\n{content}\n")
+                            elif role == "user":
+                                formatted_lines.append(f"[Kullanıcı]: {content}")
+                            elif role == "assistant":
+                                formatted_lines.append(f"[Aslan Parçası]: {content}")
+                        full_transcript = "\n".join(formatted_lines)
+                        
+                        with st.expander("💾 Arşivlenmiş & Aktif Tüm Sohbet Geçmişi"):
+                            st.text_area("Yedeklenen Sohbetler:", value=full_transcript, height=250, disabled=True, key=f"backup_view_{u_id}")
+                    elif isinstance(u_sohbet_gecmisi, str) and u_sohbet_gecmisi:
+                        # Geriye dönük string formatı desteği
+                        with st.expander("💾 Arşivlenmiş Sohbet Geçmişi (Eski Format)"):
+                            st.text_area("Yedeklenen Sohbetler:", value=u_sohbet_gecmisi, height=250, disabled=True, key=f"backup_view_{u_id}")
                     else:
                         st.caption("Arşivlenmiş geçmiş bulunmuyor.")
                     
@@ -676,12 +769,27 @@ else:
 
     if "input_key" not in st.session_state: st.session_state.input_key = 0
 
+    # Kalıcı Sohbet: Mesajlar st.session_state.messages'a eklenirken, Firestore veritabanına da eşzamanlı olarak anında append (ArrayUnion) edilir.
     def send_message():
         val = st.session_state.my_input
         if val:
+            # 1. Kullanıcı mesajını yerel oturuma ekle
             st.session_state.messages.append({"role": "user", "content": val})
+            # 2. Kullanıcı mesajını anlık olarak veritabanına ekle
+            user_ref.update({
+                "sohbet_gecmisi": firestore.ArrayUnion([{"role": "user", "content": val}])
+            })
+            
+            # AI cevabını al
             cevap = ai_cevap(st.session_state.messages[-6:])
+            
+            # 3. Asistan cevabını yerel oturuma ekle
             st.session_state.messages.append({"role": "assistant", "content": cevap})
+            # 4. Asistan cevabını anlık olarak veritabanına ekle
+            user_ref.update({
+                "sohbet_gecmisi": firestore.ArrayUnion([{"role": "assistant", "content": cevap}])
+            })
+            
             st.session_state.my_input = "" 
             st.session_state.input_key += 1
 
