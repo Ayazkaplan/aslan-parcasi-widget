@@ -7,6 +7,7 @@ from firebase_admin import credentials, auth, firestore
 import re
 from datetime import datetime, timezone, timedelta
 import time
+import unicodedata
 
 # --- AYARLAR ---
 KURUCU_EMAIL = "ayazscma92@gmail.com"
@@ -37,6 +38,32 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
+# --- YARDIMCI FONKSİYONLAR & KÜFÜR FİLTRESİ ---
+def normalize_text(text):
+    # Türkçe karakterleri İngilizceye çevir ve tüm işaretleri temizle
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
+    return re.sub(r'[^a-zA-Z0-9]', '', text.lower())
+
+def kufur_var_mi(text):
+    clean_text = normalize_text(text)
+    # Global Ban List ve türevleri (Diğer dillerdeki küfürlerle birleştirilmiş)
+    ban_list = [
+        "amk", "aq", "orospu", "pic", "yavsak", "yavsaklik", "hiyar", "durzu", "dingil", "serefsiz", "fuck", "bitch",
+        "asshole", "shit", "bastard", "cunt", "dick", "pussy", "motherfucker", "whore", "slut",
+        "scheisse", "arschloch", "schlampe", "wichser", "hurensohn", "fotze",
+        "kus", "kos", "rab", "sharmouta", "sharmuta", "kussak", "ayri", "khara", "sharmout",
+        "puta", "puto", "cabron", "maricon", "merde"
+    ]
+    for word in ban_list:
+        if word in clean_text:
+            return True
+    return False
+
+# YouTube otomatik oynatma iframe oluşturucu
+def get_video_iframe(video_id):
+    return f'''<iframe width="100%" height="150" src="https://www.youtube.com/embed/{video_id}?autoplay=1&mute=1&start=0" 
+    frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>'''
+
 # --- OTURUM YÖNETİMİ & KALICILIK ---
 if "user_logged_in" not in st.session_state: st.session_state.user_logged_in = False
 if "user_data" not in st.session_state: st.session_state.user_data = None
@@ -44,9 +71,21 @@ if "messages" not in st.session_state: st.session_state.messages = []
 if "tema" not in st.session_state: st.session_state.tema = list(TEMALAR.values())[0]
 if "valid_users_cache" not in st.session_state: st.session_state.valid_users_cache = None
 if "current_page" not in st.session_state: st.session_state.current_page = "chat"
+if "force_login" not in st.session_state: st.session_state.force_login = False
 
-# Kalıcı Oturum Desteği (Query Params Kontrolü)
-if not st.session_state.user_logged_in and "session_uid" in st.query_params:
+def set_login_state(uid):
+    st.session_state.user_logged_in = True
+    st.session_state.force_login = True # Oturumu mühürle
+    st.query_params["session_uid"] = uid
+
+def logout_user():
+    st.session_state.force_login = False
+    st.session_state.user_logged_in = False
+    st.query_params.pop("session_uid", None)
+    st.rerun()
+
+# Kalıcı Oturum Desteği (Query Params ve Force Login Kontrolü)
+if (not st.session_state.user_logged_in or not st.session_state.force_login) and "session_uid" in st.query_params:
     stored_uid = st.query_params["session_uid"]
     try:
         user_ref_temp = db.collection("users").document(stored_uid)
@@ -72,10 +111,8 @@ if not st.session_state.user_logged_in and "session_uid" in st.query_params:
             
             if not is_banned:
                 st.session_state.user_data = {**user_data, "uid": stored_uid}
-                st.session_state.user_logged_in = True
+                set_login_state(stored_uid)
                 st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
-                # Tarayıcı URL kalıcılığını pekiştir
-                st.query_params["session_uid"] = stored_uid
                 
                 # Kalıcı Sohbet: Veritabanındaki sohbet_gecmisi alanından aktif mesajları çekiyoruz
                 sohbet_list = user_data.get("sohbet_gecmisi", [])
@@ -93,40 +130,15 @@ if not st.session_state.user_logged_in and "session_uid" in st.query_params:
                 else:
                     st.session_state.messages = []
             else:
-                # Kullanıcı banlıysa kalıcı oturum parametresini URL'den temizle
+                # Kullanıcı banlıysa kalıcı oturum parametrelerini sil
+                st.session_state.force_login = False
                 st.query_params.pop("session_uid", None)
     except Exception:
         pass
 
-# --- ŞİFRE KONTROLÜ (REST API) ---
-def firebase_login(email, password):
-    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
-    payload = {"email": email, "password": password, "returnSecureToken": True}
-    res = requests.post(url, json=payload)
-    return res.json() if res.status_code == 200 else None
-
-# --- EMOJİ KONTROLÜ ---
-def emoji_var_mi(text):
-    return bool(re.search(r'[^\w\s,.]', text))
-
-# --- KÜFÜR KONTROL FONKSİYONU (Sıfır Tolerans Modu) ---
-def kufur_var_mi(text):
-    KUFUR_LISTESI = [
-        "amk", "aq", "orospu", "piç", "pic", "skm", "sik", "sikiş", "got", "göt", "gavat", "pezevenk", "yarrak", "yarak", 
-        "meme", "daşşak", "dassak", "fuck", "bitch", "asshole", "shit"
-    ]
-    # Mesajdaki tüm boşlukları, özel karakterleri ve noktalamaları kaldırır
-    mesaj_temiz = re.sub(r'[^a-zA-ZçÇğĞıİöÖşŞüÜ0-9]', '', text)
-    
-    # IGNORECASE ile regex deseni derleme
-    pattern = re.compile("|".join(KUFUR_LISTESI), re.IGNORECASE)
-    
-    if pattern.search(mesaj_temiz):
-        return True
-    return False
-
 # --- GİRİŞ VE KAYIT EKRANI ---
-if not st.session_state.user_logged_in:
+# Her sayfa başında force_login durumunu kontrol et:
+if not st.session_state.user_logged_in or not st.session_state.force_login:
     st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁")
     st.title("🦁 Aslan Parçası V16.4")
     
@@ -186,11 +198,8 @@ if not st.session_state.user_logged_in:
                         })
                         
                         st.session_state.user_data = {**user_data, "uid": auth_res['localId']}
-                        st.session_state.user_logged_in = True
+                        set_login_state(auth_res['localId'])
                         st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
-                        
-                        # Kalıcı Oturum: Tarayıcı URL'sine session_uid parametresini ekliyoruz
-                        st.query_params["session_uid"] = auth_res['localId']
                         
                         # Kalıcı Sohbet: Veritabanındaki sohbet_gecmisi alanından aktif mesajları çekiyoruz
                         sohbet_list = user_data.get("sohbet_gecmisi", [])
@@ -329,11 +338,10 @@ if user_durum == "Pasif":
         ban_hata_mesaji = "❌ Hesabınız yönetici tarafından pasif duruma getirilmiştir!"
 
 if user_durum == "Pasif" and is_banned:
-    st.query_params.pop("session_uid", None)
     st.session_state.user_logged_in = False
     st.session_state.user_data = None
     st.session_state.ban_error_on_logout = ban_hata_mesaji
-    st.rerun()
+    logout_user()
 
 # Kalıcı Sohbet: Veritabanından aktif mesajları çekme
 sohbet_list = user_doc.get("sohbet_gecmisi", [])
@@ -406,7 +414,7 @@ with st.sidebar:
         st.success("✅ Tema kaydedildi!")
         st.rerun()
     
-    # Sohbeti Arşivleyerek Temizleme Özelliği (Onarılmış ve [] ile doğrudan temizleyen sürüm)
+    # Sohbeti Arşivleyerek Temizleme Özelliği
     if st.button("🧹 Sohbeti Temizle"):
         user_ref.update({"sohbet_gecmisi": []})
         st.session_state.messages = []
@@ -414,9 +422,7 @@ with st.sidebar:
         st.rerun()
         
     if st.button("🚪 Çıkış Yap"): 
-        st.query_params.pop("session_uid", None) # Çıkışta tarayıcı kalıcılık parametresini temizle
-        st.session_state.clear()
-        st.rerun()
+        logout_user() # Kilidi açan tek çıkış butonu
     
     # Hesabımı Sil Arayüzü (2 Aşamalı Onay)
     if "confirm_delete_self" not in st.session_state:
@@ -436,9 +442,7 @@ with st.sidebar:
                     db.collection("users").document(uid).delete()
                     u_email = user_doc.get("email", "").strip().lower()
                     db.collection("banlanan_emails").document(u_email).delete()
-                    st.query_params.pop("session_uid", None) # Tarayıcı oturumunu sil
-                    st.session_state.clear()
-                    st.rerun()
+                    logout_user()
                 except Exception as e:
                     st.error(f"Hata: {e}")
         with col_self_del_no:
@@ -453,14 +457,15 @@ with st.sidebar:
             user_ref.update({"videos": firestore.ArrayUnion([yeni_video])})
             st.rerun()
     
+    # Video Hafızası (Autoplay, Mute ve get_video_iframe fonksiyonu entegrasyonu)
     for v in saved_videos:
         c1, c2 = st.columns([0.8, 0.2])
-        c1.markdown(f'<iframe width="100%" height="150" src="https://www.youtube.com/embed/{v}" frameborder="0"></iframe>', unsafe_allow_html=True)
+        c1.markdown(get_video_iframe(v), unsafe_allow_html=True)
         if c2.button("🗑️", key=v):
             user_ref.update({"videos": firestore.ArrayRemove([v])})
             st.rerun()
 
-    # Sadece kurucular için en altta tek bir dinamik geçiş butonu
+    # Sadece kurucular için en altta tek bir dinamik geçiş butonu (Sidebar navigasyonu kalıcı oturuma dirençli)
     if is_kurucu:
         st.divider()
         if st.session_state.current_page == "chat":
@@ -755,7 +760,7 @@ elif st.session_state.current_page == "admin_users" and is_kurucu:
                     with col_act:
                         st.write("") 
                         
-                        # Zaman Ayarlı Pasifleştirme (Ban) ve Aktifleştirme Arayüzü
+                        # Zaman Ayarlı Pasifleştirme (Ban) og Aktifleştirme Arayüzü
                         if u_durum == "Aktif":
                             show_ban = st.session_state.get(f"show_ban_{u_id}", False)
                             if not show_ban:
