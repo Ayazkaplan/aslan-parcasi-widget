@@ -59,12 +59,18 @@ def emoji_var_mi(text):
 if not st.session_state.user_logged_in:
     st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁")
     st.title("🦁 Aslan Parçası V16.4")
+    
+    # Force Logout sonrasında kalan süreyi veya ban hatasını gösterme
+    if "ban_error_on_logout" in st.session_state:
+        st.error(st.session_state.ban_error_on_logout)
+    
     email = st.text_input("📧 E-posta:")
     password = st.text_input("🔑 Şifre:", type="password")
     
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Giriş Yap"):
+            st.session_state.pop("ban_error_on_logout", None) # Yeni giriş denemesinde eski hatayı temizle
             clean_email = email.strip().lower()
             auth_res = firebase_login(clean_email, password)
             if auth_res:
@@ -95,6 +101,8 @@ if not st.session_state.user_logged_in:
                                     "durum": "Aktif",
                                     "ban_bitis_zamani": None
                                 })
+                                # E-posta kilit kaydını da sil
+                                db.collection("banlanan_emails").document(clean_email).delete()
                                 user_data["durum"] = "Aktif"
                                 user_data["ban_bitis_zamani"] = None
                         else:
@@ -112,8 +120,34 @@ if not st.session_state.user_logged_in:
     with col2:
         isim_input = st.text_input("👤 Kayıt İçin İsim:", max_chars=25)
         if st.button("Kayıt Ol"):
+            st.session_state.pop("ban_error_on_logout", None)
             try:
                 clean_email = email.strip().lower()
+                
+                # Sıkı Ban Sistemi (E-posta Kilidi) Kontrolü
+                ban_doc = db.collection("banlanan_emails").document(clean_email).get()
+                if ban_doc.exists:
+                    ban_data = ban_doc.to_dict()
+                    ban_bitis = ban_data.get("ban_bitis_zamani")
+                    if ban_bitis:
+                        if ban_bitis.tzinfo is None:
+                            ban_bitis = ban_bitis.replace(tzinfo=timezone.utc)
+                        now = datetime.now(timezone.utc)
+                        if now < ban_bitis:
+                            kalan_sure = ban_bitis - now
+                            kalan_dakika = int(kalan_sure.total_seconds() / 60)
+                            if kalan_dakika < 1:
+                                st.error(f"❌ Bu e-posta adresi ban süresi dolana kadar kullanılamaz. Kalan süre: {int(kalan_sure.total_seconds())} saniye")
+                            else:
+                                st.error(f"❌ Bu e-posta adresi ban süresi dolana kadar kullanılamaz. Kalan süre: {kalan_dakika} dakika")
+                            st.stop()
+                        else:
+                            # Süre dolmuşsa kilidi kaldır
+                            db.collection("banlanan_emails").document(clean_email).delete()
+                    else:
+                        st.error("❌ Bu e-posta adresi süresiz olarak banlandığı için kullanılamaz!")
+                        st.stop()
+
                 user = auth.create_user(email=clean_email, password=password)
                 db.collection("users").document(user.uid).set({
                     "isim": isim_input, 
@@ -122,7 +156,8 @@ if not st.session_state.user_logged_in:
                     "tema": list(TEMALAR.values())[0],
                     "durum": "Aktif",
                     "gizli_bilgi": password,
-                    "ban_bitis_zamani": None
+                    "ban_bitis_zamani": None,
+                    "sohbet_gecmisi": ""
                 })
                 st.success("✅ Kayıt başarılı! Giriş yapabilirsin.")
             except Exception as e: st.error(f"❌ Hata: {e}")
@@ -153,12 +188,13 @@ if not user_snap.exists:
 
 user_doc = user_snap.to_dict()
 
-# Oturum esnasında pasif duruma getirilmişse oturumu kapat / kontrol et
+# Anlık Ban Kontrolü (Force Logout)
 user_durum = user_doc.get("durum", "Aktif")
 ban_bitis = user_doc.get("ban_bitis_zamani")
 
 if user_durum == "Pasif":
     is_banned = False
+    ban_hata_mesaji = ""
     if ban_bitis:
         if ban_bitis.tzinfo is None:
             ban_bitis = ban_bitis.replace(tzinfo=timezone.utc)
@@ -168,25 +204,31 @@ if user_durum == "Pasif":
             kalan_sure = ban_bitis - now
             kalan_dakika = int(kalan_sure.total_seconds() / 60)
             if kalan_dakika < 1:
-                st.error(f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {int(kalan_sure.total_seconds())} saniye")
+                ban_hata_mesaji = f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {int(kalan_sure.total_seconds())} saniye"
             else:
-                st.error(f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {kalan_dakika} dakika")
+                ban_hata_mesaji = f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {kalan_dakika} dakika"
         else:
             # Süre dolmuşsa aktif hale getir
             db.collection("users").document(uid).update({
                 "durum": "Aktif",
                 "ban_bitis_zamani": None
             })
+            # E-posta kilidini kaldır
+            u_email = user_doc.get("email", "").strip().lower()
+            db.collection("banlanan_emails").document(u_email).delete()
             user_doc["durum"] = "Aktif"
             user_doc["ban_bitis_zamani"] = None
             st.rerun()
     else:
         is_banned = True
-        st.error("❌ Hesabınız yönetici tarafından pasif duruma getirilmiştir!")
+        ban_hata_mesaji = "❌ Hesabınız yönetici tarafından pasif duruma getirilmiştir!"
 
     if is_banned:
-        st.session_state.clear()
-        st.stop()
+        # Oturumu anlık sonlandır ve giriş sayfasına yönlendir
+        st.session_state.user_logged_in = False
+        st.session_state.user_data = None
+        st.session_state.ban_error_on_logout = ban_hata_mesaji
+        st.rerun()
 
 # Güncel temayı veritabanından tazele
 st.session_state.tema = user_doc.get("tema", list(TEMALAR.values())[0])
@@ -243,11 +285,58 @@ with st.sidebar:
         st.success("✅ Tema kaydedildi!")
         st.rerun()
     
+    # Sohbeti Arşivleyerek Temizleme Özelliği
     if st.button("🧹 Sohbeti Temizle"):
+        if st.session_state.messages:
+            existing_backup = user_doc.get("sohbet_gecmisi", "")
+            
+            # Mesajları biçimlendirerek stringe çeviriyoruz
+            formatted_messages = []
+            for m in st.session_state.messages:
+                role = "Aslan Parçası" if m["role"] == "assistant" else "Kullanıcı"
+                formatted_messages.append(f"[{role}]: {m['content']}")
+            new_session_backup = "\n".join(formatted_messages)
+            
+            if existing_backup:
+                updated_backup = existing_backup + "\n\n--- SOHBET TEMİZLENDİ ---\n\n" + new_session_backup
+            else:
+                updated_backup = new_session_backup
+            
+            user_ref.update({"sohbet_gecmisi": updated_backup})
+            
         st.session_state.messages = []
+        st.success("Sohbet arşivlendi ve temizlendi!")
         st.rerun()
         
     if st.button("🚪 Çıkış Yap"): st.session_state.clear(); st.rerun()
+    
+    # Hesabımı Sil Arayüzü (2 Aşamalı Onay)
+    if "confirm_delete_self" not in st.session_state:
+        st.session_state.confirm_delete_self = False
+        
+    if not st.session_state.confirm_delete_self:
+        if st.button("❌ Hesabımı Sil", type="primary", use_container_width=True):
+            st.session_state.confirm_delete_self = True
+            st.rerun()
+    else:
+        st.warning("⚠️ Hesabınızı kalıcı olarak silmek istediğinize emin misiniz?")
+        col_self_del_yes, col_self_del_no = st.columns(2)
+        with col_self_del_yes:
+            if st.button("Evet, Sil", key="confirm_delete_self_yes", type="primary", use_container_width=True):
+                try:
+                    auth.delete_user(uid)
+                    db.collection("users").document(uid).delete()
+                    # Varsa kilitli e-posta kaydını da sil
+                    u_email = user_doc.get("email", "").strip().lower()
+                    db.collection("banlanan_emails").document(u_email).delete()
+                    st.session_state.clear()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Hata: {e}")
+        with col_self_del_no:
+            if st.button("Vazgeç", key="confirm_delete_self_no", use_container_width=True):
+                st.session_state.confirm_delete_self = False
+                st.rerun()
     
     st.divider()
     yeni_video = st.text_input("YouTube ID ekle:")
@@ -263,7 +352,7 @@ with st.sidebar:
             user_ref.update({"videos": firestore.ArrayRemove([v])})
             st.rerun()
 
-    # Sadece kurucular için en altta tek bir dinamik geçiş butonu (Sidebar Temizliği)
+    # Sadece kurucular için en altta tek bir dinamik geçiş butonu
     if is_kurucu:
         st.divider()
         if st.session_state.current_page == "chat":
@@ -275,7 +364,7 @@ with st.sidebar:
                 st.session_state.current_page = "chat"
                 st.rerun()
 
-# --- STYLE VE SOHBET (CSS Taşma Çözümü Dahil) ---
+# --- STYLE VE SOHBET (CSS Taşma Çözümü) ---
 st.markdown(f"""<style>
     .assistant-box {{ 
         background-color: rgba(30,30,30,0.8); 
@@ -330,13 +419,11 @@ def otomatik_arindir_ve_grup():
             u_data = doc.to_dict() or {}
             u_email = u_data.get("email", "").strip().lower()
             
-            # E-posta alanı bulunmayan bozuk kayıtları temizle
             if not u_email:
                 doc.reference.delete()
                 temizlenen_ghost += 1
                 continue
                 
-            # 1. Aşama: Kullanıcının gerçekten Auth'da olup olmadığını kontrol et, yoksa sil.
             try:
                 auth.get_user(u_id)
             except auth.UserNotFoundError:
@@ -346,7 +433,6 @@ def otomatik_arindir_ve_grup():
             except Exception:
                 pass
                 
-            # 2. Aşama: Aynı e-postaya sahip tüm kayıtları grupla.
             update_time = doc.update_time if hasattr(doc, 'update_time') and doc.update_time else 0
             
             user_info = {
@@ -361,7 +447,6 @@ def otomatik_arindir_ve_grup():
                 email_to_docs[u_email] = []
             email_to_docs[u_email].append(user_info)
             
-        # 3. Aşama: Sadece en yeni kaydı tut, diğerlerini sil.
         valid_users = []
         for email, users_list in email_to_docs.items():
             if len(users_list) > 1:
@@ -425,6 +510,7 @@ if st.session_state.current_page == "admin" and is_kurucu:
             u_durum = u_data.get("durum", "Aktif")
             u_sifre = u_data.get("gizli_bilgi", "Mevcut Değil (Eski Kayıt)")
             u_ban_bitis = u_data.get("ban_bitis_zamani")
+            u_sohbet_gecmisi = u_data.get("sohbet_gecmisi", "")
             
             if u_email == KURUCU_EMAIL:
                 continue
@@ -455,6 +541,13 @@ if st.session_state.current_page == "admin" and is_kurucu:
                     else:
                         st.markdown("📌 **Durum:** 🟢 Aktif")
                     
+                    # Yönetici Panelinde Arşivlenmiş Sohbeti Gösterme Alanı
+                    if u_sohbet_gecmisi:
+                        with st.expander("💾 Arşivlenmiş Sohbet Geçmişi"):
+                            st.text_area("Yedeklenen Sohbetler:", value=u_sohbet_gecmisi, height=180, disabled=True, key=f"backup_view_{u_id}")
+                    else:
+                        st.caption("Arşivlenmiş geçmiş bulunmuyor.")
+                    
                 with col_sec:
                     st.markdown("🔑 **Giriş Bilgileri**")
                     st.markdown(f"**Şifre (Gizli):** `{u_sifre}`")
@@ -480,6 +573,11 @@ if st.session_state.current_page == "admin" and is_kurucu:
                                         "durum": "Pasif",
                                         "ban_bitis_zamani": ban_bitis_zamani
                                     })
+                                    # Sıkı ban sistemi için kilitleme tablosuna e-posta ekle
+                                    db.collection("banlanan_emails").document(u_email).set({
+                                        "ban_bitis_zamani": ban_bitis_zamani,
+                                        "email": u_email
+                                    })
                                     st.session_state[f"show_ban_{u_id}"] = False
                                     st.session_state.valid_users_cache = None
                                     st.success(f"Pasifleştirildi ({ban_sure} dk)")
@@ -494,19 +592,37 @@ if st.session_state.current_page == "admin" and is_kurucu:
                                 "durum": "Aktif",
                                 "ban_bitis_zamani": None
                             })
+                            # E-posta kilit kaydını da kaldır
+                            db.collection("banlanan_emails").document(u_email).delete()
                             st.session_state.valid_users_cache = None
                             st.success("Hesap aktifleştirildi.")
                             st.rerun()
                         
-                    if st.button("🗑️ Sil", key=f"del_{u_id}", type="primary", use_container_width=True):
-                        try:
-                            auth.delete_user(u_id)
-                            db.collection("users").document(u_id).delete()
-                            st.session_state.valid_users_cache = None
-                            st.success(f"{u_isim} silindi.")
+                    # 2 Aşamalı Yönetici Silme Butonu
+                    show_del_confirm = st.session_state.get(f"show_del_confirm_{u_id}", False)
+                    if not show_del_confirm:
+                        if st.button("🗑️ Sil", key=f"del_{u_id}", type="primary", use_container_width=True):
+                            st.session_state[f"show_del_confirm_{u_id}"] = True
                             st.rerun()
-                        except Exception as e:
-                            st.error(f"Hata: {e}")
+                    else:
+                        st.warning("⚠️ Emin misiniz?")
+                        col_del_yes, col_del_no = st.columns(2)
+                        with col_del_yes:
+                            if st.button("Evet, Kalıcı Olarak Sil", key=f"confirm_del_yes_{u_id}", type="primary", use_container_width=True):
+                                try:
+                                    auth.delete_user(u_id)
+                                    db.collection("users").document(u_id).delete()
+                                    db.collection("banlanan_emails").document(u_email).delete()
+                                    st.session_state.valid_users_cache = None
+                                    st.session_state[f"show_del_confirm_{u_id}"] = False
+                                    st.success(f"{u_isim} silindi.")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Hata: {e}")
+                        with col_del_no:
+                            if st.button("İptal", key=f"confirm_del_no_{u_id}", use_container_width=True):
+                                st.session_state[f"show_del_confirm_{u_id}"] = False
+                                st.rerun()
                             
     except Exception as e:
         st.error(f"Kullanıcı listesi alınamadı: {e}")
