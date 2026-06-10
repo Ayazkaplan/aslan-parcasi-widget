@@ -5,6 +5,7 @@ import json
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
 import re
+from datetime import datetime, timezone, timedelta
 
 # --- AYARLAR ---
 KURUCU_EMAIL = "ayazscma92@gmail.com"
@@ -71,10 +72,36 @@ if not st.session_state.user_logged_in:
                 query = users_ref.where("email", "==", clean_email).limit(1).get()
                 if query:
                     user_data = query[0].to_dict()
-                    # Pasif durum kontrolü
-                    if user_data.get("durum", "Aktif") == "Pasif":
-                        st.error("❌ Hesabınız pasifleştirilmiştir. Giriş yapamazsınız!")
-                    else:
+                    user_durum = user_data.get("durum", "Aktif")
+                    ban_bitis = user_data.get("ban_bitis_zamani")
+                    
+                    is_banned = False
+                    if user_durum == "Pasif":
+                        if ban_bitis:
+                            if ban_bitis.tzinfo is None:
+                                ban_bitis = ban_bitis.replace(tzinfo=timezone.utc)
+                            now = datetime.now(timezone.utc)
+                            if now < ban_bitis:
+                                is_banned = True
+                                kalan_sure = ban_bitis - now
+                                kalan_dakika = int(kalan_sure.total_seconds() / 60)
+                                if kalan_dakika < 1:
+                                    st.error(f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {int(kalan_sure.total_seconds())} saniye")
+                                else:
+                                    st.error(f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {kalan_dakika} dakika")
+                            else:
+                                # Süre dolmuşsa banı otomatik kaldır ve girişe izin ver
+                                db.collection("users").document(query[0].id).update({
+                                    "durum": "Aktif",
+                                    "ban_bitis_zamani": None
+                                })
+                                user_data["durum"] = "Aktif"
+                                user_data["ban_bitis_zamani"] = None
+                        else:
+                            is_banned = True
+                            st.error("❌ Hesabınız pasifleştirilmiştir. Giriş yapamazsınız!")
+                    
+                    if not is_banned:
                         st.session_state.user_data = {**user_data, "uid": auth_res['localId']}
                         st.session_state.user_logged_in = True
                         st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
@@ -88,15 +115,14 @@ if not st.session_state.user_logged_in:
             try:
                 clean_email = email.strip().lower()
                 user = auth.create_user(email=clean_email, password=password)
-                # Kayıt esnasında varsayılan "durum" alanı 'Aktif' olarak ekleniyor, e-posta standardize ediliyor
-                # girdiği şifre ise 'gizli_bilgi' alanına metin verisi olarak ekleniyor
                 db.collection("users").document(user.uid).set({
                     "isim": isim_input, 
                     "email": clean_email, 
                     "videos": [], 
                     "tema": list(TEMALAR.values())[0],
                     "durum": "Aktif",
-                    "gizli_bilgi": password
+                    "gizli_bilgi": password,
+                    "ban_bitis_zamani": None
                 })
                 st.success("✅ Kayıt başarılı! Giriş yapabilirsin.")
             except Exception as e: st.error(f"❌ Hata: {e}")
@@ -119,7 +145,7 @@ uid = st.session_state.user_data['uid']
 user_ref = db.collection("users").document(uid)
 user_snap = user_ref.get()
 
-# Veritabanında kullanıcı yoksa oturumu temizle (Yönetici silmiş olabilir)
+# Veritabanında kullanıcı yoksa oturumu temizle
 if not user_snap.exists:
     st.error("❌ Hesabınız silinmiş veya bulunamadı!")
     st.session_state.clear()
@@ -127,11 +153,40 @@ if not user_snap.exists:
 
 user_doc = user_snap.to_dict()
 
-# Oturum esnasında pasif duruma getirilmişse oturumu kapat
-if user_doc.get("durum", "Aktif") == "Pasif":
-    st.error("❌ Hesabınız yönetici tarafından pasif duruma getirilmiştir!")
-    st.session_state.clear()
-    st.rerun()
+# Oturum esnasında pasif duruma getirilmişse oturumu kapat / kontrol et
+user_durum = user_doc.get("durum", "Aktif")
+ban_bitis = user_doc.get("ban_bitis_zamani")
+
+if user_durum == "Pasif":
+    is_banned = False
+    if ban_bitis:
+        if ban_bitis.tzinfo is None:
+            ban_bitis = ban_bitis.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        if now < ban_bitis:
+            is_banned = True
+            kalan_sure = ban_bitis - now
+            kalan_dakika = int(kalan_sure.total_seconds() / 60)
+            if kalan_dakika < 1:
+                st.error(f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {int(kalan_sure.total_seconds())} saniye")
+            else:
+                st.error(f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {kalan_dakika} dakika")
+        else:
+            # Süre dolmuşsa aktif hale getir
+            db.collection("users").document(uid).update({
+                "durum": "Aktif",
+                "ban_bitis_zamani": None
+            })
+            user_doc["durum"] = "Aktif"
+            user_doc["ban_bitis_zamani"] = None
+            st.rerun()
+    else:
+        is_banned = True
+        st.error("❌ Hesabınız yönetici tarafından pasif duruma getirilmiştir!")
+
+    if is_banned:
+        st.session_state.clear()
+        st.stop()
 
 # Güncel temayı veritabanından tazele
 st.session_state.tema = user_doc.get("tema", list(TEMALAR.values())[0])
@@ -164,7 +219,6 @@ with st.sidebar:
         if not is_kurucu and emoji_var_mi(yeni_isim):
             st.warning("⚠️ İsminizde emoji kullanamazsınız.")
         else:
-            # Sadece o kullanıcının kendine ait olan tek dokümanını (user_ref) güncelliyoruz
             user_ref.update({"isim": yeni_isim})
             st.session_state.valid_users_cache = None  # Önbelleği temizle
             st.success("✅ İsim güncellendi!")
@@ -176,19 +230,6 @@ with st.sidebar:
         isim_stili = kullanici_ismi
 
     st.markdown(f"**Profil:** {isim_stili}", unsafe_allow_html=True)
-    
-    # Kurucu için sayfa yönlendirme düğmeleri (Sidebar'a eklendi, diğer ayarlar korundu)
-    if is_kurucu:
-        st.divider()
-        st.markdown("### 🛠️ Sayfa Seçimi")
-        if st.session_state.current_page == "chat":
-            if st.button("👥 Kullanıcı Yönetim Sayfası", use_container_width=True):
-                st.session_state.current_page = "admin"
-                st.rerun()
-        else:
-            if st.button("💬 Sohbet Paneline Dön", use_container_width=True):
-                st.session_state.current_page = "chat"
-                st.rerun()
     
     st.divider()
     st.markdown("### 🎨 Tema Seçimi")
@@ -222,10 +263,56 @@ with st.sidebar:
             user_ref.update({"videos": firestore.ArrayRemove([v])})
             st.rerun()
 
-# --- STYLE VE SOHBET ---
+    # Sadece kurucular için en altta tek bir dinamik geçiş butonu (Sidebar Temizliği)
+    if is_kurucu:
+        st.divider()
+        if st.session_state.current_page == "chat":
+            if st.button("🛠️ Yönetici Paneline Git", use_container_width=True):
+                st.session_state.current_page = "admin"
+                st.rerun()
+        else:
+            if st.button("💬 Sohbet Paneline Dön", use_container_width=True):
+                st.session_state.current_page = "chat"
+                st.rerun()
+
+# --- STYLE VE SOHBET (CSS Taşma Çözümü Dahil) ---
 st.markdown(f"""<style>
-    .assistant-box {{ background-color: rgba(30,30,30,0.8); padding: 15px; border-radius: 10px; border-left: 5px solid gold; margin-bottom: 15px; display: flex; align-items: flex-start; gap: 10px; color: white; }}
-    .user-box {{ background-color: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; justify-content: flex-end; align-items: flex-start; gap: 10px; color: white; }}
+    .assistant-box {{ 
+        background-color: rgba(30,30,30,0.8); 
+        padding: 15px; 
+        border-radius: 10px; 
+        border-left: 5px solid gold; 
+        margin-bottom: 15px; 
+        display: flex; 
+        align-items: flex-start; 
+        gap: 10px; 
+        color: white; 
+        word-wrap: break-word !important; 
+        overflow-wrap: break-word !important; 
+        word-break: break-word !important;
+        max-width: 100% !important; 
+    }}
+    .user-box {{ 
+        background-color: rgba(255,255,255,0.1); 
+        padding: 15px; 
+        border-radius: 10px; 
+        margin-bottom: 15px; 
+        display: flex; 
+        justify-content: flex-end; 
+        align-items: flex-start; 
+        gap: 10px; 
+        color: white; 
+        word-wrap: break-word !important; 
+        overflow-wrap: break-word !important; 
+        word-break: break-word !important;
+        max-width: 100% !important; 
+    }}
+    .assistant-box *, .user-box * {{
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        word-break: break-word !important;
+        max-width: 100% !important;
+    }}
     .avatar {{ width: 40px; height: 40px; border-radius: 50%; }}
     .header-box {{ font-weight: bold; margin-bottom: 5px; }}
 </style>""", unsafe_allow_html=True)
@@ -249,7 +336,7 @@ def otomatik_arindir_ve_grup():
                 temizlenen_ghost += 1
                 continue
                 
-            # 1. Aşama: auth.get_user(u_id) ile kullanıcının gerçekten Auth'da olup olmadığını kontrol et, yoksa sil.
+            # 1. Aşama: Kullanıcının gerçekten Auth'da olup olmadığını kontrol et, yoksa sil.
             try:
                 auth.get_user(u_id)
             except auth.UserNotFoundError:
@@ -257,10 +344,9 @@ def otomatik_arindir_ve_grup():
                 temizlenen_ghost += 1
                 continue
             except Exception:
-                # Bağlantı sorunları vb. durumlarında kaydı geçici olarak koru
                 pass
                 
-            # 2. Aşama: Aynı e-postaya sahip tüm kayıtları bir sözlükte (dictionary) grupla.
+            # 2. Aşama: Aynı e-postaya sahip tüm kayıtları grupla.
             update_time = doc.update_time if hasattr(doc, 'update_time') and doc.update_time else 0
             
             user_info = {
@@ -275,16 +361,14 @@ def otomatik_arindir_ve_grup():
                 email_to_docs[u_email] = []
             email_to_docs[u_email].append(user_info)
             
-        # 3. Aşama: Her bir e-posta grubu için sadece en yeni (en son güncellenen) kaydı tut, diğerlerini sil.
+        # 3. Aşama: Sadece en yeni kaydı tut, diğerlerini sil.
         valid_users = []
         for email, users_list in email_to_docs.items():
             if len(users_list) > 1:
-                # En son güncellenene göre azalan sıralama yap (en yeni en başta yer alır)
                 users_list.sort(key=lambda x: x["update_time"] if x["update_time"] else 0, reverse=True)
                 primary_user = users_list[0]
                 valid_users.append(primary_user)
                 
-                # Diğer eski/mükerrer dokümanları veritabanından sil
                 for duplicate_user in users_list[1:]:
                     duplicate_user["doc"].reference.delete()
                     temizlenen_duplicate += 1
@@ -292,7 +376,6 @@ def otomatik_arindir_ve_grup():
                 if users_list:
                     valid_users.append(users_list[0])
                     
-        # Temizlik raporunu toast bildirimi olarak göster
         toplam_temizlenen = temizlenen_ghost + temizlenen_duplicate
         if toplam_temizlenen > 0:
             st.toast(f"🧹 Otomatik Arındırma: {temizlenen_ghost} hayalet, {temizlenen_duplicate} mükerrer kayıt temizlendi!")
@@ -317,7 +400,7 @@ if st.session_state.current_page == "admin" and is_kurucu:
             
     st.divider()
     
-    # Arama Motoru (E-posta bazlı tam eşleşmeli filtreleme)
+    # Arama Motoru
     arama_query = st.text_input("🔍 E-posta ile Ara (Tam Eşleşme):").strip().lower()
     
     try:
@@ -340,19 +423,37 @@ if st.session_state.current_page == "admin" and is_kurucu:
             u_email = item["email"]
             u_isim = u_data.get("isim", "Bilinmiyor")
             u_durum = u_data.get("durum", "Aktif")
-            u_sifre = u_data.get("gizli_bilgi", "Mevcut Değil (Eski Kayıt)")  # Şifre alanı listeye eklendi
+            u_sifre = u_data.get("gizli_bilgi", "Mevcut Değil (Eski Kayıt)")
+            u_ban_bitis = u_data.get("ban_bitis_zamani")
             
             if u_email == KURUCU_EMAIL:
                 continue
                 
-            # Profesyonel kart tasarımı
             with st.container(border=True):
                 col_info, col_sec, col_act = st.columns([4, 3, 3])
                 
                 with col_info:
                     st.markdown(f"### 👤 {u_isim}")
                     st.markdown(f"📧 **E-posta:** `{u_email}`")
-                    st.markdown(f"📌 **Durum:** {'🟢 Aktif' if u_durum == 'Aktif' else '🔴 Pasif'}")
+                    
+                    if u_durum == "Pasif":
+                        if u_ban_bitis:
+                            if u_ban_bitis.tzinfo is None:
+                                u_ban_bitis = u_ban_bitis.replace(tzinfo=timezone.utc)
+                            now = datetime.now(timezone.utc)
+                            if now < u_ban_bitis:
+                                kalan = u_ban_bitis - now
+                                dk = int(kalan.total_seconds() / 60)
+                                if dk < 1:
+                                    st.markdown(f"📌 **Durum:** 🔴 Pasif (Kalan: {int(kalan.total_seconds())} sn)")
+                                else:
+                                    st.markdown(f"📌 **Durum:** 🔴 Pasif (Kalan: {dk} dk)")
+                            else:
+                                st.markdown("📌 **Durum:** 🟢 Pasif (Süre Doldu, İlk Girişte Aktifleşecek)")
+                        else:
+                            st.markdown("📌 **Durum:** 🔴 Pasif (Süresiz)")
+                    else:
+                        st.markdown("📌 **Durum:** 🟢 Aktif")
                     
                 with col_sec:
                     st.markdown("🔑 **Giriş Bilgileri**")
@@ -360,14 +461,42 @@ if st.session_state.current_page == "admin" and is_kurucu:
                     st.markdown(f"**UID:** `{u_id}`")
                     
                 with col_act:
-                    st.write("") # Boşluk hizalama
-                    btn_label = "Pasifleştir" if u_durum == "Aktif" else "Aktifleştir"
-                    if st.button(btn_label, key=f"status_{u_id}", use_container_width=True):
-                        yeni_durum = "Pasif" if u_durum == "Aktif" else "Aktif"
-                        db.collection("users").document(u_id).update({"durum": yeni_durum})
-                        st.session_state.valid_users_cache = None
-                        st.success(f"Durum '{yeni_durum}' yapıldı.")
-                        st.rerun()
+                    st.write("") 
+                    
+                    # Zaman Ayarlı Pasifleştirme (Ban) ve Aktifleştirme Arayüzü
+                    if u_durum == "Aktif":
+                        show_ban = st.session_state.get(f"show_ban_{u_id}", False)
+                        if not show_ban:
+                            if st.button("Pasifleştir", key=f"status_{u_id}", use_container_width=True):
+                                st.session_state[f"show_ban_{u_id}"] = True
+                                st.rerun()
+                        else:
+                            ban_sure = st.number_input("Süre (Dakika):", min_value=1, value=15, step=1, key=f"ban_min_{u_id}")
+                            c_confirm, c_cancel = st.columns(2)
+                            with c_confirm:
+                                if st.button("Onayla", key=f"confirm_ban_{u_id}", use_container_width=True):
+                                    ban_bitis_zamani = datetime.now(timezone.utc) + timedelta(minutes=ban_sure)
+                                    db.collection("users").document(u_id).update({
+                                        "durum": "Pasif",
+                                        "ban_bitis_zamani": ban_bitis_zamani
+                                    })
+                                    st.session_state[f"show_ban_{u_id}"] = False
+                                    st.session_state.valid_users_cache = None
+                                    st.success(f"Pasifleştirildi ({ban_sure} dk)")
+                                    st.rerun()
+                            with c_cancel:
+                                if st.button("İptal", key=f"cancel_ban_{u_id}", use_container_width=True):
+                                    st.session_state[f"show_ban_{u_id}"] = False
+                                    st.rerun()
+                    else:
+                        if st.button("Aktifleştir", key=f"status_{u_id}", use_container_width=True):
+                            db.collection("users").document(u_id).update({
+                                "durum": "Aktif",
+                                "ban_bitis_zamani": None
+                            })
+                            st.session_state.valid_users_cache = None
+                            st.success("Hesap aktifleştirildi.")
+                            st.rerun()
                         
                     if st.button("🗑️ Sil", key=f"del_{u_id}", type="primary", use_container_width=True):
                         try:
@@ -392,10 +521,10 @@ else:
                 st.session_state.current_page = "admin"
                 st.rerun()
 
-    # --- SOHBET ARAYÜZÜ (HİÇBİR ŞEY SİLİNMEDEN KORUNDU) ---
+    # --- SOHBET ARAYÜZÜ ---
     st.title("🤖 Aslan Parçası V16.4")
 
-    # Veritabanından en güncel ismi çek (her renderda güncel ismi yakalar)
+    # Veritabanından en güncel ismi çek
     user_doc_fresh = user_ref.get().to_dict()
     kullanici_ismi_fresh = user_doc_fresh.get('isim', kullanici_ismi)
 
@@ -407,7 +536,6 @@ else:
             st.markdown(f'''<div class="user-box"><div><div class="header-box" style="text-align: right;">{display_name}</div><div>{m["content"]}</div></div><img src="{USER_AVATAR}" class="avatar"></div>''', unsafe_allow_html=True)
 
     def ai_cevap(mesajlar):
-        # Fonksiyon her çalıştığında güncel ismi tekrar çek
         current_doc = user_ref.get().to_dict()
         current_name = current_doc.get("isim", "Kullanıcı")
         
