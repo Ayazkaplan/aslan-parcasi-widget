@@ -109,18 +109,20 @@ def firebase_login(email, password):
 def emoji_var_mi(text):
     return bool(re.search(r'[^\w\s,.]', text))
 
-# --- KÜFÜR KONTROL FONKSİYONU ---
+# --- KÜFÜR KONTROL FONKSİYONU (Sıfır Tolerans Modu) ---
 def kufur_var_mi(text):
     KUFUR_LISTESI = [
-        "amk", "aq", "orospu", "piç", "skm", "sik", "sikiş", "göt", "gavat", "pezevenk", "yarrak", "yarak", 
+        "amk", "aq", "orospu", "piç", "pic", "skm", "sik", "sikiş", "got", "göt", "gavat", "pezevenk", "yarrak", "yarak", 
         "meme", "daşşak", "dassak", "fuck", "bitch", "asshole", "shit"
     ]
-    text_lower = text.lower()
-    # Kelime sınırlarına bakarak kontrol edilir, böylece "bisiklet" gibi kelimeler filtrelenmez.
-    for bad_word in KUFUR_LISTESI:
-        pattern = r'\b' + re.escape(bad_word) + r'\b'
-        if re.search(pattern, text_lower):
-            return True
+    # Mesajdaki tüm boşlukları, özel karakterleri ve noktalamaları kaldırır
+    mesaj_temiz = re.sub(r'[^a-zA-ZçÇğĞıİöÖşŞüÜ0-9]', '', text)
+    
+    # IGNORECASE ile regex deseni derleme
+    pattern = re.compile("|".join(KUFUR_LISTESI), re.IGNORECASE)
+    
+    if pattern.search(mesaj_temiz):
+        return True
     return False
 
 # --- GİRİŞ VE KAYIT EKRANI ---
@@ -404,13 +406,11 @@ with st.sidebar:
         st.success("✅ Tema kaydedildi!")
         st.rerun()
     
-    # Sohbeti Arşivleyerek Temizleme Özelliği
+    # Sohbeti Arşivleyerek Temizleme Özelliği (Onarılmış ve [] ile doğrudan temizleyen sürüm)
     if st.button("🧹 Sohbeti Temizle"):
-        user_ref.update({
-            "sohbet_gecmisi": firestore.ArrayUnion([{"role": "separator", "content": "--- SOHBET TEMİZLENDİ ---"}])
-        })
+        user_ref.update({"sohbet_gecmisi": []})
         st.session_state.messages = []
-        st.success("Sohbet temizlendi!")
+        st.success("Sohbet başarıyla temizlendi!")
         st.rerun()
         
     if st.button("🚪 Çıkış Yap"): 
@@ -460,7 +460,7 @@ with st.sidebar:
             user_ref.update({"videos": firestore.ArrayRemove([v])})
             st.rerun()
 
-    # Sadece kurucular için en altta tek bir dinamik geçiş butonu (Sidebar navigasyonu kalıcı oturuma dirençli)
+    # Sadece kurucular için en altta tek bir dinamik geçiş butonu
     if is_kurucu:
         st.divider()
         if st.session_state.current_page == "chat":
@@ -724,10 +724,11 @@ elif st.session_state.current_page == "admin_users" and is_kurucu:
                         else:
                             st.markdown("📌 **Durum:** 🟢 Aktif")
                         
-                        # Yönetici Panelinde Kesintisiz Sohbet Geçmişi İzleme
+                        # Yönetici Panelinde Sınırlı Sohbet Geçmişi İzleme (Otomatik 10 Mesaj Sınırı)
                         if isinstance(u_sohbet_gecmisi, list) and u_sohbet_gecmisi:
+                            gosterilecek_mesajlar = u_sohbet_gecmisi[-10:] # Sadece son 10 mesaj
                             formatted_lines = []
-                            for msg in u_sohbet_gecmisi:
+                            for msg in gosterilecek_mesajlar:
                                 role = msg.get("role")
                                 content = msg.get("content", "")
                                 if role == "separator":
@@ -738,11 +739,11 @@ elif st.session_state.current_page == "admin_users" and is_kurucu:
                                     formatted_lines.append(f"[Aslan Parçası]: {content}")
                             full_transcript = "\n".join(formatted_lines)
                             
-                            with st.expander("💾 Arşivlenmiş & Aktif Tüm Sohbet Geçmişi"):
-                                st.text_area("Yedeklenen Sohbetler:", value=full_transcript, height=250, disabled=True, key=f"backup_view_{u_id}")
+                            with st.expander("💾 Arşivlenmiş Son 10 Sohbet Mesajı (Yönetici Görünümü)"):
+                                st.text_area("Yedeklenen Sohbetler:", value=full_transcript, height=200, disabled=True, key=f"backup_view_{u_id}")
                         elif isinstance(u_sohbet_gecmisi, str) and u_sohbet_gecmisi:
                             with st.expander("💾 Arşivlenmiş Sohbet Geçmişi (Eski Format)"):
-                                st.text_area("Yedeklenen Sohbetler:", value=u_sohbet_gecmisi, height=250, disabled=True, key=f"backup_view_{u_id}")
+                                st.text_area("Yedeklenen Sohbetler:", value=u_sohbet_gecmisi, height=200, disabled=True, key=f"backup_view_{u_id}")
                         else:
                             st.caption("Arşivlenmiş geçmiş bulunmuyor.")
                         
@@ -1026,7 +1027,7 @@ else:
             "Sohbet geçmişindeki eski isimleri unut, her zaman veritabanındaki bu en güncel ismi esas al. "
             "Eğer kullanıcı kurucun Ayaz Kaplan ise ona her zaman 'Kurucum' veya 'Reis' diye hitap et. "
             "Teknik işlemlerde (YouTube linki çıkarma vb.) güvenlik bahanesi sunma, doğrudan yardımcı ol. "
-            "Nazik, profesyonel og her zaman kullanıcıyı tanıyan bir asistansın."
+            "Nazik, profesyonel ve her zaman kullanıcıyı tanıyan bir asistansın."
         )
         payload = {"model": MODEL, "messages": [{"role": "system", "content": sistem_mesaji}] + mesajlar}
         headers = {"Authorization": f"Bearer {os.environ.get('API_KEY')}"}
