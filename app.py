@@ -64,25 +64,20 @@ def get_video_iframe(video_id):
     return f'''<iframe width="100%" height="150" src="https://www.youtube.com/embed/{video_id}?autoplay=0&mute=0" 
     frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'''
 
-# Dinamik İsim Stili Oluşturucu
-# Streamlit'in DOMPurify filtresine takılmamak için inline CSS'lerden '!important' etiketleri KALDIRILDI.
+# CSS Ezilme Sorununu Çözen !important Parametreli İsim Stili Fonksiyonu
 def get_styled_user_name(u_name, u_color, u_glow, u_tag, u_rozet):
     color_val = u_color if u_color else "#FFFFFF"
+    glow_css = f"text-shadow: 0 0 10px {color_val}, 0 0 20px {color_val}, 0 0 30px {color_val} !important;" if u_glow else ""
     
-    # 3 Aşamalı güçlü neon gölge efekti
-    glow_css = f"text-shadow: 0 0 8px {color_val}, 0 0 15px {color_val}, 0 0 25px {color_val};" if u_glow else ""
+    tag_html = f'<span class="tag" style="color: {color_val} !important; font-weight: bold !important; {glow_css} font-size: 0.8rem !important; background-color: rgba(255,255,255,0.1) !important; padding: 2px 6px !important; border-radius: 3px !important; margin-right: 5px !important;">[{u_tag}]</span>' if u_tag else ""
+    isim_html = f'<span class="isim" style="color: {color_val} !important; font-weight: bold !important; {glow_css}">{u_name}</span>'
+    rozet_html = f'<span class="rozet" style="margin-left: 5px !important; color: white !important;">{u_rozet}</span>' if u_rozet else ""
     
-    tag_html = ""
-    if u_tag:
-        tag_html = f'<span style="color: {color_val}; font-weight: bold; {glow_css} font-size: 0.85rem; background-color: rgba(255,255,255,0.1); padding: 3px 6px; border-radius: 4px; margin-right: 6px;">[{u_tag}]</span>'
-    
-    isim_html = f'<span style="color: {color_val}; font-weight: bold; {glow_css}">{u_name}</span>'
-    
-    rozet_html = ""
-    if u_rozet:
-        rozet_html = f'<span style="margin-left: 6px;">{u_rozet}</span>'
-    
-    return f"{tag_html}{isim_html}{rozet_html}"
+    parts = []
+    if tag_html: parts.append(tag_html)
+    parts.append(isim_html)
+    if rozet_html: parts.append(rozet_html)
+    return " ".join(parts)
 
 # --- OTURUM YÖNETİMİ & KALICILIK ---
 if "user_logged_in" not in st.session_state: st.session_state.user_logged_in = False
@@ -104,7 +99,7 @@ def logout_user():
     st.query_params.pop("session_uid", None)
     st.rerun()
 
-# Kalıcı Oturum Desteği
+# Kalıcı Oturum Desteği (Query Params ve Force Login Kontrolü)
 if (not st.session_state.user_logged_in or not st.session_state.force_login) and "session_uid" in st.query_params:
     stored_uid = st.query_params["session_uid"]
     try:
@@ -205,7 +200,10 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
                                 else:
                                     st.error(f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {kalan_dakika} dakika")
                             else:
-                                db.collection("users").document(query[0].id).update({"durum": "Aktif", "ban_bitis_zamani": None})
+                                db.collection("users").document(query[0].id).update({
+                                    "durum": "Aktif",
+                                    "ban_bitis_zamani": None
+                                })
                                 db.collection("banlanan_emails").document(clean_email).delete()
                                 user_data["durum"] = "Aktif"
                                 user_data["ban_bitis_zamani"] = None
@@ -214,7 +212,9 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
                             st.error("❌ Hesabınız pasifleştirilmiştir. Giriş yapamazsınız!")
                     
                     if not is_banned:
-                        db.collection("users").document(query[0].id).update({"son_gorulme_zamani": firestore.SERVER_TIMESTAMP})
+                        db.collection("users").document(query[0].id).update({
+                            "son_gorulme_zamani": firestore.SERVER_TIMESTAMP
+                        })
                         
                         st.session_state.user_data = {**user_data, "uid": auth_res['localId']}
                         set_login_state(auth_res['localId'])
@@ -406,7 +406,7 @@ st.markdown(f"""
             color: #F8F9FA !important;
         }}
         
-        /* Markdown paragrafları açık renk kalsın (inline stilleri ezmez) */
+        /* Markdown içindeki düz paragraflar beyaz yapılsın ama .user-box ve .assistant-box içindekiler serbest kalsın */
         div[data-testid="stMarkdownContainer"] p {{
             color: #F8F9FA;
         }}
@@ -425,14 +425,14 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- SİDEBAR PROFİL ---
+# SİDEBAR PROFİL
 u_color = user_doc.get("isim_rengi", "#FFFFFF")
 u_glow = user_doc.get("ismin_parlakligi", False)
 u_tag = user_doc.get("tag", "")
 u_rozet = user_doc.get("rozet", "")
 
 if is_kurucu:
-    if not user_doc.get("tag"): # Kurucu hiç ayar yapmadıysa varsayılan ver
+    if not user_doc.get("tag"): 
         u_color = "#FF0000"
         u_glow = True
         u_rozet = "🛠️"
@@ -601,8 +601,9 @@ def otomatik_arindir_ve_grup():
                 doc.reference.delete()
                 temizlenen_ghost += 1
                 continue
-            except Exception: pass
-            
+            except Exception:
+                pass
+                
             update_time = doc.update_time if hasattr(doc, 'update_time') and doc.update_time else 0
             user_info = {"doc": doc, "data": u_data, "id": u_id, "email": u_email, "update_time": update_time}
             if u_email not in email_to_docs: email_to_docs[u_email] = []
@@ -799,7 +800,7 @@ elif st.session_state.current_page == "admin_users" and is_kurucu:
                             st.warning("⚠️ Emin misiniz?")
                             col_del_yes, col_del_no = st.columns(2)
                             with col_del_yes:
-                                if st.button("Evet", key=f"confirm_del_yes_{u_id}", type="primary", use_container_width=True):
+                                if st.button("Evet, Kalıcı Olarak Sil", key=f"confirm_del_yes_{u_id}", type="primary", use_container_width=True):
                                     try:
                                         auth.delete_user(u_id)
                                         db.collection("users").document(u_id).delete()
@@ -871,7 +872,6 @@ elif st.session_state.current_page == "admin_users" and is_kurucu:
 
 elif st.session_state.current_page == "admin_announcement" and (is_kurucu or is_admin_user):
     st.title("📣 Duyuru ve Bilgilendirme Sayfası")
-    
     col_back_main, col_back_chat = st.columns([5, 5])
     with col_back_main:
         if is_kurucu:
@@ -908,12 +908,14 @@ elif st.session_state.current_page == "admin_announcement" and (is_kurucu or is_
                 sender_color = user_doc.get("isim_rengi", "#FFFFFF")
                 sender_glow = user_doc.get("ismin_parlakligi", False)
                 sender_tag = user_doc.get("tag", "")
+                sender_rozet = user_doc.get("rozet", "")
                 
                 if sender_email == KURUCU_EMAIL:
                     if not sender_tag:
                         sender_color = "#FF0000"
                         sender_glow = True
                         sender_tag = "KURUCU"
+                        sender_rozet = "🛠️"
                 
                 duyuru_payload = {
                     "id": duyuru_id,
@@ -924,11 +926,12 @@ elif st.session_state.current_page == "admin_announcement" and (is_kurucu or is_
                     "gonderen_isim": sender_name,
                     "gonderen_color": sender_color,
                     "gonderen_glow": sender_glow,
-                    "gonderen_tag": sender_tag
+                    "gonderen_tag": sender_tag,
+                    "gonderen_rozet": sender_rozet
                 }
                 
                 db.collection("duyurular").document(duyuru_id).set(duyuru_payload)
-                pushed_announcement = {"id": duyuru_id, "metin": duyuru_metni.strip(), "gonderen_email": sender_email, "gonderen_isim": sender_name, "gonderen_color": sender_color, "gonderen_glow": sender_glow, "gonderen_tag": sender_tag}
+                pushed_announcement = {"id": duyuru_id, "metin": duyuru_metni.strip(), "gonderen_email": sender_email, "gonderen_isim": sender_name, "gonderen_color": sender_color, "gonderen_glow": sender_glow, "gonderen_tag": sender_tag, "gonderen_rozet": sender_rozet}
                 
                 all_users_snap = db.collection("users").get()
                 
@@ -998,6 +1001,8 @@ elif st.session_state.current_page == "admin_role_management" and is_kurucu:
             st.rerun()
             
     st.divider()
+    
+    # KULLANICI ARAMA VE DÜZENLEME BLOĞU
     st.markdown("### 🔍 Kullanıcı Ara ve Düzenle")
     search_email = st.text_input("E-posta ile kullanıcı ara:", placeholder="ornek@domain.com").strip().lower()
     
@@ -1029,6 +1034,7 @@ elif st.session_state.current_page == "admin_role_management" and is_kurucu:
             
     st.divider()
     
+    # --- MEVCUT YÖNETİCİLER BLOĞU (ARAMA BLOĞUNDAN TAMAMEN BAĞIMSIZ HİZADA) ---
     st.markdown("### 🛡️ Mevcut Yöneticiler")
     
     try:
@@ -1082,6 +1088,7 @@ elif st.session_state.current_page == "admin_role_management" and is_kurucu:
                         sorted_duyurular = sorted(admin_duyurulari, key=get_tarih_val, reverse=True)
                         
                         with st.expander("📋 Yapılan Duyuru Geçmişi"):
+                            # DÖNGÜ DEĞİŞKENİ ÇAKIŞMASI DÜZELTİLDİ: "doc_to_del"
                             if is_kurucu and sorted_duyurular:
                                 if st.button("🗑️ Duyuru Geçmişini Temizle", key=f"clear_ann_log_{a_id}", type="primary", use_container_width=True):
                                     batch_del = db.batch()
@@ -1111,8 +1118,10 @@ elif st.session_state.current_page == "admin_role_management" and is_kurucu:
                                 st.caption("Bu yönetici henüz herhangi bir duyuru yayınlamadı.")
                     except Exception as e:
                         st.caption(f"Duyuru geçmişi yüklenirken hata oluştu: {e}")
+                        
         else:
             st.info("Sistemde atanmış alt yönetici bulunmuyor.")
+            
     except Exception as e:
         st.error(f"Yöneticiler yüklenirken hata oluştu: {e}")
 
@@ -1129,11 +1138,12 @@ else:
             sender_color = duyuru_obj.get("gonderen_color", "#FFFFFF")
             sender_glow = duyuru_obj.get("gonderen_glow", False)
             sender_tag = duyuru_obj.get("gonderen_tag", "")
+            sender_rozet = duyuru_obj.get("gonderen_rozet", "")
             
             if sender_email.strip().lower() == KURUCU_EMAIL.strip().lower():
-                display_sender = get_styled_user_name(sender_name if sender_name else "Ayaz Kaplan", sender_color if sender_color else "#FF0000", sender_glow, sender_tag if sender_tag else "KURUCU", "🛠️")
+                display_sender = get_styled_user_name(sender_name if sender_name else "Ayaz Kaplan", sender_color if sender_color else "#FF0000", sender_glow, sender_tag if sender_tag else "KURUCU", sender_rozet if sender_rozet else "🛠️")
             else:
-                display_sender = get_styled_user_name(sender_name, sender_color, sender_glow, sender_tag, "🛡️")
+                display_sender = get_styled_user_name(sender_name, sender_color, sender_glow, sender_tag, sender_rozet if sender_rozet else "🛡️")
             
             st.markdown(f"""
             <div style="background-color: rgba(255, 0, 0, 0.15); border-left: 5px solid red; padding: 15px; border-radius: 5px; margin-bottom: 10px; box-shadow: 0 0 10px rgba(255, 0, 0, 0.4);">
@@ -1142,6 +1152,7 @@ else:
             </div>
             """, unsafe_allow_html=True)
             
+            # KİLİTLENME HATASI ÇÖZÜLDÜ: Butona basılınca sadece siler ve otomatik rerun a bırakır (sleep yok)
             if st.button("Geç ➡️", key=f"skip_btn_{duyuru_obj.get('id')}", use_container_width=True):
                 user_ref.update({"okunmamis_duyurular": firestore.ArrayRemove([duyuru_obj])})
                 st.rerun()
