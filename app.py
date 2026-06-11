@@ -68,6 +68,25 @@ def get_video_iframe(video_id):
     return f'''<iframe width="100%" height="150" src="https://www.youtube.com/embed/{video_id}?autoplay=0&mute=0" 
     frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'''
 
+# Dinamik İsim Stili Oluşturucu (Görsel Sıralama Hatasını Düzeltir)
+def get_styled_user_name(u_name, u_color, u_glow, u_tag, u_rozet):
+    color_val = u_color if u_color else "#FFFFFF"
+    
+    # Güçlü neon gölge efekti
+    glow_css = f"text-shadow: 0 0 10px {color_val}, 0 0 20px {color_val}, 0 0 30px {color_val};" if u_glow else ""
+    
+    # Sıralama: [TAG] [İSİM] [ROZET]
+    tag_html = f'<span class="tag" style="color: {color_val}; font-weight: bold; {glow_css} font-size: 0.8rem; background-color: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px; margin-right: 5px;">[{u_tag}]</span>' if u_tag else ""
+    isim_html = f'<span class="isim" style="color: {color_val}; font-weight: bold; {glow_css}">{u_name}</span>'
+    rozet_html = f'<span class="rozet" style="margin-left: 5px;">{u_rozet}</span>' if u_rozet else ""
+    
+    parts = []
+    if tag_html: parts.append(tag_html)
+    parts.append(isim_html)
+    if rozet_html: parts.append(rozet_html)
+    
+    return " ".join(parts)
+
 # --- OTURUM YÖNETİMİ & KALICILIK ---
 if "user_logged_in" not in st.session_state: st.session_state.user_logged_in = False
 if "user_data" not in st.session_state: st.session_state.user_data = None
@@ -286,7 +305,7 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
                     "sohbet_gecmisi": [],
                     "son_gorulme_zamani": None,
                     "okunmamis_duyurular": [],
-                    "is_admin": False, # Yeni veri modeli alanları
+                    "is_admin": False,
                     "tag": "",
                     "rozet": "",
                     "isim_rengi": "#FFFFFF",
@@ -393,25 +412,31 @@ saved_videos = user_doc.get("videos", [])
 kullanici_ismi = user_doc.get('isim')
 
 # --- YETKİ KISITLAMALARI VE GÜVENLİK KONTROLLERİ ---
-# Kurucu olmayanların girmesi yasak olan ağır yönetim sayfaları
 if st.session_state.current_page in ["admin_main", "admin_users", "admin_role_management"] and not is_kurucu:
     st.session_state.current_page = "chat"
     st.rerun()
 
-# Ne kurucu ne de yönetici olanların duyuru sayfasına girmesini engelle (Yönetici sadece bu sayfaya girebilir)
 if st.session_state.current_page == "admin_announcement" and not (is_kurucu or is_admin_user):
     st.session_state.current_page = "chat"
     st.rerun()
 
-# --- TEMA GÜNCELLEME ---
-st.markdown(f"""
-    <style>
-        .stApp {{
-            background: {st.session_state.tema} !important;
-            background-attachment: fixed !important;
-        }}
-    </style>
-""", unsafe_allow_html=True)
+# --- SİDEBAR PROFİL GÖRÜNÜMÜ DETAYLARI ---
+# Sol sidebar profil görünümünü de sohbetteki gibi dinamik, parlayan ve tag-rozetli yapma
+u_color = user_doc.get("isim_rengi", "#FFFFFF")
+u_glow = user_doc.get("ismin_parlakligi", False)
+u_tag = user_doc.get("tag", "")
+u_rozet = user_doc.get("rozet", "")
+
+if is_kurucu:
+    if "isim_rengi" not in user_doc or not user_doc.get("isim_rengi"):
+        u_color = "#FF0000"
+        u_glow = True
+    if "rozet" not in user_doc or not user_doc.get("rozet"):
+        u_rozet = "🛠️"
+    if "tag" not in user_doc or not user_doc.get("tag"):
+        u_tag = "KURUCU"
+
+isim_stili = get_styled_user_name(kullanici_ismi, u_color, u_glow, u_tag, u_rozet)
 
 # --- SİDEBAR & PROFİL DÜZENLEME ---
 with st.sidebar:
@@ -427,11 +452,7 @@ with st.sidebar:
             st.success("✅ İsim güncellendi!")
             st.rerun()
             
-    if is_kurucu:
-        isim_stili = f'<span style="color:red; font-weight:bold; text-shadow: 0 0 8px red;">{kullanici_ismi} 🛠️</span>'
-    else:
-        isim_stili = kullanici_ismi
-
+    # Dinamik, renkli, parlayan tag ve rozetli profil gösterimi
     st.markdown(f"**Profil:** {isim_stili}", unsafe_allow_html=True)
     
     st.divider()
@@ -497,7 +518,7 @@ with st.sidebar:
             user_ref.update({"videos": firestore.ArrayRemove([v])})
             st.rerun()
 
-    # Sidebar yönlendirme menüsü (Kurucu ve Alt Yöneticiler için özelleştirilmiş kalıcı oturuma dirençli yapı)
+    # Sidebar yönlendirme menüsü
     if is_kurucu:
         st.divider()
         if st.session_state.current_page == "chat":
@@ -509,7 +530,6 @@ with st.sidebar:
                 st.session_state.current_page = "chat"
                 st.rerun()
     elif is_admin_user:
-        # Atanan yöneticiler sadece admin_announcement (Duyuru) sayfasına erişebilir
         st.divider()
         if st.session_state.current_page == "chat":
             if st.button("📣 Duyuru Sayfasına Git", use_container_width=True):
@@ -631,7 +651,6 @@ if st.session_state.current_page == "admin_main" and is_kurucu:
     st.write("Kurucu paneline hoş geldiniz, Reis. Lütfen yapmak istediğiniz işlemi seçin:")
     st.write("")
     
-    # Alt alta direkt görünür 3 büyük buton
     if st.button("👥 Kullanıcı Yönetim Sayfasına Git", key="goto_admin_users", type="primary", use_container_width=True):
         st.session_state.current_page = "admin_users"
         st.rerun()
@@ -950,7 +969,6 @@ elif st.session_state.current_page == "admin_announcement" and (is_kurucu or is_
     
     col_back_main, col_back_chat = st.columns([5, 5])
     with col_back_main:
-        # Kurucu ana panele dönebilir, normal yöneticilerin ana paneli olmadığı için doğrudan chat sayfasına yönlendirilirler
         if is_kurucu:
             if st.button("⬅️ Yönetici Ana Paneline Dön", key="back_to_main_from_ann", use_container_width=True):
                 st.session_state.current_page = "admin_main"
@@ -986,7 +1004,9 @@ elif st.session_state.current_page == "admin_announcement" and (is_kurucu or is_
                 "id": duyuru_id,
                 "metin": duyuru_metni.strip(),
                 "tarih": firestore.SERVER_TIMESTAMP,
-                "hedef": "Tümü" if hedef_tipi == "Tüm Kullanıcılar" else secilen_email
+                "hedef": "Tümü" if hedef_tipi == "Tüm Kullanıcılar" else secilen_email,
+                "gonderen_email": user_doc.get("email", ""), # Loglama için eklenen alanlar
+                "gonderen_isim": user_doc.get("isim", "Bilinmeyen")
             }
             
             # Küresel duyurular koleksiyonuna yaz
@@ -1041,6 +1061,29 @@ elif st.session_state.current_page == "admin_role_management" and is_kurucu:
             
     st.divider()
     
+    # --- KURUCU KENDİ PROFİLİNİ DÜZENLEME PANELİ (Sadece Kurucuya Görünür) ---
+    with st.expander("👑 Kendi Profil Stilimi Düzenle", expanded=False):
+        st.markdown("### 👑 Kendi Profil Stilimi Düzenle")
+        st.write("Buradan sohbette ve yan menüde görünecek olan size özel renk, parlaklık, tag ve rozet ayarlarını belirleyebilirsiniz.")
+        
+        f_color = st.color_picker("Kendi İsim Renginiz (Hex):", value=user_doc.get("isim_rengi", "#FF0000"))
+        f_glow = st.checkbox("Kendi Yazı Parlaklığınız (Neon Efekti):", value=user_doc.get("ismin_parlakligi", True))
+        f_tag = st.text_input("Kendi Tagınız (Örn: KURUCU, REİS):", value=user_doc.get("tag", "KURUCU"), max_chars=20)
+        f_rozet = st.text_input("Kendi Rozetiniz (Örn: 🛠️, 👑):", value=user_doc.get("rozet", "🛠️"), max_chars=10)
+        
+        if st.button("💾 Kendi Stilimi Kaydet", type="primary", use_container_width=True):
+            user_ref.update({
+                "isim_rengi": f_color,
+                "ismin_parlakligi": f_glow,
+                "tag": f_tag.strip(),
+                "rozet": f_rozet.strip()
+            })
+            st.success("✅ Profil stiliniz başarıyla kaydedildi!")
+            time.sleep(1)
+            st.rerun()
+            
+    st.divider()
+    
     st.markdown("### 🔍 Kullanıcı Ara ve Düzenle")
     search_email = st.text_input("E-posta ile kullanıcı ara:", placeholder="ornek@domain.com").strip().lower()
     
@@ -1052,7 +1095,7 @@ elif st.session_state.current_page == "admin_role_management" and is_kurucu:
             target_data = target_doc.to_dict()
             
             # Form Alanları (Salt Okunur Değerler ve Değiştirilebilir Özellikler)
-            st.text_input("Kullanıcı İsmi (Salt Okunur):", value=target_data.get("isim", "Bilinmiyor"), disabled=True)
+            st.text_input("Kullanıcı İsmi (Salt Okunur):", value=target_data.get("isim", "Bilinmeyen"), disabled=True)
             st.text_input("Kullanıcı E-postası (Salt Okunur):", value=target_data.get("email", ""), disabled=True)
             
             isim_rengi = st.color_picker("İsim Rengi (Hex):", value=target_data.get("isim_rengi", "#FFFFFF"))
@@ -1122,12 +1165,61 @@ elif st.session_state.current_page == "admin_role_management" and is_kurucu:
                                 if st.button("Hayır", key=f"demote_no_{a_id}", use_container_width=True):
                                     st.session_state[f"show_demote_{a_id}"] = False
                                     st.rerun()
+                    
+                    # --- YÖNETİCİ DUYURU GEÇMİŞİ LOGLAMA ALANI ---
+                    # Hata vermemesi ve firebase indeks gerektirmemesi için tüm duyuruları çekip Python tarafında bellek içi filtreleme-sıralama yapıyoruz
+                    try:
+                        admin_duyurulari = db.collection("duyurular").where("gonderen_email", "==", a_email).get()
+                        
+                        # Tarih alanına göre azalan (kronolojik) sıralama fonksiyonu
+                        def get_tarih_val(doc):
+                            t = doc.to_dict().get("tarih")
+                            if t is None:
+                                return datetime.min.replace(tzinfo=timezone.utc)
+                            if t.tzinfo is None:
+                                t = t.replace(tzinfo=timezone.utc)
+                            return t
+                        
+                        sorted_duyurular = sorted(admin_duyurulari, key=get_tarih_val, reverse=True)
+                        
+                        with st.expander("📋 Yapılan Duyuru Geçmişi"):
+                            if sorted_duyurular:
+                                for d_doc in sorted_duyurular:
+                                    d_data = d_doc.to_dict()
+                                    d_metin = d_data.get("metin", "")
+                                    d_hedef = d_data.get("hedef", "Tümü")
+                                    d_tarih = d_data.get("tarih")
+                                    
+                                    tarih_formatted = ""
+                                    if d_tarih:
+                                        if d_tarih.tzinfo is None:
+                                            d_tarih = d_tarih.replace(tzinfo=timezone.utc)
+                                        tarih_formatted = d_tarih.strftime("%Y-%m-%d %H:%M:%S")
+                                        
+                                    st.markdown(f"**📅 Tarih:** `{tarih_formatted}` | **🎯 Hedef:** `{d_hedef}`")
+                                    st.info(d_metin)
+                                    st.write("---")
+                            else:
+                                st.caption("Bu yönetici henüz herhangi bir duyuru yayınlamadı.")
+                    except Exception as e:
+                        st.caption(f"Duyuru geçmişi yüklenirken hata oluştu: {e}")
+                        
         else:
-            st.info("Sistemde atanmış alt yönetici bulunmuyor.")
+            st.error("❌ Eşleşen bir kullanıcı bulunamadı.")
+            
     except Exception as e:
         st.error(f"Yöneticiler yüklenirken hata oluştu: {e}")
 
 else:
+    # --- YÖNETİCİ PANELİ (Sadece Kurucuya Özel - Expander Korundu) ---
+    if is_kurucu:
+        with st.expander("🛠️ YÖNETİCİ PANELİ (Kurucu Özel)"):
+            st.write("Kurucu paneline hoş geldiniz, Reis.")
+            st.info("Kullanıcıların detaylı listesine ulaşmak, arama yapmak ve şifreleri incelemek için aşağıdaki butona tıklayabilirsiniz.")
+            if st.button("👥 Kullanıcı Yönetim Sayfasını Aç", key="open_admin_page", use_container_width=True):
+                st.session_state.current_page = "admin_main"
+                st.rerun()
+
     # --- KULLANICI EKRANINDA DUYURU GÖSTERİMİ VE SİLİNMESİ ---
     if st.session_state.current_page == "chat":
         okunmamis = user_doc.get("okunmamis_duyurular", [])
@@ -1166,26 +1258,28 @@ else:
     user_doc_fresh = user_ref.get().to_dict()
     kullanici_ismi_fresh = user_doc_fresh.get('isim', kullanici_ismi)
 
-    # Dinamik İsim Rengi ve Parlaklık CSS Ayarları
-    u_color = user_doc_fresh.get("isim_rengi", "#FFFFFF")
-    u_glow = user_doc_fresh.get("ismin_parlakligi", False)
-    u_tag = user_doc_fresh.get("tag", "")
-    u_rozet = user_doc_fresh.get("rozet", "")
+    # Sohbet Ekranında İsimlerin HTML/CSS Çıktısı (Visual Sıralama ve Tasarım Onarımı)
+    u_color_fresh = user_doc_fresh.get("isim_rengi", "#FFFFFF")
+    u_glow_fresh = user_doc_fresh.get("ismin_parlakligi", False)
+    u_tag_fresh = user_doc_fresh.get("tag", "")
+    u_rozet_fresh = user_doc_fresh.get("rozet", "")
 
-    glow_css = f"text-shadow: 0 0 8px {u_color};" if u_glow else ""
-    tag_html = f" <span style='font-size: 0.8rem; background-color: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px; margin-left: 5px;'>{u_tag}</span>" if u_tag else ""
-    rozet_html = f" {u_rozet}" if u_rozet else ""
+    if is_kurucu:
+        # Kurucunun varsayılan tasarımı (Kendisi düzenlemediyse kırmızı parlayan tag & rozet)
+        if "isim_rengi" not in user_doc_fresh or not user_doc_fresh.get("isim_rengi"):
+            u_color_fresh = "#FF0000"
+            u_glow_fresh = True
+        if "rozet" not in user_doc_fresh or not user_doc_fresh.get("rozet"):
+            u_rozet_fresh = "🛠️"
+        if "tag" not in user_doc_fresh or not user_doc_fresh.get("tag"):
+            u_tag_fresh = "KURUCU"
+
+    display_name = get_styled_user_name(kullanici_ismi_fresh, u_color_fresh, u_glow_fresh, u_tag_fresh, u_rozet_fresh)
 
     for m in st.session_state.messages:
         if m["role"] == "assistant":
             st.markdown(f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div><div class="header-box">Aslan Parçası</div><div>{m["content"]}</div></div></div>''', unsafe_allow_html=True)
         else:
-            # Kurucunun parlak kırmızı isim stili korunur; diğer kullanıcıların renk, gölge ve etiket ayarları uygulanır
-            if is_kurucu:
-                display_name = f'<span style="color:red; font-weight:bold; text-shadow: 0 0 8px red;">{kullanici_ismi_fresh} 🛠️</span>'
-            else:
-                display_name = f'<span style="color:{u_color}; font-weight:bold; {glow_css}">{kullanici_ismi_fresh}{rozet_html}</span>{tag_html}'
-                
             st.markdown(f'''<div class="user-box"><div><div class="header-box" style="text-align: right;">{display_name}</div><div>{m["content"]}</div></div><img src="{USER_AVATAR}" class="avatar"></div>''', unsafe_allow_html=True)
 
     def ai_cevap(mesajlar):
