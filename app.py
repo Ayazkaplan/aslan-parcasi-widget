@@ -43,11 +43,13 @@ db = firestore.client()
 
 # --- YARDIMCI FONKSİYONLAR & KÜFÜR FİLTRESİ ---
 def normalize_text(text):
+    # Türkçe karakterleri İngilizceye çevir ve tüm işaretleri temizle
     text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
     return re.sub(r'[^a-zA-Z0-9]', '', text.lower())
 
 def kufur_var_mi(text):
     clean_text = normalize_text(text)
+    # Global Ban List ve türevleri (Diğer dillerdeki küfürlerle birleştirilmiş)
     ban_list = [
         "amk", "aq", "orospu", "pic", "yavsak", "yavsaklik", "hiyar", "durzu", "dingil", "serefsiz", "fuck", "bitch",
         "asshole", "shit", "bastard", "cunt", "dick", "pussy", "motherfucker", "whore", "slut",
@@ -60,15 +62,20 @@ def kufur_var_mi(text):
             return True
     return False
 
+# YouTube otomatik oynatma iframe oluşturucu
 def get_video_iframe(video_id):
+    # mute=0 yaptık, autoplay=0 ile kullanıcı başlatacak
     return f'''<iframe width="100%" height="150" src="https://www.youtube.com/embed/{video_id}?autoplay=0&mute=0" 
     frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'''
 
-# CSS Ezilme Sorununu Çözen !important Parametreli İsim Stili Fonksiyonu
+# Dinamik İsim Stili Oluşturucu
 def get_styled_user_name(u_name, u_color, u_glow, u_tag, u_rozet):
     color_val = u_color if u_color else "#FFFFFF"
+    
+    # Güçlü neon gölge efekti (İstek üzerine güncellenen 3 aşamalı neon)
     glow_css = f"text-shadow: 0 0 10px {color_val}, 0 0 20px {color_val}, 0 0 30px {color_val} !important;" if u_glow else ""
     
+    # Sıralama: [TAG] [İSİM] [ROZET]
     tag_html = f'<span class="tag" style="color: {color_val} !important; font-weight: bold !important; {glow_css} font-size: 0.8rem !important; background-color: rgba(255,255,255,0.1) !important; padding: 2px 6px !important; border-radius: 3px !important; margin-right: 5px !important;">[{u_tag}]</span>' if u_tag else ""
     isim_html = f'<span class="isim" style="color: {color_val} !important; font-weight: bold !important; {glow_css}">{u_name}</span>'
     rozet_html = f'<span class="rozet" style="margin-left: 5px !important; color: white !important;">{u_rozet}</span>' if u_rozet else ""
@@ -77,6 +84,7 @@ def get_styled_user_name(u_name, u_color, u_glow, u_tag, u_rozet):
     if tag_html: parts.append(tag_html)
     parts.append(isim_html)
     if rozet_html: parts.append(rozet_html)
+    
     return " ".join(parts)
 
 # --- OTURUM YÖNETİMİ & KALICILIK ---
@@ -90,7 +98,7 @@ if "force_login" not in st.session_state: st.session_state.force_login = False
 
 def set_login_state(uid):
     st.session_state.user_logged_in = True
-    st.session_state.force_login = True 
+    st.session_state.force_login = True # Oturumu mühürle
     st.query_params["session_uid"] = uid
 
 def logout_user():
@@ -104,7 +112,9 @@ if (not st.session_state.user_logged_in or not st.session_state.force_login) and
     stored_uid = st.query_params["session_uid"]
     try:
         user_ref_temp = db.collection("users").document(stored_uid)
+        # Giriş yapıldığında son görülmeyi anlık güncelle
         user_ref_temp.update({"son_gorulme_zamani": firestore.SERVER_TIMESTAMP})
+        
         user_snap = user_ref_temp.get()
         if user_snap.exists:
             user_data = user_snap.to_dict()
@@ -127,6 +137,7 @@ if (not st.session_state.user_logged_in or not st.session_state.force_login) and
                 set_login_state(stored_uid)
                 st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
                 
+                # Kalıcı Sohbet: Veritabanındaki sohbet_gecmisi alanından aktif mesajları çekiyoruz
                 sohbet_list = user_data.get("sohbet_gecmisi", [])
                 if isinstance(sohbet_list, list):
                     active_messages = []
@@ -142,29 +153,37 @@ if (not st.session_state.user_logged_in or not st.session_state.force_login) and
                 else:
                     st.session_state.messages = []
             else:
+                # Kullanıcı banlıysa kalıcı oturum parametrelerini sil
                 st.session_state.force_login = False
                 st.query_params.pop("session_uid", None)
     except Exception:
         pass
 
+# --- ŞİFRE KONTROLÜ (GÜVENLİ REST API GİRİŞİ) ---
 def firebase_login(email, password):
     try:
+        # Firebase REST API kullanarak giriş yapma
         url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
         payload = {"email": email, "password": password, "returnSecureToken": True}
         response = requests.post(url, json=payload)
+        
         if response.status_code == 200:
             return response.json()
-        return None
-    except Exception:
+        else:
+            return None
+    except Exception as e:
         return None
 
+# --- EMOJİ KONTROLÜ ---
 def emoji_var_mi(text):
     return bool(re.search(r'[^\w\s,.]', text))
 
 # --- GİRİŞ VE KAYIT EKRANI ---
+# Her sayfa başında force_login durumunu kontrol et:
 if not st.session_state.user_logged_in or not st.session_state.force_login:
     st.title("🦁 Aslan Parçası V16.4")
     
+    # Force Logout sonrasında kalan süreyi veya ban hatasını gösterme
     if "ban_error_on_logout" in st.session_state:
         st.error(st.session_state.ban_error_on_logout)
     
@@ -174,7 +193,7 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Giriş Yap"):
-            st.session_state.pop("ban_error_on_logout", None)
+            st.session_state.pop("ban_error_on_logout", None) # Yeni giriş denemesinde eski hatayı temizle
             clean_email = email.strip().lower()
             auth_res = firebase_login(clean_email, password)
             if auth_res:
@@ -200,10 +219,12 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
                                 else:
                                     st.error(f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {kalan_dakika} dakika")
                             else:
+                                # Süre dolmuşsa banı otomatik kaldır ve girişe izin ver
                                 db.collection("users").document(query[0].id).update({
                                     "durum": "Aktif",
                                     "ban_bitis_zamani": None
                                 })
+                                # E-posta kilit kaydını da sil
                                 db.collection("banlanan_emails").document(clean_email).delete()
                                 user_data["durum"] = "Aktif"
                                 user_data["ban_bitis_zamani"] = None
@@ -212,6 +233,7 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
                             st.error("❌ Hesabınız pasifleştirilmiştir. Giriş yapamazsınız!")
                     
                     if not is_banned:
+                        # Giriş yapıldığında son görülme zamanını anlık güncelle
                         db.collection("users").document(query[0].id).update({
                             "son_gorulme_zamani": firestore.SERVER_TIMESTAMP
                         })
@@ -220,6 +242,7 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
                         set_login_state(auth_res['localId'])
                         st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
                         
+                        # Kalıcı Sohbet: Veritabanındaki sohbet_gecmisi alanından aktif mesajları çekiyoruz
                         sohbet_list = user_data.get("sohbet_gecmisi", [])
                         if isinstance(sohbet_list, list):
                             active_messages = []
@@ -234,6 +257,7 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
                             st.session_state.messages = active_messages
                         else:
                             st.session_state.messages = []
+                            
                         st.rerun()
                 else: st.error("❌ Kullanıcı verisi bulunamadı!")
             else: st.error("❌ E-posta veya şifre yanlış!")
@@ -244,6 +268,8 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
             st.session_state.pop("ban_error_on_logout", None)
             try:
                 clean_email = email.strip().lower()
+                
+                # Sıkı Ban Sistemi (E-posta Kilidi) Kontrolü
                 ban_doc = db.collection("banlanan_emails").document(clean_email).get()
                 if ban_doc.exists:
                     ban_data = ban_doc.to_dict()
@@ -261,6 +287,7 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
                                 st.error(f"❌ Bu e-posta adresi ban süresi dolana kadar kullanılamaz. Kalan süre: {kalan_dakika} dakika")
                             st.stop()
                         else:
+                            # Süre dolmuşsa kilidi kaldır
                             db.collection("banlanan_emails").document(clean_email).delete()
                     else:
                         st.error("❌ Bu e-posta adresi süresiz olarak banlandığı için kullanılamaz!")
@@ -302,21 +329,24 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
 uid = st.session_state.user_data['uid']
 user_ref = db.collection("users").document(uid)
 
+# Son Görülme Kaydı: Her sayfa yenilemesinde veya işlem yapıldığında son görülme zamanını anlık SERVER_TIMESTAMP yap
 try:
     user_ref.update({"son_gorulme_zamani": firestore.SERVER_TIMESTAMP})
-except Exception: pass
+except Exception:
+    pass
 
 user_snap = user_ref.get()
 
+# Veritabanında kullanıcı yoksa oturumu temizle
 if not user_snap.exists:
-    st.query_params.pop("session_uid", None) 
+    st.query_params.pop("session_uid", None) # Tarayıcı oturum kalıcılık parametresini kaldır
     st.error("❌ Hesabınız silinmiş veya bulunamadı!")
     st.session_state.clear()
     st.rerun()
 
 user_doc = user_snap.to_dict()
 
-# Anlık Ban Kontrolü
+# Anlık Ban Kontrolü (Force Logout)
 user_durum = user_doc.get("durum", "Aktif")
 ban_bitis = user_doc.get("ban_bitis_zamani")
 
@@ -336,7 +366,12 @@ if user_durum == "Pasif":
             else:
                 ban_hata_mesaji = f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {kalan_dakika} dakika"
         else:
-            db.collection("users").document(uid).update({"durum": "Aktif", "ban_bitis_zamani": None})
+            # Süre dolmuşsa aktif hale getir
+            db.collection("users").document(uid).update({
+                "durum": "Aktif",
+                "ban_bitis_zamani": None
+            })
+            # E-posta kilidini kaldır
             u_email = user_doc.get("email", "").strip().lower()
             db.collection("banlanan_emails").document(u_email).delete()
             user_doc["durum"] = "Aktif"
@@ -352,7 +387,7 @@ if user_durum == "Pasif" and is_banned:
     st.session_state.ban_error_on_logout = ban_hata_mesaji
     logout_user()
 
-# Kalıcı Sohbet Yüklemesi
+# Kalıcı Sohbet: Veritabanından aktif mesajları çekme
 sohbet_list = user_doc.get("sohbet_gecmisi", [])
 if isinstance(sohbet_list, list):
     active_messages = []
@@ -368,7 +403,7 @@ if isinstance(sohbet_list, list):
 else:
     st.session_state.messages = []
 
-# Güncel tema ve profil
+# Güncel temayı veritabanından tazele
 st.session_state.tema = user_doc.get("tema", list(TEMALAR.values())[0])
 
 is_kurucu = user_doc.get('email') == KURUCU_EMAIL
@@ -376,7 +411,7 @@ is_admin_user = user_doc.get("is_admin", False)
 saved_videos = user_doc.get("videos", [])
 kullanici_ismi = user_doc.get('isim')
 
-# YETKİ KONTROLLERİ
+# --- YETKİ KISITLAMALARI VE GÜVENLİK KONTROLLER ---
 if st.session_state.current_page in ["admin_main", "admin_users", "admin_role_management"] and not is_kurucu:
     st.session_state.current_page = "chat"
     st.rerun()
@@ -385,54 +420,69 @@ if st.session_state.current_page == "admin_announcement" and not (is_kurucu or i
     st.session_state.current_page = "chat"
     st.rerun()
 
-# --- CSS ENJEKSİYONU (Inline stilleri ezmeyen garantili şablon) ---
+# --- CSS TEMA ENJEKSİYONU (Koyu Temalardaki Renk Ezilme / Görünmezlik Sorununu Çözen CSS) ---
 st.markdown(f"""
     <style>
+        /* Arka plan ve ana gövde giydirme */
         .stApp, [data-testid="stAppViewContainer"], [data-testid="stAppViewBlockContainer"] {{
             background: {st.session_state.tema} !important;
             background-attachment: fixed !important;
         }}
+        /* Kenar çubuğu (Sidebar) giydirme */
         [data-testid="stSidebar"], [data-testid="stSidebarUserContent"] {{
             background: {st.session_state.tema} !important;
             background-attachment: fixed !important;
         }}
+        /* Üst bar şeffaflığı */
         [data-testid="stHeader"] {{
             background: transparent !important;
             background-color: transparent !important;
         }}
         
-        /* Genel UI okunabilirliği (p ve span çıkarıldı, böylece profil renkleri ezilmiyor) */
+        /* KOYU TEMALARDA METİN OKUNABİLİRLİĞİ (GÖRÜNMEZLİK) SORUNUNU GİDEREN KURALLAR */
+        /* Dinamik isimleri ve span etiketlerini ezmemesi için span seçicisi kaldırılmıştır */
         h1, h2, h3, h4, h5, h6, label, li, .stSubheader, .stText {{
             color: #F8F9FA !important;
         }}
         
-        /* Markdown içindeki düz paragraflar beyaz yapılsın ama .user-box ve .assistant-box içindekiler serbest kalsın */
+        /* Markdown paragrafları açık renk kalsın (inline stilleri ezmez) */
         div[data-testid="stMarkdownContainer"] p {{
             color: #F8F9FA;
         }}
         
+        /* Form elemanlarının etiketleri ve girdileri için kontrast iyileştirmesi */
         .stTextArea label, .stTextInput label, .stSelectbox label, .stRadio label {{
             color: #F8F9FA !important;
             font-weight: 600 !important;
         }}
+        
+        /* Girdi alanlarının iç kısımları ve metin kontrastı */
         .stTextArea textarea, .stTextInput input, .stSelectbox div {{
             color: #FFFFFF !important;
             background-color: rgba(255, 255, 255, 0.1) !important;
             border: 1px solid rgba(255, 255, 255, 0.2) !important;
         }}
-        [data-baseweb="select"] * {{ color: #FFFFFF !important; }}
-        [data-testid="stWidgetLabel"] p {{ color: #F8F9FA !important; }}
+        
+        /* Selectbox açılır menülerinin metin kontrastı */
+        [data-baseweb="select"] * {{
+            color: #FFFFFF !important;
+        }}
+        
+        /* Radio button başlıkları kontrastı */
+        [data-testid="stWidgetLabel"] p {{
+            color: #F8F9FA !important;
+        }}
     </style>
 """, unsafe_allow_html=True)
 
-# SİDEBAR PROFİL
+# --- SİDEBAR PROFİL GÖRÜNÜMÜ DETAYLARI ---
 u_color = user_doc.get("isim_rengi", "#FFFFFF")
 u_glow = user_doc.get("ismin_parlakligi", False)
 u_tag = user_doc.get("tag", "")
 u_rozet = user_doc.get("rozet", "")
 
 if is_kurucu:
-    if not user_doc.get("tag"): 
+    if not user_doc.get("tag"): # Kurucu hiç ayar yapmadıysa varsayılan ver
         u_color = "#FF0000"
         u_glow = True
         u_rozet = "🛠️"
@@ -440,6 +490,7 @@ if is_kurucu:
 
 isim_stili = get_styled_user_name(kullanici_ismi, u_color, u_glow, u_tag, u_rozet)
 
+# --- SİDEBAR & PROFİL DÜZENLEME ---
 with st.sidebar:
     st.markdown("### 👤 Profil Ayarları")
     yeni_isim = st.text_input("Yeni İsim:", value=kullanici_ismi, max_chars=25)
@@ -453,6 +504,7 @@ with st.sidebar:
             st.success("✅ İsim güncellendi!")
             st.rerun()
             
+    # Dinamik, renkli, parlayan tag ve rozetli profil gösterimi
     st.markdown(f"**Profil:** {isim_stili}", unsafe_allow_html=True)
     
     st.divider()
@@ -467,6 +519,7 @@ with st.sidebar:
         st.success("✅ Tema kaydedildi!")
         st.rerun()
     
+    # Sohbeti Arşivleyerek Temizleme Özelliği
     if st.button("🧹 Sohbeti Temizle"):
         user_ref.update({"sohbet_gecmisi": []})
         st.session_state.messages = []
@@ -476,6 +529,7 @@ with st.sidebar:
     if st.button("🚪 Çıkış Yap"): 
         logout_user() 
     
+    # Hesabımı Sil Arayüzü (2 Aşamalı Onay)
     if "confirm_delete_self" not in st.session_state:
         st.session_state.confirm_delete_self = False
         
@@ -508,6 +562,7 @@ with st.sidebar:
             user_ref.update({"videos": firestore.ArrayUnion([yeni_video])})
             st.rerun()
     
+    # Video Hafızası
     for v in saved_videos:
         c1, c2 = st.columns([0.8, 0.2])
         c1.markdown(get_video_iframe(v), unsafe_allow_html=True)
@@ -515,6 +570,7 @@ with st.sidebar:
             user_ref.update({"videos": firestore.ArrayRemove([v])})
             st.rerun()
 
+    # Sidebar yönlendirme menüsü
     if is_kurucu:
         st.divider()
         if st.session_state.current_page == "chat":
@@ -632,6 +688,7 @@ if st.session_state.current_page == "admin_main" and is_kurucu:
     st.title("🛠️ Yönetici Ana Paneli")
     st.write("Kurucu paneline hoş geldiniz, Reis. Lütfen yapmak istediğiniz işlemi seçin:")
     st.write("")
+    
     if st.button("👥 Kullanıcı Yönetim Sayfasına Git", key="goto_admin_users", type="primary", use_container_width=True):
         st.session_state.current_page = "admin_users"
         st.rerun()
@@ -800,7 +857,7 @@ elif st.session_state.current_page == "admin_users" and is_kurucu:
                             st.warning("⚠️ Emin misiniz?")
                             col_del_yes, col_del_no = st.columns(2)
                             with col_del_yes:
-                                if st.button("Evet, Kalıcı Olarak Sil", key=f"confirm_del_yes_{u_id}", type="primary", use_container_width=True):
+                                if st.button("Evet", key=f"confirm_del_yes_{u_id}", type="primary", use_container_width=True):
                                     try:
                                         auth.delete_user(u_id)
                                         db.collection("users").document(u_id).delete()
@@ -872,6 +929,7 @@ elif st.session_state.current_page == "admin_users" and is_kurucu:
 
 elif st.session_state.current_page == "admin_announcement" and (is_kurucu or is_admin_user):
     st.title("📣 Duyuru ve Bilgilendirme Sayfası")
+    
     col_back_main, col_back_chat = st.columns([5, 5])
     with col_back_main:
         if is_kurucu:
@@ -908,6 +966,7 @@ elif st.session_state.current_page == "admin_announcement" and (is_kurucu or is_
                 sender_color = user_doc.get("isim_rengi", "#FFFFFF")
                 sender_glow = user_doc.get("ismin_parlakligi", False)
                 sender_tag = user_doc.get("tag", "")
+                # Duyuru objesine rozet eklemesi
                 sender_rozet = user_doc.get("rozet", "")
                 
                 if sender_email == KURUCU_EMAIL:
@@ -1001,8 +1060,6 @@ elif st.session_state.current_page == "admin_role_management" and is_kurucu:
             st.rerun()
             
     st.divider()
-    
-    # KULLANICI ARAMA VE DÜZENLEME BLOĞU
     st.markdown("### 🔍 Kullanıcı Ara ve Düzenle")
     search_email = st.text_input("E-posta ile kullanıcı ara:", placeholder="ornek@domain.com").strip().lower()
     
@@ -1034,7 +1091,6 @@ elif st.session_state.current_page == "admin_role_management" and is_kurucu:
             
     st.divider()
     
-    # --- MEVCUT YÖNETİCİLER BLOĞU (ARAMA BLOĞUNDAN TAMAMEN BAĞIMSIZ HİZADA) ---
     st.markdown("### 🛡️ Mevcut Yöneticiler")
     
     try:
@@ -1088,7 +1144,6 @@ elif st.session_state.current_page == "admin_role_management" and is_kurucu:
                         sorted_duyurular = sorted(admin_duyurulari, key=get_tarih_val, reverse=True)
                         
                         with st.expander("📋 Yapılan Duyuru Geçmişi"):
-                            # DÖNGÜ DEĞİŞKENİ ÇAKIŞMASI DÜZELTİLDİ: "doc_to_del"
                             if is_kurucu and sorted_duyurular:
                                 if st.button("🗑️ Duyuru Geçmişini Temizle", key=f"clear_ann_log_{a_id}", type="primary", use_container_width=True):
                                     batch_del = db.batch()
@@ -1152,7 +1207,6 @@ else:
             </div>
             """, unsafe_allow_html=True)
             
-            # KİLİTLENME HATASI ÇÖZÜLDÜ: Butona basılınca sadece siler ve otomatik rerun a bırakır (sleep yok)
             if st.button("Geç ➡️", key=f"skip_btn_{duyuru_obj.get('id')}", use_container_width=True):
                 user_ref.update({"okunmamis_duyurular": firestore.ArrayRemove([duyuru_obj])})
                 st.rerun()
@@ -1241,7 +1295,9 @@ else:
         except: return "Sistem yorgun, Reis."
 
     if "input_key" not in st.session_state: st.session_state.input_key = 0
-    if "kufur_warning" in st.session_state: st.error(st.session_state.kufur_warning)
+
+    if "kufur_warning" in st.session_state:
+        st.error(st.session_state.kufur_warning)
 
     def send_message():
         val = st.session_state.my_input.strip()
@@ -1249,8 +1305,11 @@ else:
             if kufur_var_mi(val):
                 bildirim_id = f"kufur_{int(datetime.now(timezone.utc).timestamp())}_{uid}"
                 db.collection("yonetici_bildirimleri").document(bildirim_id).set({
-                    "uid": uid, "email": user_doc.get("email", ""), "isim": user_doc.get("isim", "Bilinmeyen"),
-                    "mesaj": val, "tarih": firestore.SERVER_TIMESTAMP
+                    "uid": uid,
+                    "email": user_doc.get("email", ""),
+                    "isim": user_doc.get("isim", "Bilinmeyen"),
+                    "mesaj": val,
+                    "tarih": firestore.SERVER_TIMESTAMP
                 })
                 st.session_state.kufur_warning = "⚠️ Mesajınız uygunsuz içerik nedeniyle engellendi!"
                 st.session_state.my_input = "" 
@@ -1267,18 +1326,26 @@ else:
 
             if is_kurucu:
                 if not user_doc_fresh.get("tag"):
-                    u_color_fresh = "#FF0000"; u_glow_fresh = True
-                    u_rozet_fresh = "🛠️"; u_tag_fresh = "KURUCU"
+                    u_color_fresh = "#FF0000"
+                    u_glow_fresh = True
+                    u_rozet_fresh = "🛠️"
+                    u_tag_fresh = "KURUCU"
 
             user_msg = {
-                "role": "user", "content": val, "isim": u_isim_fresh, "color": u_color_fresh,
-                "glow": u_glow_fresh, "tag": u_tag_fresh, "rozet": u_rozet_fresh
+                "role": "user",
+                "content": val,
+                "isim": u_isim_fresh,
+                "color": u_color_fresh,
+                "glow": u_glow_fresh,
+                "tag": u_tag_fresh,
+                "rozet": u_rozet_fresh
             }
             
             st.session_state.messages.append(user_msg)
             user_ref.update({"sohbet_gecmisi": firestore.ArrayUnion([user_msg])})
             
             cevap = ai_cevap(st.session_state.messages[-6:])
+            
             assistant_msg = {"role": "assistant", "content": cevap}
             
             st.session_state.messages.append(assistant_msg)
