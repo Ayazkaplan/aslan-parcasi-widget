@@ -9,6 +9,9 @@ from datetime import datetime, timezone, timedelta
 import time
 import unicodedata
 
+# --- SAYFA AYARLARI (Tüm Streamlit komutlarından önce ilk sırada olmalıdır) ---
+st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁", layout="centered")
+
 # --- AYARLAR ---
 KURUCU_EMAIL = "ayazscma92@gmail.com"
 KURUCU_ISIM = "Ayaz Kaplan"
@@ -59,10 +62,11 @@ def kufur_var_mi(text):
             return True
     return False
 
-# YouTube otomatik oynatma iframe oluşturucu
+# YouTube otomatik oynatma iframe oluşturucu (Hafıza yerine mute=0 ve autoplay=0 olarak güncellenmiş sürüm)
 def get_video_iframe(video_id):
-    return f'''<iframe width="100%" height="150" src="https://www.youtube.com/embed/{video_id}?autoplay=1&mute=1&start=0" 
-    frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>'''
+    # mute=0 yaptık, autoplay=0 ile kullanıcı başlatacak
+    return f'''<iframe width="100%" height="150" src="https://www.youtube.com/embed/{video_id}?autoplay=0&mute=0" 
+    frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'''
 
 # --- OTURUM YÖNETİMİ & KALICILIK ---
 if "user_logged_in" not in st.session_state: st.session_state.user_logged_in = False
@@ -158,7 +162,6 @@ def emoji_var_mi(text):
 # --- GİRİŞ VE KAYIT EKRANI ---
 # Her sayfa başında force_login durumunu kontrol et:
 if not st.session_state.user_logged_in or not st.session_state.force_login:
-    st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁")
     st.title("🦁 Aslan Parçası V16.4")
     
     # Force Logout sonrasında kalan süreyi veya ban hatasını gösterme
@@ -299,8 +302,6 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
     st.stop()
 
 # --- ANA EKRAN AYARLARI ---
-st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁", layout="centered")
-
 uid = st.session_state.user_data['uid']
 user_ref = db.collection("users").document(uid)
 
@@ -818,7 +819,7 @@ elif st.session_state.current_page == "admin_users" and is_kurucu:
                                 # E-posta kilit kaydını da kaldır
                                 db.collection("banlanan_emails").document(u_email).delete()
                                 st.session_state.valid_users_cache = None
-                                Triye_st = st.success("Hesap aktifleştirildi.")
+                                st.success("Hesap aktifleştirildi.")
                                 st.rerun()
                             
                         # 2 Aşamalı Yönetici Silme Butonu
