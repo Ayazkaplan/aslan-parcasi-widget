@@ -42,7 +42,7 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
-# --- YARDIMCI FONKSİYONLAR & KÜFÜR FİLTRESİ ---
+# --- YARDIMCI FONKSİYONLAR & KÜFÜR/EMOJİ FİLTRESİ ---
 def normalize_text(text):
     text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
     return re.sub(r'[^a-zA-Z0-9]', '', text.lower())
@@ -61,11 +61,21 @@ def kufur_var_mi(text):
             return True
     return False
 
+def emoji_var_mi(text):
+    # Emojileri ve özel sembolleri tespit eden regex deseni
+    emoji_pattern = re.compile(
+        "["
+        "\U00010000-\U0010ffff"  # SMP (Sanal Çok Dilli Düzlem - Emojilerin büyük kısmı)
+        "\u2600-\u27bf"          # Çeşitli Semboller ve Dingbats
+        "]+", flags=re.UNICODE
+    )
+    return bool(emoji_pattern.search(text))
+
 def get_video_iframe(video_id):
     return f'''<iframe width="100%" height="150" src="https://www.youtube.com/embed/{video_id}?autoplay=0&mute=0" 
     frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'''
 
-# Dinamik İsim Stili Oluşturucu (Streamlit DOMPurify filtresinden geçebilmesi için !important KESİNLİKLE KULLANILMADI)
+# Dinamik İsim Stili Oluşturucu
 def get_styled_user_name(u_name, u_color, u_glow, u_tag, u_rozet):
     color_val = u_color if u_color else "#FFFFFF"
     
@@ -93,6 +103,7 @@ if "valid_users_cache" not in st.session_state: st.session_state.valid_users_cac
 if "current_page" not in st.session_state: st.session_state.current_page = "chat"
 if "force_login" not in st.session_state: st.session_state.force_login = False
 if "trigger_logout" not in st.session_state: st.session_state.trigger_logout = False
+if "init_check" not in st.session_state: st.session_state.init_check = False
 
 # 1. Çıkış Yapıldıysa LocalStorage'ı Temizle
 if st.session_state.trigger_logout:
@@ -107,6 +118,7 @@ if st.session_state.trigger_logout:
     </script>
     """, height=0, width=0)
     st.session_state.trigger_logout = False
+    st.session_state.init_check = True  # Çıkış sonrası aramayı bloke et
 
 # 2. Yeni Giriş Yapıldıysa LocalStorage'a Kaydet
 if "write_local_storage_uid" in st.session_state:
@@ -117,8 +129,19 @@ if "write_local_storage_uid" in st.session_state:
     </script>
     """, height=0, width=0)
 
-# 3. Giriş Yapılı Değilse LocalStorage'dan Oturumu Kurtar
-if not st.session_state.user_logged_in and "session_uid" not in st.query_params and not st.session_state.trigger_logout:
+# 3. Giriş Yapılı Değilse LocalStorage'dan Oturumu Kurtar (Yalnızca ilk açılışta 1 kereye mahsus çalışır)
+if not st.session_state.user_logged_in and "session_uid" not in st.query_params and not st.session_state.trigger_logout and not st.session_state.init_check:
+    st.session_state.init_check = True
+    st.markdown("""
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 250px;">
+            <div style="border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #FFD700; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+            <style>
+                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            </style>
+            <h3 style="color: #FFD700; font-family: 'Segoe UI', sans-serif; font-weight: 500;">Güvenli Bağlantı Kuruluyor...</h3>
+        </div>
+    """, unsafe_allow_html=True)
+    
     components.html("""
     <script>
         const uid = localStorage.getItem('aslan_session_uid');
@@ -129,6 +152,8 @@ if not st.session_state.user_logged_in and "session_uid" not in st.query_params 
         }
     </script>
     """, height=0, width=0)
+    time.sleep(0.5)
+    st.rerun()
 
 def logout_user():
     st.session_state.force_login = False
@@ -165,6 +190,7 @@ if (not st.session_state.user_logged_in or not st.session_state.force_login) and
                 st.session_state.user_data = {**user_data, "uid": stored_uid}
                 st.session_state.user_logged_in = True
                 st.session_state.force_login = True
+                st.session_state.init_check = True  # Kalıcılık kontrolü yapıldı, döngüyü önle
                 st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
                 
                 sohbet_list = user_data.get("sohbet_gecmisi", [])
@@ -210,7 +236,7 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Giriş Yap"):
+        if st.button("Giriş Yap", use_container_width=True):
             st.session_state.pop("ban_error_on_logout", None)
             clean_email = email.strip().lower()
             auth_res = firebase_login(clean_email, password)
@@ -249,9 +275,12 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
                         db.collection("users").document(query[0].id).update({"son_gorulme_zamani": firestore.SERVER_TIMESTAMP})
                         
                         uid_logged = auth_res['localId']
+                        
+                        # Rerun öncesi animasyon çakışmasını engellemek için oturum bayraklarını anında havada setle
                         st.session_state.user_data = {**user_data, "uid": uid_logged}
                         st.session_state.user_logged_in = True
                         st.session_state.force_login = True
+                        st.session_state.init_check = True
                         st.query_params["session_uid"] = uid_logged
                         
                         # LocalStorage a yazdırılması için tetikleyici ekle
@@ -279,7 +308,7 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
             
     with col2:
         isim_input = st.text_input("👤 Kayıt İçin İsim:", max_chars=25)
-        if st.button("Kayıt Ol"):
+        if st.button("Kayıt Ol", use_container_width=True):
             st.session_state.pop("ban_error_on_logout", None)
             try:
                 clean_email = email.strip().lower()
@@ -327,7 +356,7 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
             except Exception as e: st.error(f"❌ Hata: {e}")
             
     st.divider()
-    if st.button("🔑 Şifremi Unuttum"):
+    if st.button("🔑 Şifremi Unuttum", use_container_width=True):
         if email:
             try:
                 reset_link = auth.generate_password_reset_link(email.strip().lower())
@@ -419,7 +448,7 @@ if st.session_state.current_page == "admin_announcement" and not (is_kurucu or i
     st.session_state.current_page = "chat"
     st.rerun()
 
-# --- CSS ENJEKSİYONU (Inline stilleri ezmeyen garantili şablon) ---
+# --- CSS ENJEKSİYONU ---
 st.markdown(f"""
     <style>
         .stApp, [data-testid="stAppViewContainer"], [data-testid="stAppViewBlockContainer"] {{
@@ -435,12 +464,10 @@ st.markdown(f"""
             background-color: transparent !important;
         }}
         
-        /* Genel UI okunabilirliği (p ve span çıkarıldı, böylece profil renkleri ezilmiyor) */
         h1, h2, h3, h4, h5, h6, label, li, .stSubheader, .stText {{
             color: #F8F9FA !important;
         }}
         
-        /* Markdown paragrafları açık renk kalsın (inline stilleri ezmez) */
         div[data-testid="stMarkdownContainer"] p {{
             color: #F8F9FA;
         }}
@@ -537,7 +564,6 @@ with st.sidebar:
     
     st.divider()
     
-    # --- YOUTUBE ID BİLGİ KUTUSU EKLENTİSİ ---
     with st.expander("❓ YouTube ID Nasıl Alınır?"):
         st.markdown("Bir videonun ID'sini almak için URL'sine bakın. Örneğin `https://www.youtube.com/watch?v=dQw4w9WgXcQ` linkindeki **`dQw4w9WgXcQ`** kısmı videonun ID'sidir.")
         
@@ -1159,16 +1185,30 @@ elif st.session_state.current_page == "admin_role_management" and is_kurucu:
         st.error(f"Yöneticiler yüklenirken hata oluştu: {e}")
 
 else:
-    # --- KULLANICI EKRANINDA DUYURU GÖSTERİMİ (FRAGMENT İLE ASENKRON AKIŞ) ---
+    # --- KULLANICI EKRANINDA DUYURU GÖSTERİMİ (OPTIMIZE ASENKRON AKIŞ) ---
     if st.session_state.current_page == "chat":
         
-        @st.fragment(run_every=5)
+        # Saniyede bir yerine 15 saniyede bir tetikleme yaparak sunucuyu ve tarayıcıyı korur
+        @st.fragment(run_every=15)
         def asenkron_duyuru_kontrol(current_uid):
-            fresh_user_snap = db.collection("users").document(current_uid).get()
-            if not fresh_user_snap.exists: return
-            fresh_user_doc = fresh_user_snap.to_dict()
+            now_ts = time.time()
+            if "last_duyuru_fetch_time" not in st.session_state:
+                st.session_state.last_duyuru_fetch_time = 0
+            if "cached_okunmamis_duyurular" not in st.session_state:
+                st.session_state.cached_okunmamis_duyurular = []
             
-            okunmamis = fresh_user_doc.get("okunmamis_duyurular", [])
+            # Firestore döküman sorgulamasını 30 saniyede bir olacak şekilde sınırlayarak kotayı korur
+            if now_ts - st.session_state.last_duyuru_fetch_time > 30:
+                try:
+                    fresh_user_snap = db.collection("users").document(current_uid).get()
+                    if fresh_user_snap.exists:
+                        fresh_user_doc = fresh_user_snap.to_dict()
+                        st.session_state.cached_okunmamis_duyurular = fresh_user_doc.get("okunmamis_duyurular", [])
+                    st.session_state.last_duyuru_fetch_time = now_ts
+                except Exception:
+                    pass
+            
+            okunmamis = st.session_state.cached_okunmamis_duyurular
             if isinstance(okunmamis, list) and okunmamis:
                 duyuru_obj = okunmamis[0]
                 d_metin = duyuru_obj.get("metin", "")
@@ -1191,9 +1231,10 @@ else:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Duyuruyu temizler ve rerun etmeden geçer. St.Fragment mantığı sayesinde döngüye girmez.
                 if st.button("Geç ➡️", key=f"skip_btn_{duyuru_obj.get('id')}", use_container_width=True):
                     db.collection("users").document(current_uid).update({"okunmamis_duyurular": firestore.ArrayRemove([duyuru_obj])})
+                    # Önbellekteki okunmamış duyuruyu anında güncelleyerek gecikmesiz görsel geri dönüş sağla
+                    st.session_state.cached_okunmamis_duyurular.remove(duyuru_obj)
                     st.rerun()
 
         asenkron_duyuru_kontrol(uid)
@@ -1288,8 +1329,8 @@ else:
         val = st.session_state.my_input.strip()
         if val:
             if kufur_var_mi(val):
-                bildirim_id = f"kufur_{int(datetime.now(timezone.utc).timestamp())}_{uid}"
-                db.collection("yonetici_bildirimleri").document(bildirim_id).set({
+                test_id = f"kufur_{int(datetime.now(timezone.utc).timestamp())}_{uid}"
+                db.collection("yonetici_bildirimleri").document(test_id).set({
                     "uid": uid,
                     "email": user_doc.get("email", ""),
                     "isim": user_doc.get("isim", "Bilinmeyen"),
