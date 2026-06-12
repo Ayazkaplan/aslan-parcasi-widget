@@ -117,30 +117,21 @@ if "storage_checked" not in st.session_state: st.session_state.storage_checked =
 
 def logout_user():
     st.session_state.clear()
-    # Çıkış yapıldığında JS ile LocalStorage temizlenip, tam sayfa yenilemesi (Hard Redirect) tetiklenir
-    components.html("""
-    <script>
-        localStorage.removeItem('aslan_uid');
-        const params = new URLSearchParams(window.parent.location.search);
-        params.delete('session_uid');
-        params.set('checked', 'true');
-        window.parent.location.search = params.toString();
-    </script>
-    """, height=0, width=0)
-    st.stop() # JS işini yapana kadar Python kodunu dondur (Çakışma Önleyici)
+    st.query_params.clear()
+    st.query_params["checked"] = "true"
+    # JS Sadece Storage temizler, yönlendirmeyi st.rerun yapar
+    components.html("<script>try{localStorage.removeItem('aslan_uid');}catch(e){}</script>", height=0, width=0)
+    time.sleep(0.3)
+    st.rerun()
 
 def trigger_invalid_session():
-    # Geçersiz/Banlı/Silinmiş bir session algılanırsa belleği temizleyip Giriş ekranına şutlayan fonksiyon
-    components.html("""
-    <script>
-        localStorage.removeItem('aslan_uid');
-        const params = new URLSearchParams(window.parent.location.search);
-        params.delete('session_uid');
-        params.set('checked', 'true');
-        window.parent.location.search = params.toString();
-    </script>
-    """, height=0, width=0)
-    st.stop()
+    st.session_state.clear()
+    st.query_params.clear()
+    st.query_params["checked"] = "true"
+    # JS Sadece Storage temizler, yönlendirmeyi st.rerun yapar
+    components.html("<script>try{localStorage.removeItem('aslan_uid');}catch(e){}</script>", height=0, width=0)
+    time.sleep(0.3)
+    st.rerun()
 
 # Tarayıcı URL'sindeki "checked" (kontrol edildi) bayrağını yakala ve temizle
 if "checked" in st.query_params:
@@ -150,28 +141,39 @@ if "checked" in st.query_params:
 
 # ADIM 1: SİTEYE İLK GİRİŞ VEYA KAPATIP AÇMA DURUMU (Kalıcı Oturum Yakalayıcı)
 if not st.session_state.user_logged_in and "session_uid" not in st.query_params and not st.session_state.storage_checked:
-    # Sayfa temiz açıldıysa estetik bir bekleme animasyonu göster ve JS ile LocalStorage kontrolü yap
+    # Sayfa temiz açıldıysa estetik bir bekleme animasyonu göster
     st.markdown("""
-    <div style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background: #0f2027; position:fixed; top:0; left:0; width:100%; z-index:9999;">
-        <div style="width: 70px; height: 70px; border: 6px solid rgba(255,255,255,0.1); border-top: 6px solid #f39c12; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-        <h3 style="color: white; margin-top: 25px; font-family: sans-serif; font-weight: 600; text-shadow: 0 0 10px rgba(0,0,0,0.5);">Hesabına giriş yapılıyor...</h3>
+    <div id="aslan-loader" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #0f2027; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999999;">
+        <div style="width: 60px; height: 60px; border: 5px solid rgba(255, 255, 255, 0.1); border-top: 5px solid #f39c12; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <h3 style="color: white; font-family: sans-serif; margin-top: 25px;">Hesabına giriş yapılıyor...</h3>
+        <p style="color: #ccc; font-family: sans-serif; font-size: 14px; margin-top: 10px;">Lütfen bekleyin</p>
+        <a href="?checked=true" style="margin-top: 35px; padding: 10px 20px; background-color: transparent; border: 1px solid #f39c12; color: #f39c12; border-radius: 5px; text-decoration: none; font-family: sans-serif; font-size: 14px; transition: 0.3s; opacity: 0.9;">⏳ Eğer ekran takıldıysa buraya tıkla</a>
     </div>
-    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+    <style>
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
     """, unsafe_allow_html=True)
     
+    # Arka planda JS ile LocalStorage kontrolü yap ve temiz URL yönlendirmesi sağla
     components.html("""
     <script>
-        const uid = localStorage.getItem('aslan_uid');
-        const params = new URLSearchParams(window.parent.location.search);
-        if (uid) {
-            params.set('session_uid', uid);
-        } else {
-            params.set('checked', 'true');
-        }
-        window.parent.location.search = params.toString();
+        setTimeout(function() {
+            try {
+                const uid = localStorage.getItem('aslan_uid');
+                let newUrl = window.parent.location.href.split('?')[0]; // Temiz dizin yolu alınıyor
+                if (uid) {
+                    newUrl += '?session_uid=' + uid;
+                } else {
+                    newUrl += '?checked=true';
+                }
+                window.parent.location.href = newUrl;
+            } catch(e) {
+                console.error("Iframe Access Blocked", e);
+            }
+        }, 300);
     </script>
     """, height=0, width=0)
-    st.stop() # JS yönlendirmesini beklerken Python çalışmasını durdur, böylece ekran arkada kaymaz
+    st.stop() # Python çalışmasını durdurur, eğer mobil tarayıcı JS'i kilitlerse kullanıcı butona tıklayıp devam edebilir.
 
 # ADIM 2: URL'DE SESSİON_UİD YAKALANDI (Firestore'dan Doğrula ve İçeri Al)
 if "session_uid" in st.query_params and not st.session_state.user_logged_in:
@@ -282,17 +284,11 @@ if not st.session_state.user_logged_in or not st.session_state.force_login:
                         st.session_state.force_login = True
                         st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
                         
-                        # BAŞARILI GİRİŞ: LocalStorage'a kaydet ve URL'i manipüle ederek temiz bir şekilde ana sayfaya hard-reload at
-                        components.html(f"""
-                        <script>
-                            localStorage.setItem('aslan_uid', '{uid_logged}');
-                            const params = new URLSearchParams(window.parent.location.search);
-                            params.set('session_uid', '{uid_logged}');
-                            params.delete('checked');
-                            window.parent.location.search = params.toString();
-                        </script>
-                        """, height=0, width=0)
-                        st.stop()
+                        # NATIVE STREAMLIT YÖNLENDİRME (Kilitlenme ve çökme engellendi)
+                        st.query_params["session_uid"] = uid_logged
+                        components.html(f"<script>try{{localStorage.setItem('aslan_uid', '{uid_logged}');}}catch(e){{}}</script>", height=0, width=0)
+                        time.sleep(0.3)
+                        st.rerun()
                 else:
                     st.error("❌ Kullanıcı verisi bulunamadı!")
             else:
