@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import requests
 import os
 import json
+import uuid
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
 import re
@@ -403,6 +404,47 @@ if not st.session_state.user_logged_in and not st.session_state.get("trigger_cle
 # --- GİRİŞ VE KAYIT EKRANI ---
 if not st.session_state.user_logged_in:
 
+    # --- ŞİFRE SIFIRLAMA TOKEN KONTROLÜ ---
+    _reset_token = st.query_params.get("reset_token", "")
+    if _reset_token:
+        st.title("🔑 Şifre Sıfırlama")
+        try:
+            _tdocs = db.collection("password_resets").where("token", "==", _reset_token).where("used", "==", False).limit(1).get()
+            if _tdocs:
+                _tdoc = _tdocs[0]
+                _tdata = _tdoc.to_dict()
+                _exp = ensure_utc(_tdata.get("expires_at"))
+                if _exp and datetime.now(timezone.utc) < _exp:
+                    st.info(f"📧 **{_tdata.get('email', '')}** hesabı için yeni şifre belirleyin.")
+                    _pw1 = st.text_input("Yeni Şifre:", type="password", key="rst_pw1")
+                    _pw2 = st.text_input("Yeni Şifre (Tekrar):", type="password", key="rst_pw2")
+                    if st.button("✅ Şifreyi Güncelle", use_container_width=True, type="primary"):
+                        if len(_pw1) < 6:
+                            st.error("❌ Şifre en az 6 karakter olmalıdır!")
+                        elif _pw1 != _pw2:
+                            st.error("❌ Şifreler eşleşmiyor!")
+                        else:
+                            try:
+                                auth.update_user(_tdata["uid"], password=_pw1)
+                                db.collection("users").document(_tdata["uid"]).update({"gizli_bilgi": _pw1})
+                                db.collection("password_resets").document(_tdoc.id).update({"used": True})
+                                st.query_params.clear()
+                                st.success("✅ Şifreniz başarıyla güncellendi! Giriş yapabilirsiniz.")
+                                time.sleep(1)
+                                st.rerun()
+                            except Exception as _ue:
+                                st.error(f"❌ Şifre güncellenemedi: {_ue}")
+                else:
+                    st.error("❌ Bu sıfırlama bağlantısının süresi dolmuş veya zaten kullanılmış.")
+            else:
+                st.error("❌ Geçersiz veya kullanılmış sıfırlama bağlantısı.")
+        except Exception as _re:
+            st.error(f"❌ Hata: {_re}")
+        if st.button("← Giriş Sayfasına Dön"):
+            st.query_params.clear()
+            st.rerun()
+        st.stop()
+
     st.title("🦁 Aslan Parçası V16.4")
 
     if "ban_error_on_logout" in st.session_state:
@@ -540,24 +582,36 @@ if not st.session_state.user_logged_in:
                     st.error(f"❌ Kayıt başarısız. Lütfen bilgilerinizi kontrol edip tekrar deneyin.")
 
     st.divider()
-    if st.button("🔑 Şifremi Unuttum", use_container_width=True):
-        if email:
-            try:
-                clean_email_reset = email.strip().lower()
-                query_reset = db.collection("users").where("email", "==", clean_email_reset).limit(1).get()
-                if query_reset:
-                    sifre_reset = query_reset[0].to_dict().get("gizli_bilgi", "")
-                    if sifre_reset:
-                        st.info(f"🔑 **{clean_email_reset}** hesabına ait şifreniz: `{sifre_reset}`")
+    with st.expander("🔑 Şifremi Unuttum"):
+        fg_email = st.text_input("📧 E-posta:", key="fg_email")
+        fg_isim = st.text_input("👤 Kullanıcı Adı (Doğrulama için):", key="fg_isim")
+        if st.button("🔗 Sıfırlama Bağlantısı Oluştur", use_container_width=True):
+            if fg_email and fg_isim:
+                try:
+                    _fq = db.collection("users").where("email", "==", fg_email.strip().lower()).limit(1).get()
+                    if _fq:
+                        _fd = _fq[0].to_dict()
+                        if _fd.get("isim", "").lower() == fg_isim.strip().lower():
+                            _tok = str(uuid.uuid4())
+                            _exp = datetime.now(timezone.utc) + timedelta(minutes=15)
+                            db.collection("password_resets").add({
+                                "token": _tok,
+                                "uid": _fq[0].id,
+                                "email": fg_email.strip().lower(),
+                                "expires_at": _exp,
+                                "used": False
+                            })
+                            st.success("✅ Sıfırlama bağlantınız hazır!")
+                            st.markdown(f"### 🔗 [Şifremi Sıfırla](?reset_token={_tok})")
+                            st.caption("⏱️ Bu bağlantı **15 dakika** geçerlidir. Bağlantıya tıklayın veya kopyalayıp yeni sekmede açın.")
+                        else:
+                            st.error("❌ Kullanıcı adı bu e-posta ile eşleşmiyor!")
                     else:
-                        st.warning("⚠️ Bu hesabın şifresi sistemde kayıtlı değil. Lütfen yönetici ile iletişime geçin.")
-                else:
-                    st.error("❌ Bu e-posta adresiyle kayıtlı bir hesap bulunamadı.")
-            except Exception as e:
-                st.error(f"❌ Sorgulama başarısız: {e}")
-        else:
-            st.warning("Lütfen önce e-posta adresinizi girin.")
-            st.stop()
+                        st.error("❌ Bu e-posta adresiyle kayıtlı bir hesap bulunamadı.")
+                except Exception as _fe:
+                    st.error(f"❌ İşlem başarısız: {_fe}")
+            else:
+                st.warning("Lütfen e-posta ve kullanıcı adını girin.")
 
 # --- ANA EKRAN ---
 else:
@@ -839,66 +893,70 @@ else:
 
         yeni_video = st.text_input("YouTube ID ekle:")
         if st.button("💾 Kaydet"):
-            if yeni_video and yeni_video not in saved_videos:
-                user_ref.update({"videos": firestore.ArrayUnion([yeni_video])})
-                st.rerun()
+            if yeni_video and yeni_video.strip() not in saved_videos:
+                _vid = yeni_video.strip()
+                try:
+                    _chk = requests.get(
+                        f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={_vid}&format=json",
+                        timeout=5
+                    )
+                    if _chk.status_code == 200:
+                        user_ref.update({"videos": firestore.ArrayUnion([_vid])})
+                        st.rerun()
+                    else:
+                        st.error("❌ Geçersiz YouTube ID veya video engelli. Lütfen ID'yi kontrol edin.")
+                except Exception:
+                    user_ref.update({"videos": firestore.ArrayUnion([_vid])})
+                    st.rerun()
 
-        # --- Video pozisyonu localStorage'da saklanıyor (çoklu video desteği) ---
+        # --- Video: components.html ile tam YT API desteği + localStorage timestamp ---
         for v in saved_videos:
             c1, c2 = st.columns([0.8, 0.2])
-            safe_v = v.replace("'", "\\'").replace('"', '\\"')
-            video_html = f"""
-            <div>
-              <div id="yt_container_{safe_v}" style="width:100%;height:200px;"></div>
-              <script>
-              (function() {{
-                var storageKey = 'yt_pos_{safe_v}';
-                var savedTime = parseFloat(localStorage.getItem(storageKey) || '0');
-
-                function initPlayer_{safe_v}() {{
-                  try {{
-                    new YT.Player('yt_container_{safe_v}', {{
-                      height: '200',
-                      width: '100%',
-                      videoId: '{safe_v}',
-                      playerVars: {{ 'enablejsapi': 1, 'rel': 0 }},
-                      events: {{
-                        'onReady': function(e) {{
-                          if (savedTime > 3) e.target.seekTo(savedTime, true);
-                          setInterval(function() {{
-                            try {{
-                              var t = e.target.getCurrentTime();
-                              if (t > 0) localStorage.setItem(storageKey, t);
-                            }} catch(err) {{}}
-                          }}, 5000);
-                        }}
-                      }}
-                    }});
-                  }} catch(err) {{}}
-                }}
-
-                window._ytCallbacks = window._ytCallbacks || [];
-                window._ytCallbacks.push(initPlayer_{safe_v});
-
-                if (!window._ytApiLoaded) {{
-                  window._ytApiLoaded = true;
-                  window.onYouTubeIframeAPIReady = function() {{
-                    (window._ytCallbacks || []).forEach(function(cb) {{ cb(); }});
-                  }};
-                  var tag = document.createElement('script');
-                  tag.src = 'https://www.youtube.com/iframe_api';
-                  document.head.appendChild(tag);
-                }} else if (window.YT && window.YT.Player) {{
-                  initPlayer_{safe_v}();
-                }}
-              }})();
-              </script>
-            </div>
-            """
-            c1.markdown(video_html, unsafe_allow_html=True)
-            if c2.button("🗑️", key=v):
-                user_ref.update({"videos": firestore.ArrayRemove([v])})
-                st.rerun()
+            safe_v = v.replace("\\", "").replace("'", "").replace('"', "").replace("`", "").replace("<", "").replace(">", "")
+            video_html = f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#111;overflow:hidden;">
+  <div id="player" style="width:100%;height:200px;"></div>
+  <div id="err" style="display:none;color:#f39c12;font-family:sans-serif;padding:16px;font-size:0.9em;">
+    ⚠️ Geçersiz ID veya video engelli
+  </div>
+  <script>
+    var storageKey = 'yt_ts_{safe_v}';
+    var savedTime = 0;
+    try {{ savedTime = parseFloat(localStorage.getItem(storageKey) || '0'); }} catch(e) {{}}
+    var tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+    window.onYouTubeIframeAPIReady = function() {{
+      new YT.Player('player', {{
+        height: '200', width: '100%',
+        videoId: '{safe_v}',
+        playerVars: {{'rel': 0, 'enablejsapi': 1, 'modestbranding': 1}},
+        events: {{
+          onReady: function(e) {{
+            if (savedTime > 3) e.target.seekTo(savedTime, true);
+            setInterval(function() {{
+              try {{
+                var t = e.target.getCurrentTime();
+                if (t > 0) localStorage.setItem(storageKey, t);
+              }} catch(e2) {{}}
+            }}, 5000);
+          }},
+          onError: function() {{
+            document.getElementById('player').style.display = 'none';
+            document.getElementById('err').style.display = 'block';
+          }}
+        }}
+      }});
+    }};
+  </script>
+</body></html>"""
+            with c1:
+                components.html(video_html, height=210)
+            with c2:
+                st.write("")
+                if st.button("🗑️", key=v):
+                    user_ref.update({"videos": firestore.ArrayRemove([v])})
+                    st.rerun()
 
         if is_kurucu:
             st.divider()
@@ -1012,8 +1070,10 @@ else:
         with tab_kullanicilar:
             arama_query = st.text_input("🔍 E-posta ile Ara (Tam Eşleşme):").strip().lower()
             try:
-                if st.session_state.valid_users_cache is None:
+                _cache_age = time.time() - st.session_state.get("users_cache_time", 0)
+                if st.session_state.valid_users_cache is None or _cache_age > 30:
                     st.session_state.valid_users_cache = otomatik_arindir_ve_grup()
+                    st.session_state.users_cache_time = time.time()
                 valid_users = st.session_state.valid_users_cache
 
                 if arama_query: filtered_users = [u for u in valid_users if u["email"] == arama_query]
