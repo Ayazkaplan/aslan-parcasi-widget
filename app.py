@@ -114,7 +114,6 @@ if "valid_users_cache" not in st.session_state: st.session_state.valid_users_cac
 if "current_page" not in st.session_state: st.session_state.current_page = "chat"
 
 def logout_user():
-    # Çıkış yapıldığında oturumu sıfırlar ve Geçiş Anahtarını LocalStorage'dan silecek bayrağı açar
     for key in list(st.session_state.keys()):
         if key != "tema":
             del st.session_state[key]
@@ -123,7 +122,6 @@ def logout_user():
     st.rerun()
 
 def trigger_invalid_session():
-    # Geçersiz/Silinmiş token bulunduğunda güvenli şekilde anahtarı ve oturumu siler
     for key in list(st.session_state.keys()):
         if key != "tema":
             del st.session_state[key]
@@ -164,7 +162,6 @@ if "session_uid" in st.query_params and not st.session_state.user_logged_in:
                     is_banned = True
             
             if not is_banned:
-                # Token Başarıyla Onaylandı: Kullanıcı sisteme giriş yapıyor!
                 user_ref_temp.update({"son_gorulme_zamani": firestore.SERVER_TIMESTAMP})
                 st.session_state.user_data = {**user_data, "uid": stored_uid}
                 st.session_state.user_logged_in = True
@@ -193,28 +190,49 @@ if not st.session_state.user_logged_in:
     
     st.title("🦁 Aslan Parçası V16.4")
 
-    # KUSURSUZ ÇÖZÜM: NATIVE HTML FORM (Asla indirme yapmaz, doğrudan üst sayfayı yeniler!)
+    # ADIM 2: GEÇİŞ ANAHTARI (PASSKEY) GÖRSEL ARAYÜZÜ - "Dedektif" Javascript Eklendi!
     passkey_html = """
     <div id="passkey-container" style="display: none; padding: 25px; background: rgba(255, 255, 255, 0.08); border-radius: 12px; text-align: center; border: 1.5px solid #f39c12; margin-bottom: 25px; font-family: sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
         <h3 style="color: white; margin-top: 0; font-size: 22px;">Önceki Oturum Bulundu 🔑</h3>
         <p style="color: #ddd; font-size: 15px; margin-bottom: 20px;">Cihazınızda daha önce giriş yapılmış bir kayıtlı anahtar algılandı.</p>
         
-        <!-- target="_top" ile Form Gönderimi. JavaScript blocklansa bile her zaman çalışır! -->
-        <form target="_top" action="/" method="GET" style="margin: 0; padding: 0;">
+        <form id="auto-login-form" target="_parent" method="GET" style="margin: 0; padding: 0;">
             <input type="hidden" name="session_uid" id="hidden_token_input" value="">
-            <button type="submit" style="padding: 12px 24px; background-color: #f39c12; color: #000; font-weight: bold; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: 0.3s; box-shadow: 0 2px 5px rgba(243, 156, 18, 0.5);">🚀 Hesabıma Hızlı Giriş Yap</button>
+            <button type="submit" style="width: 100%; padding: 12px 24px; background-color: #f39c12; color: #000; font-weight: bold; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: 0.3s; box-shadow: 0 2px 5px rgba(243, 156, 18, 0.5);">🚀 Hesabıma Hızlı Giriş Yap</button>
         </form>
         
         <div style="margin-top: 20px;">
             <button onclick="clearToken()" style="background: transparent; border: none; color: #999; cursor: pointer; text-decoration: underline; font-size: 13px; transition: 0.3s;">Bu Anahtarı Sil ve Unut</button>
         </div>
     </div>
+    
     <script>
         var token = localStorage.getItem('aslan_passkey');
         if (token) {
             document.getElementById('passkey-container').style.display = 'block';
             document.getElementById('hidden_token_input').value = token;
+            
+            // ANA SİTENİN GERÇEK ADRESİNİ BULMA ALGORİTMASI
+            var realParentUrl = "";
+            try {
+                // Önce doğrudan parent dizinini okumayı deneriz
+                realParentUrl = window.parent.location.href;
+            } catch(e) {
+                // Mobil tarayıcı cross-origin engellerse, bizi buraya gönderen kaynağı (referrer) okuruz
+                realParentUrl = document.referrer;
+            }
+            
+            // URL içindeki önceki gereksiz parametreleri temizle
+            if (realParentUrl) {
+                realParentUrl = realParentUrl.split('?')[0].split('#')[0];
+            } else {
+                realParentUrl = "/";
+            }
+            
+            // Formun hedefini tam olarak ana siteye yönlendir
+            document.getElementById('auto-login-form').action = realParentUrl;
         }
+        
         function clearToken() {
             localStorage.removeItem('aslan_passkey');
             document.getElementById('passkey-container').style.display = 'none';
@@ -273,17 +291,15 @@ if not st.session_state.user_logged_in:
                         uid_logged = auth_res['localId']
                         db.collection("users").document(query[0].id).update({"son_gorulme_zamani": firestore.SERVER_TIMESTAMP})
                         
-                        # BAŞARILI MANUEL GİRİŞ (Token oluşturulur ve kaydedilmesi emredilir)
                         st.session_state.user_data = {**user_data, "uid": uid_logged}
                         st.session_state.user_logged_in = True
                         st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
                         st.query_params["session_uid"] = uid_logged
                         
-                        # Cihaz hafızasına mühürleme sinyali
                         st.session_state.js_uid = uid_logged
                         st.session_state.trigger_ls_save = True
                         
-                        st.rerun() # Temiz bir sayfa yenilemesi yapar
+                        st.rerun() 
                 else:
                     st.error("❌ Kullanıcı verisi bulunamadı!")
             else:
@@ -1380,4 +1396,4 @@ else:
                     st.session_state.input_key += 1
 
             st.text_area("Mesajını yaz:", key="my_input", height=100)
-            st.button("🚀 Gönder", on_click=send_message) 
+            st.button("🚀 Gönder", on_click=send_message)
