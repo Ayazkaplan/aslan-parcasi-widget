@@ -9,7 +9,7 @@ import re
 from datetime import datetime, timezone, timedelta
 import time
 import unicodedata
-import tempfile # RENDER İÇİN YENİ GÜVENLİ DOSYA SİSTEMİ
+import tempfile
 
 # --- SAYFA AYARLARI (Tüm Streamlit komutlarından önce ilk sırada olmalıdır) ---
 st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁", layout="centered")
@@ -106,8 +106,8 @@ def firebase_login(email, password):
         print(f"[FIREBASE LOGIN REST API HATASI] Giriş isteği gönderilirken hata oluştu: {e}")
         return None
 
-# --- STREAMLIT DIRECT BRIDGE (DOĞRUDAN OKUMA) MİMARİSİ ---
-# Bu sistem, URL ve Butonla uğraşmadan direkt cihaz hafızasını Python'a çeker.
+# --- IŞIK HIZI STREAMLIT DIRECT BRIDGE MİMARİSİ ---
+# JavaScript artık Python'un emir vermesini beklemiyor. Uyanır uyanmaz veriyi fırlatıyor!
 COMP_DIR = os.path.join(tempfile.gettempdir(), "aslan_ls_component")
 os.makedirs(COMP_DIR, exist_ok=True)
 HTML_PATH = os.path.join(COMP_DIR, "index.html")
@@ -120,16 +120,12 @@ with open(HTML_PATH, "w", encoding="utf-8") as f:
       function sendMessage(type, data) {
         window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, data), "*");
       }
-      window.addEventListener("message", function(event) {
-        if (event.data.type === "streamlit:render") {
-          var val = localStorage.getItem("aslan_passkey");
-          if (!val) val = "NOT_FOUND";
-          sendMessage("streamlit:setComponentValue", {value: val});
-        }
-      });
+      // IŞIK HIZI OPTİMİZASYONU: "render" dinleyicisini beklemeyi bıraktık. Yüklenir yüklenmez veriyi anında gönder!
       window.onload = function() {
           sendMessage("streamlit:componentReady", {apiVersion: 1});
           sendMessage("streamlit:setFrameHeight", {height: 0});
+          var val = localStorage.getItem("aslan_passkey");
+          sendMessage("streamlit:setComponentValue", {value: val ? val : "NOT_FOUND"});
       };
     </script></head>
     <body></body>
@@ -162,33 +158,36 @@ if st.session_state.get("trigger_clear_token", False):
     components.html("<script>localStorage.removeItem('aslan_passkey');</script>", height=0, width=0)
     st.markdown("<h3 style='text-align:center; color:white; margin-top:20vh;'>Çıkış yapılıyor...</h3>", unsafe_allow_html=True)
     st.session_state.trigger_clear_token = False
-    time.sleep(1) # JS'nin anahtarı silmesi için emin olduğumuz minik süre
+    time.sleep(0.5) 
     st.rerun()
 
 if st.session_state.get("trigger_save_token"):
     uid = st.session_state.trigger_save_token
     components.html(f"<script>localStorage.setItem('aslan_passkey', '{uid}');</script>", height=0, width=0)
     st.session_state.trigger_save_token = None
-    # Anahtar cihaza gömüldü, hayatına normal devam et.
 
-# --- ADIM 1: SESSİZ VE BUTONSUZ GEÇİŞ ANAHTARI OKUMASI ---
+# --- ADIM 1: SESSİZ VE IŞIK HIZINDA GEÇİŞ ANAHTARI OKUMASI ---
 if not st.session_state.user_logged_in and not st.session_state.get("trigger_clear_token", False):
-    # Doğrudan cihaza soru sorar: "Anahtarın var mı?"
+    
     token = get_local_storage(key="token_reader_comp")
     
     if token is None:
-        # JS'den yanıt gelene kadar mükemmel bir yükleme ekranı göster
+        # UX OPTİMİZASYONU: Animasyona opacity delay eklendi.
+        # Eğer okuma hızı 200ms'den kısaysa, bu ekranı göremezsin bile, direkt içeri girersin.
         st.markdown("""
-        <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #0f2027; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999999;">
-            <div style="width: 60px; height: 60px; border: 5px solid rgba(255, 255, 255, 0.1); border-top: 5px solid #f39c12; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #0f2027; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999999; opacity: 0; animation: fadeIn 0.3s ease-in forwards 0.2s;">
+            <div style="width: 60px; height: 60px; border: 5px solid rgba(255, 255, 255, 0.1); border-top: 5px solid #f39c12; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
             <h3 style="color: white; font-family: sans-serif; margin-top: 25px;">Geçiş Anahtarı Doğrulanıyor...</h3>
         </div>
-        <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+        <style>
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { 100% { opacity: 1; } }
+        </style>
         """, unsafe_allow_html=True)
         st.stop()
         
     elif token != "NOT_FOUND":
-        # ANAHTAR BULUNDU! SIFIR BUTONLA ŞİFRESİZ GİRİŞ İŞLEMİ!
+        # ANAHTAR IŞIK HIZINDA BULUNDU VE OKUNDU!
         try:
             user_ref_temp = db.collection("users").document(token)
             user_snap = user_ref_temp.get()
@@ -226,7 +225,7 @@ if not st.session_state.user_logged_in and not st.session_state.get("trigger_cle
                     else:
                         st.session_state.messages = []
                     
-                    st.rerun() # Şak diye sohbet ekranına düşer
+                    st.rerun() 
                 else:
                     trigger_invalid_session()
             else:
@@ -289,12 +288,11 @@ if not st.session_state.user_logged_in:
                         uid_logged = auth_res['localId']
                         db.collection("users").document(query[0].id).update({"son_gorulme_zamani": firestore.SERVER_TIMESTAMP})
                         
-                        # MÜKEMMEL GİRİŞ: Oturum oluştur, JS arkaplanına "Cihazı Mühürle" emri gönder!
                         st.session_state.user_data = {**user_data, "uid": uid_logged}
                         st.session_state.user_logged_in = True
                         st.session_state.tema = user_data.get("tema", list(TEMALAR.values())[0])
                         
-                        st.session_state.trigger_save_token = uid_logged # JS Görevlisi devraldı!
+                        st.session_state.trigger_save_token = uid_logged 
                         st.rerun() 
                 else:
                     st.error("❌ Kullanıcı verisi bulunamadı!")
@@ -1128,10 +1126,10 @@ else:
                                         st.session_state.valid_users_cache = None
                                         time.sleep(1)
                                         st.rerun()
-                                with c_n:
-                                    if st.button("Hayır", key=f"demote_no_{a_id}", use_container_width=True):
-                                        st.session_state[f"show_demote_{a_id}"] = False
-                                        st.rerun()
+                                    with c_n:
+                                        if st.button("Hayır", key=f"demote_no_{a_id}", use_container_width=True):
+                                            st.session_state[f"show_demote_{a_id}"] = False
+                                            st.rerun()
                         
                         try:
                             admin_duyurulari = db.collection("duyurular").where("gonderen_email", "==", a_email).get()
@@ -1392,4 +1390,4 @@ else:
                     st.session_state.input_key += 1
 
             st.text_area("Mesajını yaz:", key="my_input", height=100)
-            st.button("🚀 Gönder", on_click=send_message) 
+            st.button("🚀 Gönder", on_click=send_message)
