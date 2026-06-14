@@ -15,7 +15,7 @@ import tempfile
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="Aslan Parçası V16.4", page_icon="🦁", layout="centered")
 
-# --- Google Translate Engelleme ---
+# --- Google Translate Engelleme + Global UI Tweaks ---
 st.markdown("""
 <meta name="google" content="notranslate">
 <meta http-equiv="Content-Language" content="tr">
@@ -27,6 +27,41 @@ st.markdown("""
   body { top: 0 !important; }
   .notranslate { translate: no; }
   font[style*="vertical-align"] { display: none !important; }
+
+  /* ── ℹ️ Bilgi Butonu — Sağ Üst Köşe Sabit ── */
+  div[data-testid="stPopover"] {
+    position: fixed !important;
+    top: 56px !important;
+    right: 14px !important;
+    z-index: 9990 !important;
+  }
+  div[data-testid="stPopover"] > button {
+    background: rgba(255,255,255,0.07) !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+    border-radius: 50% !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    padding: 0 !important;
+    font-size: 1.05rem !important;
+    line-height: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.4) !important;
+    cursor: pointer !important;
+    transition: background 0.2s !important;
+  }
+  div[data-testid="stPopover"] > button:hover {
+    background: rgba(255,255,255,0.14) !important;
+  }
+  /* Mobil uyum */
+  @media (max-width: 640px) {
+    div[data-testid="stPopover"] {
+      top: 52px !important;
+      right: 8px !important;
+    }
+  }
 </style>
 """, unsafe_allow_html=True)
 
@@ -407,6 +442,9 @@ if "yt_results" not in st.session_state: st.session_state.yt_results = []
 if "yt_playing_id" not in st.session_state: st.session_state.yt_playing_id = None
 if "yt_playing_title" not in st.session_state: st.session_state.yt_playing_title = ""
 if "yt_playing_channel" not in st.session_state: st.session_state.yt_playing_channel = ""
+if "yt_last_id" not in st.session_state: st.session_state.yt_last_id = None
+if "yt_last_title" not in st.session_state: st.session_state.yt_last_title = ""
+if "yt_last_channel" not in st.session_state: st.session_state.yt_last_channel = ""
 
 def trigger_invalid_session():
     for key in list(st.session_state.keys()):
@@ -1688,33 +1726,50 @@ else:
             asenkron_duyuru_kontrol(uid)
 
             # --- SOHBET ARAYÜZÜ ---
-            _col_t, _col_b = st.columns([9, 1])
-            with _col_t:
-                st.title("🤖 Aslan Parçası V16.4")
-            with _col_b:
-                with st.popover("ℹ️"):
-                    st.markdown("### 🏢 Hakkımızda")
-                    st.markdown("""
-**Müstakbel Şirket**, dijital iletişim ve yapay zeka alanında öncü çözümler geliştiren, geleceğin teknolojilerini bugünün ihtiyaçlarıyla buluşturan yenilikçi bir teknoloji girişimidir. Kuruluşumuz; şeffaflık, yenilik ve kullanıcı odaklılık ilkeleri çerçevesinde şekillenerek Türkiye ve dünya genelindeki kullanıcılara akıllı, güvenli ve özgün dijital deneyimler sunmayı hedeflemektedir.
+            st.title("🤖 Aslan Parçası V16.4")
 
-**Aslan Parçası V16.4**, Müstakbel Şirket'in amiral gemisi yapay zeka platformudur. Firebase destekli güvenli kimlik doğrulama, gerçek zamanlı Firestore altyapısı ve Claude-3 Haiku modeliyle güçlendirilmiş bu platform; kullanıcılara anlık, bağlamsal ve hiyerarşik farkındalığa sahip bir AI asistanı sunmaktadır.
-                    """)
-                    st.divider()
-                    st.markdown("### 🌍 About")
-                    st.markdown("""
-**Müstakbel Şirket** is a forward-thinking technology startup pioneering solutions at the intersection of artificial intelligence and human communication. Founded on the principles of innovation, integrity, and user empowerment, the company is dedicated to building intelligent platforms that adapt to the unique needs of every individual user.
+            # ── Bilgi Butonu — CSS ile sağ üst köşeye sabitlendi ──
+            with st.popover("ℹ️"):
+                st.markdown("## 🏢 Hakkımızda")
+                st.markdown("""
+**Müstakbel Şirket**, dijital iletişim ve yapay zeka alanında öncü çözümler geliştiren, geleceğin teknolojilerini bugünün ihtiyaçlarıyla buluşturan köklü bir teknoloji kuruluşudur. Şeffaflık, yenilikçilik ve kullanıcı odaklılık ilkeleri üzerine inşa edilen Müstakbel Şirket; Türkiye ve uluslararası pazarda bireylere, kurumlara ve ekiplere akıllı, güvenli ve özgün dijital deneyimler sunmaktadır. Kuruluşumuz, teknolojiyi yalnızca bir araç olarak değil; insanların hayatını kolaylaştıran, güvenilir bir ortağa dönüştüren stratejik bir güç olarak konumlandırmaktadır.
 
-Aslan Parçası V16.4 represents the cutting edge of conversational AI: engineered with role-based interaction protocols, real-time Firestore integration, and a multi-layered security architecture. By combining the power of Claude-3 Haiku with a deeply customizable user hierarchy, Müstakbel Şirket delivers not just a chatbot — but a dynamic, loyal, and context-aware digital companion.
-                    """)
-                    st.divider()
-                    st.markdown("""
-<div style="background:rgba(255,165,0,0.1);border-left:3px solid #f39c12;padding:10px;border-radius:5px;">
-<b>👑 Kurucu:</b> Ayaz Kaplan<br>
+**Aslan Parçası V16.4**, Müstakbel Şirket bünyesinde geliştirilen amiral gemisi yapay zeka platformudur. Firebase destekli güvenli kimlik doğrulama altyapısı, gerçek zamanlı Firestore veritabanı entegrasyonu ve OpenRouter üzerinden erişilen Claude-3 Haiku dil modeliyle güçlendirilen bu platform; kullanıcılara bağlamsal farkındalığa sahip, hiyerarşik rol bilincine sahip ve anlık tepki veren bir AI asistanı sunmaktadır. Müstakbel Şirket'in her geçen gün daha da güçlenen Ar-Ge kültürü ve mühendislik disiplini, ürünlerimizi rakiplerinden farklı kılan en önemli unsurlardır.
+                """)
+                st.divider()
+
+                st.markdown("## 🎯 Misyonumuz")
+                st.markdown("""
+Müstakbel Şirket olarak misyonumuz; teknolojinin sunduğu imkânları insan odaklı bir perspektifle yeniden tasarlayarak, her bireyin ve kurumun benzersiz ihtiyaçlarına yanıt verebilen akıllı dijital sistemler inşa etmektir. Yapay zeka teknolojisinin yalnızca büyük şirketlerin değil, toplumun her kesimine erişilebilir ve anlaşılır olması gerektiğine inanıyor; bu doğrultuda ürünlerimizi en yüksek erişilebilirlik standartlarında sunmayı bir sorumluluk olarak görüyoruz.
+
+Bu misyon doğrultusunda Müstakbel Şirket; kullanıcı gizliliğini ön planda tutan güvenli altyapılar, özelleştirilebilir hiyerarşik etkileşim protokolleri ve kesintisiz gerçek zamanlı deneyimler geliştirmektedir. Yaptığımız her ürün kararının arkasında insan değeri, etik sorumluluk ve sürdürülebilirlik anlayışı yatmaktadır. Teknolojiyi geleceğe taşımak için önce bugünkü ihtiyaçları dinliyoruz; ardından mühendislik kalitemizle bu ihtiyaçları aşan çözümler sunuyoruz.
+                """)
+                st.divider()
+
+                st.markdown("## 🔭 Vizyonumuz")
+                st.markdown("""
+Müstakbel Şirket'in vizyonu; Türkiye'nin ve bölgenin yapay zeka alanındaki lider teknoloji kuruluşu olmak, küresel ölçekte rekabet edebilir ürünler geliştirerek dünya genelinde tanınan, güvenilen ve tercih edilen bir marka haline gelmektir. Dijital dönüşümün hız kazandığı bu dönemde, yalnızca trendi takip etmek değil; trendi yaratan tarafta yer almak en temel hedefimizdir.
+
+Bu vizyon çerçevesinde Müstakbel Şirket; gelecekte çok modlu yapay zeka sistemleri, otonom karar destek platformları ve sektöre özgü uzmanlaşmış AI ajanları geliştirmeyi planlamaktadır. İnsan-yapay zeka iş birliğinin en doğal ve verimli biçimde gerçekleştiği platformlar kurarak; bireylerin, işletmelerin ve devlet kurumlarının dijital geleceğe güvenle adım atmasını sağlamak için çalışmaya devam edeceğiz. Müstakbel Şirket, bu yolda stratejik iş birlikleri, yüksek kalibrete Ar-Ge yatırımları ve kesintisiz inovasyon kültürüyle ilerlemektedir.
+                """)
+                st.divider()
+
+                st.markdown("## 👥 Kadromuz")
+                st.markdown("""
+Müstakbel Şirket; yazılım mühendisleri, yapay zeka araştırmacıları, ürün tasarımcıları ve dijital strateji uzmanlarından oluşan, çok disiplinli ve tutkulu bir ekibin ev sahipliği yapmaktadır. Kadromuz; her üyenin kendi alanında uzman olmasının yanı sıra, ekip ruhunu ve ortak hedefi içselleştirmiş bireylerden oluşmaktadır. Kuruluşun dinamik yapısı, genç yeteneklerin deneyimli liderlerle yan yana çalışmasına zemin hazırlarken; açık iletişim kültürü her fikrin değer gördüğü bir ortam yaratmaktadır.
+
+Şirketimizin kurucusu ve vizyoner lideri **Ayaz Kaplan** önderliğinde şekillenen Müstakbel Şirket kadrosu; mükemmellik odaklı, çözüm üretmeye programlanmış ve kullanıcı memnuniyetini her şeyin üzerinde tutan bir anlayışla çalışmaktadır. Ekibimiz yalnızca bugünün taleplerini karşılamakla kalmaz; geleceğin ihtiyaçlarını öngören, proaktif ve araştırmacı bir yaklaşımla sürekli gelişmeyi esas alır. Müstakbel Şirket için çalışmak; sadece bir kariyer değil, anlamlı bir misyonun parçası olmaktır.
+                """)
+                st.divider()
+                st.markdown("""
+<div style="background:rgba(255,165,0,0.08);border-left:3px solid #f39c12;padding:12px 14px;border-radius:6px;">
+<b>👑 Kurucu & CEO:</b> Ayaz Kaplan<br>
 <b>🏢 Şirket:</b> Müstakbel Şirket<br>
-<b>🤖 Model:</b> Claude-3 Haiku (OpenRouter)<br>
-<b>🔥 Platform:</b> Firebase Auth + Firestore
+<b>🤖 AI Motoru:</b> Claude-3 Haiku (OpenRouter)<br>
+<b>🔥 Altyapı:</b> Firebase Auth + Firestore<br>
+<b>🌐 Platform:</b> Aslan Parçası V16.4
 </div>
-                    """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 
             user_doc_fresh = user_ref.get().to_dict()
             kullanici_ismi_fresh = user_doc_fresh.get('isim', kullanici_ismi)
@@ -1912,6 +1967,19 @@ Aslan Parçası V16.4 represents the cutting edge of conversational AI: engineer
         elif st.session_state.current_page == "youtube_portal":
             yt_saved = user_ref.get().to_dict().get("videos", [])
 
+            # ─── SAYFA YENİLENME / URL PARAM ile VİDEO GERİ YÜKLEME ──
+            _qp = st.query_params
+            _qp_vid = _qp.get("ytv", "")
+            _qp_ts  = int(_qp.get("ytt", "0") or "0")
+            if _qp_vid and not st.session_state.yt_playing_id:
+                _qp_vid_safe = re.sub(r'[^a-zA-Z0-9_\-]', '', _qp_vid)
+                if _qp_vid_safe:
+                    st.session_state.yt_playing_id      = _qp_vid_safe
+                    st.session_state.yt_playing_title   = st.session_state.get("yt_last_title", _qp_vid_safe)
+                    st.session_state.yt_playing_channel = st.session_state.get("yt_last_channel", "")
+                    st.query_params.clear()
+                    st.rerun()
+
             # ─── HEADER ───────────────────────────────────────────────
             _yh1, _yh2 = st.columns([7, 1])
             with _yh1:
@@ -1928,9 +1996,13 @@ Aslan Parçası V16.4 represents the cutting edge of conversational AI: engineer
             with _yh2:
                 st.write("")
                 if st.button("← Geri", use_container_width=True, key="yt_geri_btn"):
-                    st.session_state.current_page = "chat"
-                    st.session_state.yt_playing_id = None
-                    st.session_state.yt_results = []
+                    if st.session_state.yt_playing_id:
+                        st.session_state.yt_last_id      = re.sub(r'[^a-zA-Z0-9_\-]', '', st.session_state.yt_playing_id)
+                        st.session_state.yt_last_title   = st.session_state.yt_playing_title
+                        st.session_state.yt_last_channel = st.session_state.get("yt_playing_channel", "")
+                    st.session_state.current_page    = "chat"
+                    st.session_state.yt_playing_id   = None
+                    st.session_state.yt_results      = []
                     st.rerun()
 
             st.markdown("<hr style='border:none;border-top:1px solid rgba(255,255,255,0.08);margin:10px 0 14px;'>", unsafe_allow_html=True)
@@ -1965,7 +2037,10 @@ Aslan Parçası V16.4 represents the cutting edge of conversational AI: engineer
                 _pb1, _pb2, _pb3 = st.columns([3, 2, 2])
                 with _pb1:
                     if st.button("← Sonuçlara Dön", key="yt_geri_sonuc"):
-                        st.session_state.yt_playing_id = None
+                        st.session_state.yt_last_id      = _safe_vid
+                        st.session_state.yt_last_title   = _ptitle
+                        st.session_state.yt_last_channel = _pch
+                        st.session_state.yt_playing_id   = None
                         st.rerun()
                 with _pb2:
                     if _safe_vid not in yt_saved:
@@ -2038,7 +2113,16 @@ Aslan Parçası V16.4 represents the cutting edge of conversational AI: engineer
             setInterval(function() {{
               try {{
                 var t = ytPlayer.getCurrentTime();
-                if (t > 0) localStorage.setItem(SK, String(t));
+                if (t > 0) {{
+                  localStorage.setItem(SK, String(t));
+                  /* URL params ile de sakla — sayfa yenilenmesine karşı */
+                  try {{
+                    var u = new URL(window.parent.location.href);
+                    u.searchParams.set('ytv', '{_safe_vid}');
+                    u.searchParams.set('ytt', String(Math.floor(t)));
+                    window.parent.history.replaceState(null, '', u.toString());
+                  }} catch(ue) {{}}
+                }}
               }} catch(ex) {{}}
             }}, 5000);
           }},
@@ -2115,8 +2199,36 @@ Aslan Parçası V16.4 represents the cutting edge of conversational AI: engineer
 
             # ─── HOŞ GELDİN EKRANI ────────────────────────────────────
             else:
+                # Son izlenen videoyu öner
+                if st.session_state.get("yt_last_id"):
+                    _lid   = st.session_state.yt_last_id
+                    _ltit  = st.session_state.yt_last_title or _lid
+                    _lch   = st.session_state.get("yt_last_channel", "")
+                    _lthumb = f"https://img.youtube.com/vi/{_lid}/mqdefault.jpg"
+                    st.markdown("""
+<div style="font-size:0.82em;color:#f39c12;font-weight:600;margin-bottom:8px;">▶ Kaldığın Yerden Devam Et</div>""",
+                        unsafe_allow_html=True)
+                    _rc1, _rc2 = st.columns([3, 1])
+                    with _rc1:
+                        st.markdown(f"""
+<div style="background:rgba(255,165,0,0.07);border:1px solid rgba(255,165,0,0.25);border-radius:12px;overflow:hidden;display:flex;gap:12px;align-items:center;padding:10px;">
+  <img src="{_lthumb}" style="width:100px;min-width:100px;border-radius:8px;object-fit:cover;" loading="lazy">
+  <div>
+    <div style="font-size:0.87em;font-weight:700;color:#fff;line-height:1.4;">{_ltit[:70]}{'...' if len(_ltit)>70 else ''}</div>
+    {f'<div style="font-size:0.75em;color:#aaa;margin-top:3px;">{_lch}</div>' if _lch else ''}
+    <div style="font-size:0.72em;color:#777;margin-top:4px;">localStorage ile pozisyon kaydedildi — kaldığın yerden devam eder</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+                    with _rc2:
+                        if st.button("▶ Devam Et", key="yt_resume_btn", use_container_width=True):
+                            st.session_state.yt_playing_id      = _lid
+                            st.session_state.yt_playing_title   = _ltit
+                            st.session_state.yt_playing_channel = _lch
+                            st.rerun()
+                    st.markdown("<div style='margin-top:18px;'></div>", unsafe_allow_html=True)
+
                 st.markdown("""
-<div style="text-align:center;padding:48px 20px 32px;">
+<div style="text-align:center;padding:32px 20px 24px;">
   <div style="font-size:3.5rem;margin-bottom:14px;opacity:0.6;">🎬</div>
   <div style="font-size:1.05rem;color:#888;margin-bottom:6px;font-weight:600;">YouTube'da bir şeyler ara</div>
   <div style="font-size:0.83rem;color:#555;">Müzik · Haber · Belgesel · Eğitim · Eğlence</div>
