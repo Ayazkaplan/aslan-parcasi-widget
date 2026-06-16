@@ -120,6 +120,44 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- SİDEBAR HAMBURGER BUTONUNU ZORLA GÖSTER ---
+components.html("""
+<script>
+  (function() {
+    function showHamburger() {
+      var btn = document.querySelector('[data-testid="collapsedControl"]');
+      if (btn) {
+        btn.style.display = 'flex !important';
+        btn.style.visibility = 'visible !important';
+        btn.style.opacity = '1 !important';
+        btn.style.position = 'fixed !important';
+        btn.style.top = '12px !important';
+        btn.style.left = '12px !important';
+        btn.style.zIndex = '999999 !important';
+        btn.style.background = 'rgba(20,20,40,0.8) !important';
+        btn.style.borderRadius = '50% !important';
+        btn.style.padding = '10px !important';
+        btn.style.width = '44px !important';
+        btn.style.height = '44px !important';
+        btn.style.border = '1px solid rgba(255,255,255,0.15) !important';
+        btn.style.cursor = 'pointer !important';
+        btn.style.boxShadow = '0 2px 15px rgba(0,0,0,0.5) !important';
+        btn.style.color = 'white !important';
+        btn.style.fontSize = '1.2rem !important';
+        return true;
+      }
+      return false;
+    }
+    if (!showHamburger()) {
+      setTimeout(showHamburger, 500);
+      setTimeout(showHamburger, 1500);
+    }
+    var obs = new MutationObserver(function() { showHamburger(); });
+    obs.observe(document.body, { childList: true, subtree: true });
+  })();
+</script>
+""", height=0, width=0)
+
 # Google Translate JS engeli
 components.html("""
 <script>
