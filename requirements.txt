@@ -3,3 +3,4 @@ requests
 firebase-admin
 youtube-search-python
 duckduckgo-search
+Pillow

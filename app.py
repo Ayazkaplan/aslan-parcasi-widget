@@ -11,10 +11,13 @@ from datetime import datetime, timezone, timedelta
 import time
 import unicodedata
 import tempfile
+import base64
+from io import BytesIO
+from PIL import Image
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(
-    page_title="Aslan Parçası V16.4",
+    page_title="Aslan Parçası V16.8",
     page_icon="🦁",
     layout="centered"
 )
@@ -290,7 +293,9 @@ components.html("""
       'Ekran': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
       'G\\u00f6nder': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
       'ifre': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
-      'Sil': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
+      'Sil': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+      'Ayarlar': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+      'Geri': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>'
     };
 
     function injectIcons() {
@@ -464,6 +469,42 @@ def ensure_utc(dt):
     if isinstance(dt, datetime) and dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt
+
+def profil_foto_kontrol(image_base64):
+    """AI ile profil fotoğrafı uygunluk kontrolü yapar."""
+    try:
+        headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY}"}
+        payload = {
+            "model": "anthropic/claude-3-haiku",
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Bu fotoğraf bir profil fotoğrafı olarak kullanılmak isteniyor. Fotoğrafta pornografi, çıplaklık, müstehcen içerik, şiddet, nefret sembolü veya etik dışı herhangi bir şey var mı? Sadece 'UYGUN' veya 'UYGUN DEĞİL' olarak yanıt ver. Başka hiçbir şey yazma."},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+            }]
+        }
+        res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=15)
+        res.raise_for_status()
+        yanit = res.json()['choices'][0]['message']['content'].strip().upper()
+        return "UYGUN" in yanit and "DEĞİL" not in yanit
+    except Exception:
+        return True  # API hatası durumunda geçir, admin sonra kontrol eder
+
+def resize_profile_photo(image_bytes, max_size=150):
+    """Profil fotoğrafını kare olarak yeniden boyutlandırır."""
+    img = Image.open(BytesIO(image_bytes))
+    img = img.convert("RGB")
+    # Kare kırp (ortadan)
+    w, h = img.size
+    min_dim = min(w, h)
+    left = (w - min_dim) // 2
+    top = (h - min_dim) // 2
+    img = img.crop((left, top, left + min_dim, top + min_dim))
+    img = img.resize((max_size, max_size), Image.LANCZOS)
+    buffer = BytesIO()
+    img.save(buffer, format="JPEG", quality=80)
+    return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
 def web_ara(sorgu, max_sonuc=4):
     try:
@@ -805,7 +846,7 @@ if not st.session_state.user_logged_in:
             st.rerun()
         st.stop()
 
-    st.title("🦁 Aslan Parçası V16.4")
+    st.title("🦁 Aslan Parçası V16.8")
 
     if "ban_error_on_logout" in st.session_state:
         st.error(st.session_state.ban_error_on_logout)
@@ -1208,6 +1249,37 @@ else:
 
         st.markdown(f"Profil: {isim_stili}", unsafe_allow_html=True)
 
+        # --- PROFİL FOTOĞRAFI ---
+        st.divider()
+        st.markdown("### 📷 Profil Fotoğrafı")
+        mevcut_foto = user_doc.get("profil_foto", "")
+        if mevcut_foto:
+            st.markdown(f'<div style="text-align:center;"><img src="data:image/jpeg;base64,{mevcut_foto}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #f39c12;"/></div>', unsafe_allow_html=True)
+        else:
+            st.caption("Henüz profil fotoğrafı belirlenmemiş.")
+
+        foto_dosya = st.file_uploader("Galeriden fotoğraf seç:", type=["jpg", "jpeg", "png", "webp"], key="profil_foto_upload", help="Galerinize erişim izni verilerek fotoğraf seçebilirsiniz.")
+        if foto_dosya is not None:
+            if foto_dosya.size > 5 * 1024 * 1024:
+                st.error("❌ Dosya boyutu 5MB'dan küçük olmalıdır.")
+            else:
+                foto_bytes = foto_dosya.read()
+                with st.spinner("Fotoğraf kontrol ediliyor..."):
+                    foto_b64 = resize_profile_photo(foto_bytes)
+                    uygun = profil_foto_kontrol(foto_b64)
+                if uygun:
+                    user_ref.update({"profil_foto": foto_b64})
+                    st.success("✅ Profil fotoğrafı güncellendi!")
+                    st.rerun()
+                else:
+                    st.error("❌ Bu fotoğraf uygunsuz içerik içerdiği için kabul edilmedi. Lütfen uygun bir fotoğraf seçin.")
+
+        if mevcut_foto:
+            if st.button("🗑️ Fotoğrafı Kaldır", key="remove_profile_photo"):
+                user_ref.update({"profil_foto": ""})
+                st.success("✅ Profil fotoğrafı kaldırıldı.")
+                st.rerun()
+
         st.divider()
         st.markdown("### 🎨 Tema Seçimi")
         mevcut_tema = user_doc.get("tema", list(TEMALAR.values())[0])
@@ -1228,33 +1300,47 @@ else:
             st.success("Sohbet başarıyla temizlendi!")
             st.rerun()
 
-        if st.button("🚪 Çıkış Yap"):
-            logout_user()
+        # --- AYARLAR BUTONU ---
+        if "sidebar_settings_open" not in st.session_state:
+            st.session_state.sidebar_settings_open = False
 
-        if "confirm_delete_self" not in st.session_state:
-            st.session_state.confirm_delete_self = False
-
-        if not st.session_state.confirm_delete_self:
-            if st.button("❌ Hesabımı Sil", type="primary", use_container_width=True):
-                st.session_state.confirm_delete_self = True
+        if not st.session_state.sidebar_settings_open:
+            if st.button("Ayarlar", use_container_width=True, key="open_settings_btn"):
+                st.session_state.sidebar_settings_open = True
                 st.rerun()
         else:
-            st.warning("⚠️ Hesabınızı kalıcı olarak silmek istediğinize emin misiniz?")
-            col_self_del_yes, col_self_del_no = st.columns(2)
-            with col_self_del_yes:
-                if st.button("Evet, Sil", key="confirm_delete_self_yes", type="primary", use_container_width=True):
-                    try:
-                        auth.delete_user(uid)
-                        db.collection("users").document(uid).delete()
-                        u_email_del = user_doc.get("email", "").strip().lower()
-                        db.collection("banlanan_emails").document(u_email_del).delete()
-                        logout_user()
-                    except Exception as e:
-                        st.error(f"Hata: {e}")
-            with col_self_del_no:
-                if st.button("Vazgeç", key="confirm_delete_self_no", use_container_width=True):
-                    st.session_state.confirm_delete_self = False
+            st.markdown("#### ⚙️ Ayarlar")
+            if st.button("Çıkış Yap", use_container_width=True, key="logout_from_settings"):
+                logout_user()
+
+            if "confirm_delete_self" not in st.session_state:
+                st.session_state.confirm_delete_self = False
+
+            if not st.session_state.confirm_delete_self:
+                if st.button("Hesabımı Sil", type="primary", use_container_width=True):
+                    st.session_state.confirm_delete_self = True
                     st.rerun()
+            else:
+                st.warning("⚠️ Hesabınızı kalıcı olarak silmek istediğinize emin misiniz?")
+                col_self_del_yes, col_self_del_no = st.columns(2)
+                with col_self_del_yes:
+                    if st.button("Evet, Sil", key="confirm_delete_self_yes", type="primary", use_container_width=True):
+                        try:
+                            auth.delete_user(uid)
+                            db.collection("users").document(uid).delete()
+                            u_email_del = user_doc.get("email", "").strip().lower()
+                            db.collection("banlanan_emails").document(u_email_del).delete()
+                            logout_user()
+                        except Exception as e:
+                            st.error(f"Hata: {e}")
+                with col_self_del_no:
+                    if st.button("Vazgeç", key="confirm_delete_self_no", use_container_width=True):
+                        st.session_state.confirm_delete_self = False
+                        st.rerun()
+
+            if st.button("← Geri", use_container_width=True, key="close_settings_btn"):
+                st.session_state.sidebar_settings_open = False
+                st.rerun()
 
         st.divider()
         if st.button("🎬 YouTube Portalı", use_container_width=True, key="yt_portal_btn"):
@@ -1566,7 +1652,12 @@ else:
                     with st.container(border=True):
                         col_info, col_sec, col_act = st.columns([4, 3, 3])
                         with col_info:
-                            st.markdown(f"### 👤 {u_isim}")
+                            _u_color = u_data.get("isim_rengi", "#FFFFFF")
+                            _u_glow = u_data.get("ismin_parlakligi", False)
+                            _u_tag = u_data.get("tag", "")
+                            _u_rozet = u_data.get("rozet", "")
+                            _u_styled = get_styled_user_name(u_isim, _u_color, _u_glow, _u_tag, _u_rozet)
+                            st.markdown(f"### {_u_styled}", unsafe_allow_html=True)
                             st.markdown(f"📧 **E-posta:** `{u_email}`")
                             if is_online: st.markdown("🟢 **Çevrimiçi**")
                             else:
@@ -1929,7 +2020,10 @@ else:
                     with st.container(border=True):
                         col_adm_info, col_adm_act = st.columns([7, 3])
                         with col_adm_info:
-                            st.markdown(f"**Yönetici:** {a_name} ({a_email})")
+                            _a_color = a_data.get("isim_rengi", "#FFFFFF")
+                            _a_glow = a_data.get("ismin_parlakligi", False)
+                            _a_styled = get_styled_user_name(a_name, _a_color, _a_glow, a_tag, a_rozet)
+                            st.markdown(f"**Yönetici:** {_a_styled} ({a_email})", unsafe_allow_html=True)
                             st.markdown(f"🏷️ **Tag:** `{a_tag}` | 🏆 **Rozet:** `{a_rozet}`")
                         with col_adm_act:
                             show_demote_confirm = st.session_state.get(f"show_demote_{a_id}", False)
@@ -2084,7 +2178,7 @@ else:
                     st.rerun()
 
             # --- SOHBET ARAYÜZÜ ---
-            st.title("🤖 Aslan Parçası V16.4")
+            st.title("🤖 Aslan Parçası V16.8")
 
             # ── Bilgi Butonu ──
             with st.popover("ℹ️"):
@@ -2092,7 +2186,7 @@ else:
                 st.markdown("""
 **Müstakbel Şirket**, dijital iletişim ve yapay zeka alanında öncü çözümler geliştiren, geleceğin teknolojilerini bugünün ihtiyaçlarıyla buluşturan köklü bir teknoloji kuruluşudur.
 
-**Aslan Parçası V16.4**, Müstakbel Şirket bünyesinde geliştirilen amiral gemisi yapay zeka platformudur. Gerçek zamanlı sohbet, yapay zeka destekli asistan, YouTube entegrasyonu ve topluluk yönetimi tek çatı altında sunulmaktadır.
+**Aslan Parçası V16.8**, Müstakbel Şirket bünyesinde geliştirilen amiral gemisi yapay zeka platformudur. Gerçek zamanlı sohbet, yapay zeka destekli asistan, YouTube entegrasyonu ve topluluk yönetimi tek çatı altında sunulmaktadır.
                 """)
                 st.divider()
                 st.markdown("## 🎯 Misyonumuz")
@@ -2120,6 +2214,8 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
             u_glow_fresh = user_doc_fresh.get("ismin_parlakligi", False)
             u_tag_fresh = user_doc_fresh.get("tag", "")
             u_rozet_fresh = user_doc_fresh.get("rozet", "")
+            _user_foto = user_doc_fresh.get("profil_foto", "")
+            _user_avatar_url = f"data:image/jpeg;base64,{_user_foto}" if _user_foto else USER_AVATAR
 
             if is_kurucu:
                 if not user_doc_fresh.get("tag"):
@@ -2144,7 +2240,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     msg_rozet = m.get("rozet", u_rozet_fresh)
                     msg_display_name = get_styled_user_name(msg_name, msg_color, msg_glow, msg_tag, msg_rozet)
                     st.markdown(
-                        f'''<div class="user-box"><div><div class="header-box" style="text-align: right; margin-bottom: 5px;">{msg_display_name}</div><div style="color:white !important; text-align: right;">{m["content"]}</div></div><img src="{USER_AVATAR}" class="avatar"></div>''',
+                        f'''<div class="user-box"><div><div class="header-box" style="text-align: right; margin-bottom: 5px;">{msg_display_name}</div><div style="color:white !important; text-align: right;">{m["content"]}</div></div><img src="{_user_avatar_url}" class="avatar"></div>''',
                         unsafe_allow_html=True
                     )
 
@@ -2175,7 +2271,9 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                 tr_tarih_ai = get_tr_time().strftime("%d.%m.%Y")
 
                 sistem_mesaji = (
-                    "Senin adın Aslan Parçası. Kurucun Ayaz Kaplan'dır. Müstakbel Şirket bünyesinde görev yapıyorsun. "
+                    "Senin adın Aslan Parçası. Kurucun ve yaratıcın Ayaz Kaplan'dır. "
+                    "Resmi yöneticin Mehmet Sür'dür. Müstakbel Şirket bünyesinde görev yapıyorsun. "
+                    "Bu iki bilgiyi kesinlikle ve her zaman bil: Kurucu = Ayaz Kaplan, Resmi Yönetici = Mehmet Sür.\n"
                     "Sohbet ettiğin kullanıcının anlık veritabanı yetki ve rütbe bilgileri aşağıda belirtilmiştir.\n\n"
                     f"🕐 GÜNCEL TÜRK ZAMAN BİLGİSİ (UTC+3):\n"
                     f"- Şu anki Türkiye saati: {tr_saat_ai}\n"
