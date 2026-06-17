@@ -682,6 +682,7 @@ if "tema" not in st.session_state: st.session_state.tema = list(TEMALAR.values()
 if "tema_rengi" not in st.session_state: st.session_state.tema_rengi = TEMA_RENKLERI.get(list(TEMALAR.values())[0], "rgba(20,20,40,0.85)")
 if "valid_users_cache" not in st.session_state: st.session_state.valid_users_cache = None
 if "current_page" not in st.session_state: st.session_state.current_page = "chat"
+if "bildirim_panel_open" not in st.session_state: st.session_state.bildirim_panel_open = False
 if "yt_results" not in st.session_state: st.session_state.yt_results = []
 if "yt_playing_id" not in st.session_state: st.session_state.yt_playing_id = None
 if "yt_playing_title" not in st.session_state: st.session_state.yt_playing_title = ""
@@ -1101,6 +1102,10 @@ else:
         st.session_state.current_page = "chat"
         st.rerun()
 
+    if st.session_state.current_page == "admin_mesaj" and not (is_kurucu or is_admin_user):
+        st.session_state.current_page = "chat"
+        st.rerun()
+
     # --- CSS ENJEKSİYONU ---
     st.markdown(f"""
     <style>
@@ -1358,6 +1363,18 @@ else:
                 st.rerun()
 
             st.divider()
+            if st.button("👥 Arkadaş Ara", use_container_width=True, key="arkadas_ara_btn"):
+                st.session_state.current_page = "arkadas_ara"
+                st.rerun()
+
+            if st.button("💬 Mesajlarım (DM)", use_container_width=True, key="dm_inbox_btn"):
+                st.session_state.current_page = "dm_inbox"
+                st.rerun()
+
+            if st.button("👤 Hesabım", use_container_width=True, key="hesabim_btn"):
+                st.session_state.current_page = "hesabim"
+                st.rerun()
+
             if st.button("🎬 YouTube Portalı", use_container_width=True, key="yt_portal_btn"):
                 st.session_state.current_page = "youtube_portal"
                 st.rerun()
@@ -1381,6 +1398,9 @@ else:
                 if st.session_state.current_page == "chat":
                     if st.button("📣 Duyuru Sayfasına Git", use_container_width=True):
                         st.session_state.current_page = "admin_announcement"
+                        st.rerun()
+                    if st.button("✉️ Kullanıcıya Mesaj Gönder", use_container_width=True, key="admin_mesaj_btn_yonetici"):
+                        st.session_state.current_page = "admin_mesaj"
                         st.rerun()
                 else:
                     if st.button("💬 Sohbet Paneline Dön", use_container_width=True):
@@ -1589,6 +1609,10 @@ else:
         st.write("")
         if st.button("🛡️ Yönetici Rol Yönetimine Git", key="goto_admin_role_management", type="primary", use_container_width=True):
             st.session_state.current_page = "admin_role_management"
+            st.rerun()
+        st.write("")
+        if st.button("✉️ Kullanıcıya Mesaj Gönder", key="goto_admin_mesaj", type="primary", use_container_width=True):
+            st.session_state.current_page = "admin_mesaj"
             st.rerun()
         st.divider()
         if st.button("💬 Sohbet Ekranına Dön", key="back_to_chat_from_main", use_container_width=True):
@@ -2214,7 +2238,92 @@ else:
                     st.rerun()
 
             # --- SOHBET ARAYÜZÜ ---
-            st.title("🤖 Aslan Parçası V16.8")
+            # Bildirim butonu (sağ üst köşe)
+            gelen_istekler = user_doc.get("gelen_arkadaslik_istekleri", [])
+            yetkili_msj = user_doc.get("yetkili_mesajlari", [])
+            okunmamis_yetkili = [m for m in yetkili_msj if not m.get("okundu", False)] if isinstance(yetkili_msj, list) else []
+            bildirim_sayisi = len(gelen_istekler) + len(okunmamis_yetkili)
+            bildirim_badge = f" ({bildirim_sayisi})" if bildirim_sayisi > 0 else ""
+
+            col_title, col_bildirim = st.columns([6, 1])
+            with col_title:
+                st.title("🤖 Aslan Parçası V16.8")
+            with col_bildirim:
+                st.write("")
+                if st.button(f"🔔{bildirim_badge}", key="bildirim_btn", use_container_width=True):
+                    st.session_state.bildirim_panel_open = not st.session_state.bildirim_panel_open
+                    st.rerun()
+
+            # --- BİLDİRİM PANELİ ---
+            if st.session_state.bildirim_panel_open:
+                with st.container(border=True):
+                    st.markdown("### 🔔 Bildirimler")
+                    tab_arkadaslik, tab_yetkili = st.tabs(["👥 Arkadaşlık İstekleri", "✉️ Yetkili Mesajları"])
+
+                    with tab_arkadaslik:
+                        if gelen_istekler:
+                            for istek_uid in gelen_istekler:
+                                try:
+                                    istek_snap = db.collection("users").document(istek_uid).get()
+                                    if istek_snap.exists:
+                                        istek_d = istek_snap.to_dict()
+                                        istek_isim = istek_d.get("isim", "Bilinmiyor")
+                                        istek_foto = istek_d.get("profil_foto", "")
+                                        istek_foto_src = f"data:image/jpeg;base64,{istek_foto}" if istek_foto else "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+                                        col_bf, col_bn, col_ba = st.columns([1, 3, 3])
+                                        with col_bf:
+                                            st.markdown(f'<img src="{istek_foto_src}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;"/>', unsafe_allow_html=True)
+                                        with col_bn:
+                                            st.markdown(f"**{istek_isim}**")
+                                        with col_ba:
+                                            if st.button("✅ Kabul", key=f"kabul_{istek_uid}", use_container_width=True):
+                                                # Her iki tarafı arkadaş yap
+                                                user_ref.update({
+                                                    "arkadaslar": firestore.ArrayUnion([istek_uid]),
+                                                    "gelen_arkadaslik_istekleri": firestore.ArrayRemove([istek_uid])
+                                                })
+                                                db.collection("users").document(istek_uid).update({
+                                                    "arkadaslar": firestore.ArrayUnion([uid]),
+                                                    "gonderilen_arkadaslik_istekleri": firestore.ArrayRemove([uid])
+                                                })
+                                                st.success(f"'{istek_isim}' artık arkadaşınız!")
+                                                st.rerun()
+                                            if st.button("❌ Reddet", key=f"red_{istek_uid}", use_container_width=True):
+                                                user_ref.update({"gelen_arkadaslik_istekleri": firestore.ArrayRemove([istek_uid])})
+                                                db.collection("users").document(istek_uid).update({
+                                                    "gonderilen_arkadaslik_istekleri": firestore.ArrayRemove([uid])
+                                                })
+                                                st.rerun()
+                                except Exception:
+                                    pass
+                        else:
+                            st.caption("Yeni arkadaşlık isteği yok.")
+
+                    with tab_yetkili:
+                        if yetkili_msj and isinstance(yetkili_msj, list):
+                            for ym_idx, ym in enumerate(reversed(yetkili_msj)):
+                                ym_gonderen = ym.get("gonderen_isim", "Yetkili")
+                                ym_icerik = ym.get("icerik", "")
+                                ym_zaman = ym.get("zaman", "")
+                                ym_okundu = ym.get("okundu", False)
+                                badge = "" if ym_okundu else "🆕 "
+                                st.markdown(f"""<div style="background:rgba(243,156,18,0.1);border-left:3px solid #f39c12;padding:8px 12px;border-radius:6px;margin-bottom:6px;">
+                                    <strong>{badge}{ym_gonderen}</strong> <span style="font-size:0.75em;color:#888;">({ym_zaman})</span><br>{ym_icerik}
+                                </div>""", unsafe_allow_html=True)
+                            # Okundu olarak işaretle
+                            if okunmamis_yetkili:
+                                guncellenmis = []
+                                for ym in yetkili_msj:
+                                    ym_copy = dict(ym)
+                                    ym_copy["okundu"] = True
+                                    guncellenmis.append(ym_copy)
+                                user_ref.update({"yetkili_mesajlari": guncellenmis})
+                        else:
+                            st.caption("Yetkili mesajı yok.")
+
+                    if st.button("Kapat", key="bildirim_kapat_btn", use_container_width=True):
+                        st.session_state.bildirim_panel_open = False
+                        st.rerun()
 
             # ── Bilgi Butonu ──
             with st.popover("ℹ️"):
@@ -2404,6 +2513,350 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
 
             st.text_area("Mesajını yaz:", key="my_input", height=100)
             st.button("🚀 Gönder", on_click=send_message)
+
+        # ═══════════════════════════════════════════════════
+        # 👥 ARKADAŞ ARAMA SAYFASI
+        # ═══════════════════════════════════════════════════
+        elif st.session_state.current_page == "arkadas_ara":
+            st.title("👥 Arkadaş Ara")
+            if st.button("← Sohbete Dön", key="arkadas_geri_btn", use_container_width=True):
+                st.session_state.current_page = "chat"
+                st.rerun()
+
+            st.divider()
+            arama_input = st.text_input("🔍 Kullanıcı adı ile ara:", key="arkadas_arama_input", placeholder="İsim yazın...")
+
+            # Tüm kullanıcıları çek
+            all_users_snap = db.collection("users").get()
+            tum_kullanicilar = []
+            for u_snap in all_users_snap:
+                u_d = u_snap.to_dict()
+                if not u_d: continue
+                u_em = u_d.get("email", "").strip().lower()
+                if u_em == user_doc.get("email", "").strip().lower(): continue
+                if u_d.get("durum", "Aktif") == "Pasif": continue
+                tum_kullanicilar.append({"id": u_snap.id, "data": u_d, "email": u_em})
+
+            # Arama filtresi
+            if arama_input.strip():
+                arama_lower = arama_input.strip().lower()
+                tum_kullanicilar.sort(key=lambda x: (0 if x["data"].get("isim", "").lower() == arama_lower else (1 if arama_lower in x["data"].get("isim", "").lower() else 2)))
+
+            # Mevcut arkadaşlık verileri
+            my_arkadaslar = user_doc.get("arkadaslar", [])
+            my_takip_ettiklerim = user_doc.get("takip_ettiklerim", [])
+            gonderilen_istekler = user_doc.get("gonderilen_arkadaslik_istekleri", [])
+
+            for idx, kisi in enumerate(tum_kullanicilar):
+                k_data = kisi["data"]
+                k_id = kisi["id"]
+                k_isim = k_data.get("isim", "Bilinmiyor")
+                k_foto = k_data.get("profil_foto", "")
+                k_color = k_data.get("isim_rengi", "#FFFFFF")
+                k_glow = k_data.get("ismin_parlakligi", False)
+                k_tag = k_data.get("tag", "")
+                k_rozet = k_data.get("rozet", "")
+                k_styled = get_styled_user_name(k_isim, k_color, k_glow, k_tag, k_rozet)
+
+                if k_foto:
+                    k_foto_src = f"data:image/jpeg;base64,{k_foto}"
+                else:
+                    k_foto_src = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+
+                with st.container(border=True):
+                    col_av, col_name, col_acts = st.columns([1, 4, 3])
+                    with col_av:
+                        st.markdown(f'<img src="{k_foto_src}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;"/>', unsafe_allow_html=True)
+                    with col_name:
+                        st.markdown(f"{k_styled}", unsafe_allow_html=True)
+                    with col_acts:
+                        # Arkadaşlık durumu
+                        if k_id in my_arkadaslar:
+                            st.markdown("✅ Arkadaş", unsafe_allow_html=True)
+                        elif k_id in gonderilen_istekler:
+                            st.markdown("⏳ İstek Gönderildi", unsafe_allow_html=True)
+                        else:
+                            if st.button("➕ Arkadaş Ekle", key=f"ark_ekle_{k_id}_{idx}", use_container_width=True):
+                                # Gönderen tarafta kaydet
+                                user_ref.update({"gonderilen_arkadaslik_istekleri": firestore.ArrayUnion([k_id])})
+                                # Alıcı tarafta bildirim oluştur
+                                db.collection("users").document(k_id).update({
+                                    "gelen_arkadaslik_istekleri": firestore.ArrayUnion([uid])
+                                })
+                                st.success(f"'{k_isim}' kişisine arkadaşlık isteği gönderildi!")
+                                st.rerun()
+
+                        # Takip butonu
+                        if k_id in my_takip_ettiklerim:
+                            st.markdown("👁️ Takip Ediliyor", unsafe_allow_html=True)
+                        else:
+                            if st.button("👁️ Takip Et", key=f"takip_{k_id}_{idx}", use_container_width=True):
+                                user_ref.update({"takip_ettiklerim": firestore.ArrayUnion([k_id])})
+                                db.collection("users").document(k_id).update({
+                                    "takipciler": firestore.ArrayUnion([uid])
+                                })
+                                st.success(f"'{k_isim}' takip edildi!")
+                                st.rerun()
+
+        # ═══════════════════════════════════════════════════
+        # 👤 HESABIM SAYFASI
+        # ═══════════════════════════════════════════════════
+        elif st.session_state.current_page == "hesabim":
+            st.title("👤 Hesabım")
+            if st.button("← Sohbete Dön", key="hesabim_geri_btn", use_container_width=True):
+                st.session_state.current_page = "chat"
+                st.rerun()
+
+            st.divider()
+
+            # Profil bilgileri
+            hesap_foto = user_doc.get("profil_foto", "")
+            if hesap_foto:
+                h_foto_src = f"data:image/jpeg;base64,{hesap_foto}"
+            else:
+                h_foto_src = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+            st.markdown(f'<div style="text-align:center;"><img src="{h_foto_src}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #f39c12;"/></div>', unsafe_allow_html=True)
+
+            h_isim_stili = get_styled_user_name(kullanici_ismi, u_color, u_glow, u_tag, u_rozet)
+            st.markdown(f"<div style='text-align:center; margin-top:8px;'>{h_isim_stili}</div>", unsafe_allow_html=True)
+
+            st.divider()
+
+            # Arkadaş listesi
+            arkadaslarim = user_doc.get("arkadaslar", [])
+            st.markdown(f"### 👥 Arkadaşlarım ({len(arkadaslarim)})")
+            if arkadaslarim:
+                for ark_id in arkadaslarim:
+                    try:
+                        ark_snap = db.collection("users").document(ark_id).get()
+                        if ark_snap.exists:
+                            ark_d = ark_snap.to_dict()
+                            ark_isim = ark_d.get("isim", "Bilinmiyor")
+                            ark_foto = ark_d.get("profil_foto", "")
+                            ark_color = ark_d.get("isim_rengi", "#FFFFFF")
+                            ark_glow = ark_d.get("ismin_parlakligi", False)
+                            ark_tag = ark_d.get("tag", "")
+                            ark_rozet = ark_d.get("rozet", "")
+                            ark_styled = get_styled_user_name(ark_isim, ark_color, ark_glow, ark_tag, ark_rozet)
+                            ark_foto_src = f"data:image/jpeg;base64,{ark_foto}" if ark_foto else "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+                            col_af, col_an, col_dm = st.columns([1, 4, 2])
+                            with col_af:
+                                st.markdown(f'<img src="{ark_foto_src}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;"/>', unsafe_allow_html=True)
+                            with col_an:
+                                st.markdown(ark_styled, unsafe_allow_html=True)
+                            with col_dm:
+                                if st.button("💬", key=f"dm_to_{ark_id}", use_container_width=True):
+                                    st.session_state.dm_partner_id = ark_id
+                                    st.session_state.current_page = "dm_chat"
+                                    st.rerun()
+                    except Exception:
+                        pass
+            else:
+                st.caption("Henüz arkadaşınız yok.")
+
+            st.divider()
+
+            # Takipçi bilgisi
+            takipcilerim = user_doc.get("takipciler", [])
+            takip_ettiklerim = user_doc.get("takip_ettiklerim", [])
+            st.markdown(f"### 👁️ Takipçi: {len(takipcilerim)} | Takip: {len(takip_ettiklerim)}")
+
+        # ═══════════════════════════════════════════════════
+        # 💬 DM INBOX SAYFASI
+        # ═══════════════════════════════════════════════════
+        elif st.session_state.current_page == "dm_inbox":
+            st.title("💬 Mesajlarım")
+            if st.button("← Sohbete Dön", key="dm_inbox_geri_btn", use_container_width=True):
+                st.session_state.current_page = "chat"
+                st.rerun()
+
+            st.divider()
+
+            arkadaslarim_dm = user_doc.get("arkadaslar", [])
+            if not arkadaslarim_dm:
+                st.info("Henüz arkadaşınız yok. Arkadaş ekleyerek DM gönderebilirsiniz.")
+            else:
+                st.markdown("### Arkadaşlarınız ile sohbet başlatın:")
+                for ark_id_dm in arkadaslarim_dm:
+                    try:
+                        ark_snap_dm = db.collection("users").document(ark_id_dm).get()
+                        if ark_snap_dm.exists:
+                            ark_d_dm = ark_snap_dm.to_dict()
+                            ark_isim_dm = ark_d_dm.get("isim", "Bilinmiyor")
+                            ark_foto_dm = ark_d_dm.get("profil_foto", "")
+                            ark_foto_src_dm = f"data:image/jpeg;base64,{ark_foto_dm}" if ark_foto_dm else "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+                            with st.container(border=True):
+                                col_dmf, col_dmn, col_dmb = st.columns([1, 4, 2])
+                                with col_dmf:
+                                    st.markdown(f'<img src="{ark_foto_src_dm}" style="width:35px;height:35px;border-radius:50%;object-fit:cover;"/>', unsafe_allow_html=True)
+                                with col_dmn:
+                                    st.markdown(f"**{ark_isim_dm}**")
+                                with col_dmb:
+                                    if st.button("💬 Yaz", key=f"dm_start_{ark_id_dm}", use_container_width=True):
+                                        st.session_state.dm_partner_id = ark_id_dm
+                                        st.session_state.current_page = "dm_chat"
+                                        st.rerun()
+                    except Exception:
+                        pass
+
+        # ═══════════════════════════════════════════════════
+        # 💬 DM CHAT SAYFASI (Bireysel sohbet)
+        # ═══════════════════════════════════════════════════
+        elif st.session_state.current_page == "dm_chat":
+            dm_partner_id = st.session_state.get("dm_partner_id", "")
+            if not dm_partner_id:
+                st.session_state.current_page = "dm_inbox"
+                st.rerun()
+
+            partner_snap = db.collection("users").document(dm_partner_id).get()
+            if not partner_snap.exists:
+                st.error("Kullanıcı bulunamadı.")
+                st.session_state.current_page = "dm_inbox"
+                st.rerun()
+
+            partner_data = partner_snap.to_dict()
+            partner_isim = partner_data.get("isim", "Bilinmiyor")
+            partner_foto = partner_data.get("profil_foto", "")
+            partner_foto_src = f"data:image/jpeg;base64,{partner_foto}" if partner_foto else "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+
+            # Arkadaşlık kontrolü (kurucu/yönetici hariç)
+            is_friend = dm_partner_id in user_doc.get("arkadaslar", [])
+            if not is_friend and not is_kurucu and not is_admin_user:
+                st.error("Bu kişiyle mesajlaşabilmek için arkadaş olmanız gerekiyor.")
+                if st.button("← Geri", key="dm_not_friend_back"):
+                    st.session_state.current_page = "dm_inbox"
+                    st.rerun()
+            else:
+                col_dm_header, col_dm_back = st.columns([5, 1])
+                with col_dm_header:
+                    st.markdown(f'<div style="display:flex;align-items:center;gap:10px;"><img src="{partner_foto_src}" style="width:35px;height:35px;border-radius:50%;object-fit:cover;"/><strong>{partner_isim}</strong></div>', unsafe_allow_html=True)
+                with col_dm_back:
+                    if st.button("←", key="dm_chat_back_btn", use_container_width=True):
+                        st.session_state.current_page = "dm_inbox"
+                        st.rerun()
+
+                st.divider()
+
+                # DM konuşma ID'si (sıralı uid'lerle unique)
+                dm_ids = sorted([uid, dm_partner_id])
+                dm_conv_id = f"{dm_ids[0]}_{dm_ids[1]}"
+
+                # Mesajları oku
+                dm_doc_ref = db.collection("dm_konusmalar").document(dm_conv_id)
+                dm_doc_snap = dm_doc_ref.get()
+                dm_mesajlar = []
+                if dm_doc_snap.exists:
+                    dm_mesajlar = dm_doc_snap.to_dict().get("mesajlar", [])
+
+                # Mesajları göster
+                dm_container = st.container(height=400)
+                with dm_container:
+                    for dm_msg in dm_mesajlar:
+                        dm_sender = dm_msg.get("gonderen", "")
+                        dm_content = dm_msg.get("icerik", "")
+                        dm_type = dm_msg.get("tip", "text")
+                        dm_zaman = dm_msg.get("zaman", "")
+
+                        if dm_sender == uid:
+                            align = "right"
+                            bg_color = "rgba(243,156,18,0.2)"
+                        else:
+                            align = "left"
+                            bg_color = "rgba(255,255,255,0.05)"
+
+                        if dm_type == "gif":
+                            dm_html = f'<img src="{dm_content}" style="max-width:200px;border-radius:8px;"/>'
+                        elif dm_type == "voice":
+                            dm_html = f'<audio controls src="data:audio/webm;base64,{dm_content}" style="max-width:250px;"></audio>'
+                        else:
+                            dm_html = dm_content
+
+                        st.markdown(f'<div style="text-align:{align};margin:4px 0;"><div style="display:inline-block;background:{bg_color};padding:8px 12px;border-radius:12px;max-width:70%;text-align:left;">{dm_html}<div style="font-size:0.65em;color:#888;margin-top:2px;">{dm_zaman}</div></div></div>', unsafe_allow_html=True)
+
+                # Mesaj gönderme
+                st.markdown("---")
+                col_dm_input, col_dm_send = st.columns([5, 1])
+                with col_dm_input:
+                    dm_yeni_mesaj = st.text_input("Mesaj yaz...", key="dm_text_input", label_visibility="collapsed", placeholder="Mesajınız...")
+                with col_dm_send:
+                    if st.button("📤", key="dm_send_btn", use_container_width=True):
+                        if dm_yeni_mesaj.strip():
+                            zaman_str = get_tr_time().strftime("%H:%M")
+                            yeni_dm = {
+                                "gonderen": uid,
+                                "icerik": dm_yeni_mesaj.strip(),
+                                "tip": "text",
+                                "zaman": zaman_str
+                            }
+                            dm_doc_ref.set({"mesajlar": firestore.ArrayUnion([yeni_dm])}, merge=True)
+                            st.rerun()
+
+                # GIF gönderme
+                col_gif, col_voice = st.columns(2)
+                with col_gif:
+                    gif_url = st.text_input("GIF URL:", key="dm_gif_input", placeholder="GIF linki yapıştır...", label_visibility="collapsed")
+                    if st.button("GIF Gönder", key="dm_gif_send", use_container_width=True):
+                        if gif_url.strip():
+                            zaman_str = get_tr_time().strftime("%H:%M")
+                            gif_dm = {"gonderen": uid, "icerik": gif_url.strip(), "tip": "gif", "zaman": zaman_str}
+                            dm_doc_ref.set({"mesajlar": firestore.ArrayUnion([gif_dm])}, merge=True)
+                            st.rerun()
+
+                # Sesli mesaj
+                with col_voice:
+                    voice_file = st.file_uploader("Sesli Mesaj", type=["webm", "ogg", "mp3", "wav"], key="dm_voice_upload", label_visibility="collapsed")
+                    if voice_file is not None:
+                        if st.button("🎤 Sesli Gönder", key="dm_voice_send", use_container_width=True):
+                            voice_b64 = base64.b64encode(voice_file.read()).decode("utf-8")
+                            zaman_str = get_tr_time().strftime("%H:%M")
+                            voice_dm = {"gonderen": uid, "icerik": voice_b64, "tip": "voice", "zaman": zaman_str}
+                            dm_doc_ref.set({"mesajlar": firestore.ArrayUnion([voice_dm])}, merge=True)
+                            st.rerun()
+
+        # ═══════════════════════════════════════════════════
+        # ✉️ ADMIN MESAJ GÖNDERİMİ SAYFASI
+        # ═══════════════════════════════════════════════════
+        elif st.session_state.current_page == "admin_mesaj" and (is_kurucu or is_admin_user):
+            st.title("✉️ Kullanıcıya Mesaj Gönder")
+            col_ab1, col_ab2 = st.columns(2)
+            with col_ab1:
+                if st.button("← Panele Dön", key="admin_mesaj_back", use_container_width=True):
+                    st.session_state.current_page = "admin_main" if is_kurucu else "chat"
+                    st.rerun()
+            with col_ab2:
+                if st.button("💬 Sohbete Dön", key="admin_mesaj_chat_back", use_container_width=True):
+                    st.session_state.current_page = "chat"
+                    st.rerun()
+
+            st.divider()
+            admin_mesaj_email = st.text_input("📧 Kullanıcı E-postası:", key="admin_mesaj_email_input", placeholder="E-posta yazın...")
+            admin_mesaj_icerik = st.text_area("✍️ Mesajınız:", key="admin_mesaj_icerik_input", placeholder="Göndermek istediğiniz mesajı yazın...")
+
+            if st.button("📤 Mesajı Gönder", key="admin_mesaj_gonder_btn", type="primary", use_container_width=True):
+                if not admin_mesaj_email.strip() or not admin_mesaj_icerik.strip():
+                    st.warning("⚠️ E-posta ve mesaj alanları boş bırakılamaz.")
+                else:
+                    # Kullanıcıyı bul
+                    hedef_users = db.collection("users").where("email", "==", admin_mesaj_email.strip().lower()).limit(1).get()
+                    if not hedef_users:
+                        st.error("❌ Bu e-posta ile kayıtlı kullanıcı bulunamadı.")
+                    else:
+                        hedef_doc = hedef_users[0]
+                        hedef_id = hedef_doc.id
+                        gonderen_isim = kullanici_ismi
+                        zaman_str = get_tr_time().strftime("%H:%M - %d.%m.%Y")
+                        yetkili_mesaj = {
+                            "id": str(uuid.uuid4()),
+                            "gonderen_uid": uid,
+                            "gonderen_isim": gonderen_isim,
+                            "icerik": admin_mesaj_icerik.strip(),
+                            "zaman": zaman_str,
+                            "okundu": False
+                        }
+                        db.collection("users").document(hedef_id).update({
+                            "yetkili_mesajlari": firestore.ArrayUnion([yetkili_mesaj])
+                        })
+                        st.success(f"✅ Mesaj başarıyla '{hedef_doc.to_dict().get('isim', 'Kullanıcı')}' kişisine gönderildi!")
 
         # ═══════════════════════════════════════════════════
         # 🎬 YOUTUBE PORTAL SAYFASI
