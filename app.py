@@ -39,6 +39,7 @@ st.markdown("""
     position: relative !important;
     top: auto !important;
     left: auto !important;
+    right: auto !important;
     background: transparent !important;
   }
 
@@ -50,6 +51,7 @@ st.markdown("""
     position: fixed !important;
     top: 12px !important;
     left: 12px !important;
+    right: auto !important;
     z-index: 999999 !important;
     background: rgba(20,20,40,0.8) !important;
     border-radius: 50% !important;
@@ -80,10 +82,10 @@ st.markdown("""
   .notranslate { translate: no; }
   font[style*="vertical-align"] { display: none !important; }
 
-  /* === ℹ️ BİLGİ BUTONU - SAĞ ÜST === */
+  /* === ℹ️ BİLGİ BUTONU - 3 NOKTA MENÜSÜNÜN ALTINA === */
   div[data-testid="stPopover"] {
     position: fixed !important;
-    top: 15px !important;
+    top: 60px !important;
     right: 15px !important;
     z-index: 999998 !important;
     width: auto !important;
@@ -134,6 +136,7 @@ components.html("""
         btn.style.position = 'fixed !important';
         btn.style.top = '12px !important';
         btn.style.left = '12px !important';
+        btn.style.right = 'auto !important';
         btn.style.zIndex = '999999 !important';
         btn.style.background = 'rgba(20,20,40,0.8) !important';
         btn.style.borderRadius = '50% !important';
