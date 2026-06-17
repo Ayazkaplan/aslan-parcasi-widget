@@ -45,14 +45,22 @@ st.markdown("""
     padding-top: 0.5rem !important;
   }
 
-  /* === GOOGLE TRANSLATE ENGELLEME === */
+  /* === GOOGLE TRANSLATE TAM ENGELLEME === */
   .goog-te-banner-frame, .goog-te-menu-value, #goog-gt-tt,
   .goog-tooltip, .goog-tooltip:hover, .goog-te-balloon-frame,
   div#goog-gt-tt, .VIpgJd-ZVi9od-ORHb-OEVmcd,
-  .goog-te-gadget, .goog-te-gadget-simple { display: none !important; }
-  body { top: 0 !important; }
+  .goog-te-gadget, .goog-te-gadget-simple,
+  .goog-te-spinner-pos, .goog-te-ftab-frame,
+  #google_translate_element, .skiptranslate,
+  [class*="goog-te"], [id*="goog-gt"],
+  iframe[src*="translate.google"], iframe.goog-te-menu-frame,
+  .VIpgJd-ZVi9od-aZ2wEe-wOHMyf { display: none !important; visibility: hidden !important; height: 0 !important; width: 0 !important; overflow: hidden !important; }
+  body { top: 0 !important; position: static !important; }
+  body.translated-ltr, body.translated-rtl { top: 0 !important; }
   .notranslate { translate: no; }
   font[style*="vertical-align"] { display: none !important; }
+  html[class*="translated"] { top: 0 !important; }
+  html[class*="translated"] body { top: 0 !important; }
 
   /* === ℹ️ BİLGİ BUTONU - SAĞ ÜST, 3 NOKTA ALTINDA === */
   div[data-testid="stPopover"] {
@@ -93,37 +101,88 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Google Translate JS engeli
+# Google Translate JS TAM engeli
 components.html("""
 <script>
-  var m1 = document.createElement('meta');
-  m1.name = 'google'; m1.content = 'notranslate';
-  document.head.appendChild(m1);
-  var m2 = document.createElement('meta');
-  m2.httpEquiv = 'Content-Language'; m2.content = 'tr';
-  document.head.appendChild(m2);
-  var m3 = document.createElement('meta');
-  m3.name = 'google-translate-customization'; m3.content = 'disable';
-  document.head.appendChild(m3);
-  try { Object.defineProperty(window.parent, 'google', { value: undefined, writable: false }); } catch(e) {}
-  window.parent.document.documentElement.setAttribute('translate', 'no');
-  window.parent.document.documentElement.classList.add('notranslate');
-  if (window.parent.document.body) {
-    window.parent.document.body.setAttribute('translate', 'no');
-    window.parent.document.body.classList.add('notranslate');
-  }
-  var sel = '[data-testid="stApp"],[data-testid="stSidebar"],.main,.block-container';
-  window.parent.document.querySelectorAll(sel).forEach(function(el) {
-    el.setAttribute('translate', 'no');
-    el.classList.add('notranslate');
-  });
-  var obs = new MutationObserver(function(muts) {
-    var html = window.parent.document.documentElement;
-    if (html.classList.contains('translated-ltr') || html.classList.contains('translated-rtl')) {
-      html.classList.remove('translated-ltr', 'translated-rtl');
+  (function() {
+    var pd = window.parent.document;
+    var html = pd.documentElement;
+
+    // 1. Meta etiketleri ekle
+    var m1 = document.createElement('meta');
+    m1.name = 'google'; m1.content = 'notranslate';
+    pd.head.appendChild(m1);
+    var m2 = document.createElement('meta');
+    m2.httpEquiv = 'Content-Language'; m2.content = 'tr';
+    pd.head.appendChild(m2);
+
+    // 2. HTML lang="tr" ayarla - Chrome çeviri teklif etmesin
+    html.setAttribute('lang', 'tr');
+    html.setAttribute('translate', 'no');
+    html.classList.add('notranslate');
+    if (pd.body) {
+      pd.body.setAttribute('translate', 'no');
+      pd.body.classList.add('notranslate');
+      pd.body.setAttribute('lang', 'tr');
     }
-  });
-  obs.observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    // 3. Tüm Streamlit elementlerine translate=no ekle
+    var sel = '[data-testid="stApp"],[data-testid="stSidebar"],.main,.block-container,p,span,div,h1,h2,h3,h4,h5,h6,li,td,th,label,input,textarea';
+    pd.querySelectorAll(sel).forEach(function(el) {
+      el.setAttribute('translate', 'no');
+      el.classList.add('notranslate');
+    });
+
+    // 4. Google Translate API'sini tamamen engelle
+    try { Object.defineProperty(window.parent, 'google', { value: undefined, writable: false, configurable: false }); } catch(e) {}
+    try { Object.defineProperty(window.parent, 'googleTranslateElementInit', { value: function(){}, writable: false, configurable: false }); } catch(e) {}
+
+    // 5. Agresif MutationObserver - çeviri elementlerini anında kaldır
+    var translateObs = new MutationObserver(function(muts) {
+      // translated class'larını kaldır
+      if (html.classList.contains('translated-ltr')) html.classList.remove('translated-ltr');
+      if (html.classList.contains('translated-rtl')) html.classList.remove('translated-rtl');
+      // body top offset'ini sıfırla (çeviri barı body'i aşağı iter)
+      if (pd.body && pd.body.style.top !== '0px') pd.body.style.top = '0px';
+
+      muts.forEach(function(mut) {
+        // Eklenen çeviri elementlerini kaldır
+        mut.addedNodes.forEach(function(node) {
+          if (node.nodeType === 1) {
+            var cls = node.className || '';
+            var id = node.id || '';
+            var tag = node.tagName || '';
+            if (cls.indexOf('goog-te') !== -1 || cls.indexOf('skiptranslate') !== -1 ||
+                id.indexOf('goog-gt') !== -1 || id.indexOf('google_translate') !== -1 ||
+                (tag === 'IFRAME' && node.src && node.src.indexOf('translate') !== -1)) {
+              node.remove();
+            }
+          }
+        });
+        // translate attribute eklenirse geri al
+        if (mut.type === 'attributes' && mut.attributeName === 'class') {
+          var t = mut.target;
+          if (t.classList && (t.classList.contains('translated-ltr') || t.classList.contains('translated-rtl'))) {
+            t.classList.remove('translated-ltr', 'translated-rtl');
+          }
+        }
+      });
+    });
+    translateObs.observe(html, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+
+    // 6. Yeni eklenen elementlere de translate=no ekle
+    var newElObs = new MutationObserver(function(muts) {
+      muts.forEach(function(mut) {
+        mut.addedNodes.forEach(function(node) {
+          if (node.nodeType === 1 && !node.classList.contains('notranslate')) {
+            node.setAttribute('translate', 'no');
+            node.classList.add('notranslate');
+          }
+        });
+      });
+    });
+    newElObs.observe(pd.body || html, { childList: true, subtree: true });
+  })();
 
   // --- IFRAME FOCUS RESTORE ---
   // WhatsApp vb. pencere-içi-pencere iframe'leri focus'u çaldığında
@@ -2015,7 +2074,16 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     f"5. Eğer normal bir kullanıcı ise ona samimi ve asil bir duruşla 'Reis', 'Dostum' veya doğrudan ismiyle hitap et.\n\n"
                     "⚠️ EK KURALLAR:\n"
                     "- Geçmiş sohbetlerdeki eski veya hatalı isimleri tamamen unut.\n"
-                    "- Her koşulda aslan gibi dik, asil, kararlı, zeki ve kurallara bağlı bir yapay zeka ol."
+                    "- Her koşulda aslan gibi dik, asil, kararlı, zeki ve kurallara bağlı bir yapay zeka ol.\n\n"
+                    "📝 TÜRKÇE KARAKTER DÜZELTME TALİMATI:\n"
+                    "Kullanıcılar bazen Türkçe özel karakterleri kullanmadan yazar. Aşağıdaki dönüşümleri zihninde otomatik olarak yap ve mesajı düzgün Türkçe olarak anla:\n"
+                    "- 'u' yerine 'ü' olabilir (ornegin: 'guzul' → 'güzül/güzel', 'dusunuyorum' → 'düşünüyorum')\n"
+                    "- 'o' yerine 'ö' olabilir (ornegin: 'gormek' → 'görmek', 'donmek' → 'dönmek')\n"
+                    "- 'i' yerine 'ı' olabilir (ornegin: 'iyi' → 'ıyı' değil ama 'acik' → 'açık')\n"
+                    "- 's' yerine 'ş' olabilir (ornegin: 'seker' → 'şeker', 'dusunce' → 'düşünce')\n"
+                    "- 'c' yerine 'ç' olabilir (ornegin: 'cok' → 'çok', 'icmek' → 'içmek')\n"
+                    "- 'g' yerine 'ğ' olabilir (ornegin: 'dogru' → 'doğru', 'yagmur' → 'yağmur')\n"
+                    "Bu tür yazımlarda kullanıcıyı düzeltme, sadece mesajı doğru anla ve doğru Türkçe ile yanıt ver."
                 )
                 payload = {"model": MODEL, "messages": [{"role": "system", "content": sistem_mesaji}] + mesajlar}
                 headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY}"}
