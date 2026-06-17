@@ -297,13 +297,16 @@ components.html("""
       btns.forEach(function(p) {
         if (p.getAttribute('data-icons-done')) return;
         var txt = p.textContent || '';
-        // Önce emojiyi kaldır
-        var emojiRegex = /[\uD83C-\uDBFF][\uDC00-\uDFFF]|\u2600-\u27BF|\uFE0F/g;
-        var hasEmoji = /[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|\uFE0F/.test(txt);
-        if (hasEmoji) {
+        // Önce emojiyi kaldır (regex'i string'den oluştur - Python surrogate sorunu için)
+        var emojiRe = new RegExp('[\\uD83C-\\uDBFF][\\uDC00-\\uDFFF]|[\\u2600-\\u27BF]|\\uFE0F', 'g');
+        if (emojiRe.test(txt)) {
+          emojiRe.lastIndex = 0;
           // textNode'lardan emojiyi temizle
           Array.from(p.childNodes).forEach(function(n) {
-            if (n.nodeType === 3) n.textContent = n.textContent.replace(/[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|\uFE0F/g, '').replace(/^\\s+/, '');
+            if (n.nodeType === 3) {
+              var cleanRe = new RegExp('[\\uD83C-\\uDBFF][\\uDC00-\\uDFFF]|[\\u2600-\\u27BF]|\\uFE0F', 'g');
+              n.textContent = n.textContent.replace(cleanRe, '').replace(/^ +/, '');
+            }
           });
           txt = p.textContent || '';
         }
