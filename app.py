@@ -1107,25 +1107,25 @@ else:
             return valid_users
 
     # ═══════════════════════════════════════════════════
-    # 🎵 GLOBAL OYNATICI (st.empty ile - sayfa değişince kaybolmaz)
+    # 🎵 GLOBAL OYNATICI (her render'da çizilir; Streamlit aynı iframe'i
+    # koruduğu için sayfa değişince oynatma/ses kesilmez)
     # ═══════════════════════════════════════════════════
-    if "global_player_container" not in st.session_state or st.session_state.global_player_container is None:
-        st.session_state.global_player_container = st.empty()
-    
     if st.session_state.get("yt_playing_id"):
         _gvid = re.sub(r'[^a-zA-Z0-9_\-]', '', st.session_state.yt_playing_id)
         _gts = int(st.session_state.yt_ts_dict.get(_gvid, 0))
-        
-        # SADECE video değiştiğinde veya ilk kez render et
-        if (not st.session_state.get("global_player_rendered") or 
-            st.session_state.get("global_player_rendered_vid") != _gvid):
-            
-            with st.session_state.global_player_container:
-                components.html(
+
+        components.html(
                     f"""
-                    <div id="ap-gp-wrap" style="position:relative;width:100%;height:100%;background:#000;border-radius:10px;overflow:hidden;">
-                        <div id="global-yt-player" style="width:100%;height:100%;"></div>
-                        <div id="ap-unmute" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);cursor:pointer;z-index:5;">
+                    <style>
+                        html, body {{ margin:0; padding:0; height:100%; background:transparent; overflow:hidden; }}
+                        #ap-gp-wrap {{ position:absolute; inset:0; background:#000; border-radius:10px; overflow:hidden; }}
+                        #global-yt-player {{ position:absolute; inset:0; width:100%; height:100%; }}
+                        #global-yt-player iframe {{ width:100% !important; height:100% !important; }}
+                        #ap-unmute {{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.55); cursor:pointer; z-index:5; }}
+                    </style>
+                    <div id="ap-gp-wrap">
+                        <div id="global-yt-player"></div>
+                        <div id="ap-unmute">
                             <div style="background:#FF0000;color:#fff;font-weight:800;font-size:1rem;padding:12px 24px;border-radius:30px;box-shadow:0 6px 22px rgba(0,0,0,.55);display:flex;align-items:center;gap:8px;">
                                 🔊 Sesi Aç
                             </div>
@@ -1228,15 +1228,7 @@ else:
                     </script>
                     """,
                     height=430,
-                    width=0
-                )
-            st.session_state.global_player_rendered = True
-            st.session_state.global_player_rendered_vid = _gvid
-    else:
-        if st.session_state.global_player_container is not None:
-            st.session_state.global_player_container.empty()
-            st.session_state.global_player_rendered = False
-            st.session_state.global_player_rendered_vid = None
+        )
 
     # --- SAYFA YÖNLENDİRME ---
     if st.session_state.current_page == "admin_main" and is_kurucu:
