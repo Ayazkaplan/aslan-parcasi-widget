@@ -17,7 +17,7 @@ from PIL import Image
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(
-    page_title="Aslan Parçası V16.8",
+    page_title="Aslan Parçası V17.3",
     page_icon="🦁",
     layout="centered"
 )
@@ -848,7 +848,7 @@ if not st.session_state.user_logged_in:
             st.rerun()
         st.stop()
 
-    st.title("🦁 Aslan Parçası V16.8")
+    st.title("🦁 Aslan Parçası V17.3")
 
     if "ban_error_on_logout" in st.session_state:
         st.error(st.session_state.ban_error_on_logout)
@@ -2247,7 +2247,7 @@ else:
 
             col_title, col_bildirim = st.columns([6, 1])
             with col_title:
-                st.title("🤖 Aslan Parçası V16.8")
+                st.title("🤖 Aslan Parçası V17.3")
             with col_bildirim:
                 st.write("")
                 if st.button(f"🔔{bildirim_badge}", key="bildirim_btn", use_container_width=True):
@@ -2331,7 +2331,7 @@ else:
                 st.markdown("""
 **Müstakbel Şirket**, dijital iletişim ve yapay zeka alanında öncü çözümler geliştiren, geleceğin teknolojilerini bugünün ihtiyaçlarıyla buluşturan köklü bir teknoloji kuruluşudur.
 
-**Aslan Parçası V16.8**, Müstakbel Şirket bünyesinde geliştirilen amiral gemisi yapay zeka platformudur. Gerçek zamanlı sohbet, yapay zeka destekli asistan, YouTube entegrasyonu ve topluluk yönetimi tek çatı altında sunulmaktadır.
+**Aslan Parçası V17.3**, Müstakbel Şirket bünyesinde geliştirilen amiral gemisi yapay zeka platformudur. Gerçek zamanlı sohbet, yapay zeka destekli asistan, YouTube entegrasyonu ve topluluk yönetimi tek çatı altında sunulmaktadır.
                 """)
                 st.divider()
                 st.markdown("## 🎯 Misyonumuz")
