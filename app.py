@@ -470,27 +470,6 @@ def ensure_utc(dt):
         dt = dt.replace(tzinfo=timezone.utc)
     return dt
 
-def profil_foto_kontrol(image_base64):
-    """AI ile profil fotoğrafı uygunluk kontrolü yapar."""
-    try:
-        headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY}"}
-        payload = {
-            "model": "anthropic/claude-3-haiku",
-            "messages": [{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Bu fotoğraf bir profil fotoğrafı olarak kullanılmak isteniyor. Fotoğrafta pornografi, çıplaklık, müstehcen içerik, şiddet, nefret sembolü veya etik dışı herhangi bir şey var mı? Sadece 'UYGUN' veya 'UYGUN DEĞİL' olarak yanıt ver. Başka hiçbir şey yazma."},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-                ]
-            }]
-        }
-        res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=15)
-        res.raise_for_status()
-        yanit = res.json()['choices'][0]['message']['content'].strip().upper()
-        return "UYGUN" in yanit and "DEĞİL" not in yanit
-    except Exception:
-        return True  # API hatası durumunda geçir, admin sonra kontrol eder
-
 def resize_profile_photo(image_bytes, max_size=150):
     """Profil fotoğrafını kare olarak yeniden boyutlandırır."""
     img = Image.open(BytesIO(image_bytes))
@@ -1224,92 +1203,16 @@ else:
 
     with st.sidebar:
         saat_gosterici()
-        st.markdown("### 👤 Profil Ayarları")
-        yeni_isim = st.text_input("Yeni İsim:", value=kullanici_ismi, max_chars=25)
 
-        if st.button("İsmi Güncelle"):
-            temiz_yeni_isim = yeni_isim.strip()
-            if len(temiz_yeni_isim) < 3:
-                st.warning("⚠️ Kullanıcı adı en az **3 karakter** olmalıdır.")
-            elif len(temiz_yeni_isim) > 25:
-                st.warning("⚠️ Kullanıcı adı en fazla **25 karakter** olabilir.")
-            elif not is_kurucu and emoji_var_mi(temiz_yeni_isim):
-                st.warning("⚠️ İsminizde emoji kullanamazsınız.")
-            elif temiz_yeni_isim != kullanici_ismi:
-                isim_check = db.collection("users").where("isim", "==", temiz_yeni_isim).limit(1).get()
-                if isim_check:
-                    st.error("❌ Bu kullanıcı adı zaten alınmış!")
-                else:
-                    user_ref.update({"isim": temiz_yeni_isim})
-                    st.session_state.valid_users_cache = None
-                    st.success("✅ İsim güncellendi!")
-                    st.rerun()
-            else:
-                st.info("İsim zaten aynı.")
-
-        st.markdown(f"Profil: {isim_stili}", unsafe_allow_html=True)
-
-        # --- PROFİL FOTOĞRAFI ---
-        st.divider()
-        st.markdown("### 📷 Profil Fotoğrafı")
-        mevcut_foto = user_doc.get("profil_foto", "")
-        if mevcut_foto:
-            st.markdown(f'<div style="text-align:center;"><img src="data:image/jpeg;base64,{mevcut_foto}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #f39c12;"/></div>', unsafe_allow_html=True)
-        else:
-            st.caption("Henüz profil fotoğrafı belirlenmemiş.")
-
-        foto_dosya = st.file_uploader("Galeriden fotoğraf seç:", type=["jpg", "jpeg", "png", "webp"], key="profil_foto_upload", help="Galerinize erişim izni verilerek fotoğraf seçebilirsiniz.")
-        if foto_dosya is not None:
-            if foto_dosya.size > 5 * 1024 * 1024:
-                st.error("❌ Dosya boyutu 5MB'dan küçük olmalıdır.")
-            else:
-                foto_bytes = foto_dosya.read()
-                with st.spinner("Fotoğraf kontrol ediliyor..."):
-                    foto_b64 = resize_profile_photo(foto_bytes)
-                    uygun = profil_foto_kontrol(foto_b64)
-                if uygun:
-                    user_ref.update({"profil_foto": foto_b64})
-                    st.success("✅ Profil fotoğrafı güncellendi!")
-                    st.rerun()
-                else:
-                    st.error("❌ Bu fotoğraf uygunsuz içerik içerdiği için kabul edilmedi. Lütfen uygun bir fotoğraf seçin.")
-
-        if mevcut_foto:
-            if st.button("🗑️ Fotoğrafı Kaldır", key="remove_profile_photo"):
-                user_ref.update({"profil_foto": ""})
-                st.success("✅ Profil fotoğrafı kaldırıldı.")
-                st.rerun()
-
-        st.divider()
-        st.markdown("### 🎨 Tema Seçimi")
-        mevcut_tema = user_doc.get("tema", list(TEMALAR.values())[0])
-        mevcut_tema_key = [k for k, v in TEMALAR.items() if v == mevcut_tema][0]
-        secilen_tema_adi = st.selectbox("Arka Plan:", list(TEMALAR.keys()), index=list(TEMALAR.keys()).index(mevcut_tema_key))
-
-        if st.button("💾 Temayı Kaydet"):
-            yeni_tema = TEMALAR[secilen_tema_adi]
-            user_ref.update({"tema": yeni_tema})
-            st.session_state.tema = yeni_tema
-            st.session_state.tema_rengi = TEMA_RENKLERI.get(yeni_tema, "rgba(20,20,40,0.85)")
-            st.success("✅ Tema kaydedildi!")
-            st.rerun()
-
-        if st.button("🧹 Sohbeti Temizle"):
-            user_ref.update({"sohbet_gecmisi": []})
-            st.session_state.messages = []
-            st.success("Sohbet başarıyla temizlendi!")
-            st.rerun()
-
-        # --- AYARLAR BUTONU ---
+        # --- AYARLAR STATE ---
         if "sidebar_settings_open" not in st.session_state:
             st.session_state.sidebar_settings_open = False
 
-        if not st.session_state.sidebar_settings_open:
-            if st.button("Ayarlar", use_container_width=True, key="open_settings_btn"):
-                st.session_state.sidebar_settings_open = True
-                st.rerun()
-        else:
+        if st.session_state.sidebar_settings_open:
+            # ═══ AYARLAR SAYFASI (sadece Çıkış + Hesabımı Sil) ═══
             st.markdown("#### ⚙️ Ayarlar")
+            st.divider()
+
             if st.button("Çıkış Yap", use_container_width=True, key="logout_from_settings"):
                 logout_user()
 
@@ -1338,35 +1241,113 @@ else:
                         st.session_state.confirm_delete_self = False
                         st.rerun()
 
+            st.divider()
             if st.button("← Geri", use_container_width=True, key="close_settings_btn"):
                 st.session_state.sidebar_settings_open = False
                 st.rerun()
 
-        st.divider()
-        if st.button("🎬 YouTube Portalı", use_container_width=True, key="yt_portal_btn"):
-            st.session_state.current_page = "youtube_portal"
-            st.rerun()
+        else:
+            # ═══ NORMAL MENÜ ═══
+            # --- PROFİL FOTOĞRAFI (yuvarlak avatar) ---
+            mevcut_foto = user_doc.get("profil_foto", "")
+            if mevcut_foto:
+                avatar_src = f"data:image/jpeg;base64,{mevcut_foto}"
+            else:
+                avatar_src = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+            st.markdown(f'<div style="text-align:center; margin-bottom:8px;"><img src="{avatar_src}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid #f39c12;"/></div>', unsafe_allow_html=True)
 
-        if is_kurucu:
+            foto_dosya = st.file_uploader("Profil fotoğrafı değiştir:", type=["jpg", "jpeg", "png", "webp"], key="profil_foto_upload", label_visibility="collapsed")
+            if foto_dosya is not None:
+                if foto_dosya.size > 5 * 1024 * 1024:
+                    st.error("❌ Dosya boyutu 5MB'dan küçük olmalıdır.")
+                else:
+                    foto_bytes = foto_dosya.read()
+                    foto_b64 = resize_profile_photo(foto_bytes)
+                    user_ref.update({"profil_foto": foto_b64})
+                    st.success("✅ Profil fotoğrafı güncellendi!")
+                    st.rerun()
+
+            if mevcut_foto:
+                if st.button("Fotoğrafı Kaldır", key="remove_profile_photo", use_container_width=True):
+                    user_ref.update({"profil_foto": ""})
+                    st.success("✅ Profil fotoğrafı kaldırıldı.")
+                    st.rerun()
+
+            st.markdown(f"<div style='text-align:center;'>{isim_stili}</div>", unsafe_allow_html=True)
+
             st.divider()
-            if st.session_state.current_page == "chat":
-                if st.button("🛠️ Yönetici Paneline Git", use_container_width=True):
-                    st.session_state.current_page = "admin_main"
-                    st.rerun()
-            else:
-                if st.button("💬 Sohbet Paneline Dön", use_container_width=True):
-                    st.session_state.current_page = "chat"
-                    st.rerun()
-        elif is_admin_user:
+            st.markdown("### Profil Ayarları")
+            yeni_isim = st.text_input("Yeni İsim:", value=kullanici_ismi, max_chars=25)
+
+            if st.button("İsmi Güncelle"):
+                temiz_yeni_isim = yeni_isim.strip()
+                if len(temiz_yeni_isim) < 3:
+                    st.warning("⚠️ Kullanıcı adı en az **3 karakter** olmalıdır.")
+                elif len(temiz_yeni_isim) > 25:
+                    st.warning("⚠️ Kullanıcı adı en fazla **25 karakter** olabilir.")
+                elif not is_kurucu and emoji_var_mi(temiz_yeni_isim):
+                    st.warning("⚠️ İsminizde emoji kullanamazsınız.")
+                elif temiz_yeni_isim != kullanici_ismi:
+                    isim_check = db.collection("users").where("isim", "==", temiz_yeni_isim).limit(1).get()
+                    if isim_check:
+                        st.error("❌ Bu kullanıcı adı zaten alınmış!")
+                    else:
+                        user_ref.update({"isim": temiz_yeni_isim})
+                        st.session_state.valid_users_cache = None
+                        st.success("✅ İsim güncellendi!")
+                        st.rerun()
+                else:
+                    st.info("İsim zaten aynı.")
+
             st.divider()
-            if st.session_state.current_page == "chat":
-                if st.button("📣 Duyuru Sayfasına Git", use_container_width=True):
-                    st.session_state.current_page = "admin_announcement"
-                    st.rerun()
-            else:
-                if st.button("💬 Sohbet Paneline Dön", use_container_width=True):
-                    st.session_state.current_page = "chat"
-                    st.rerun()
+            st.markdown("### 🎨 Tema Seçimi")
+            mevcut_tema = user_doc.get("tema", list(TEMALAR.values())[0])
+            mevcut_tema_key = [k for k, v in TEMALAR.items() if v == mevcut_tema][0]
+            secilen_tema_adi = st.selectbox("Arka Plan:", list(TEMALAR.keys()), index=list(TEMALAR.keys()).index(mevcut_tema_key))
+
+            if st.button("💾 Temayı Kaydet"):
+                yeni_tema = TEMALAR[secilen_tema_adi]
+                user_ref.update({"tema": yeni_tema})
+                st.session_state.tema = yeni_tema
+                st.session_state.tema_rengi = TEMA_RENKLERI.get(yeni_tema, "rgba(20,20,40,0.85)")
+                st.success("✅ Tema kaydedildi!")
+                st.rerun()
+
+            if st.button("🧹 Sohbeti Temizle"):
+                user_ref.update({"sohbet_gecmisi": []})
+                st.session_state.messages = []
+                st.success("Sohbet başarıyla temizlendi!")
+                st.rerun()
+
+            st.divider()
+            if st.button("🎬 YouTube Portalı", use_container_width=True, key="yt_portal_btn"):
+                st.session_state.current_page = "youtube_portal"
+                st.rerun()
+
+            if st.button("Ayarlar", use_container_width=True, key="open_settings_btn"):
+                st.session_state.sidebar_settings_open = True
+                st.rerun()
+
+            if is_kurucu:
+                st.divider()
+                if st.session_state.current_page == "chat":
+                    if st.button("🛠️ Yönetici Paneline Git", use_container_width=True):
+                        st.session_state.current_page = "admin_main"
+                        st.rerun()
+                else:
+                    if st.button("💬 Sohbet Paneline Dön", use_container_width=True):
+                        st.session_state.current_page = "chat"
+                        st.rerun()
+            elif is_admin_user:
+                st.divider()
+                if st.session_state.current_page == "chat":
+                    if st.button("📣 Duyuru Sayfasına Git", use_container_width=True):
+                        st.session_state.current_page = "admin_announcement"
+                        st.rerun()
+                else:
+                    if st.button("💬 Sohbet Paneline Dön", use_container_width=True):
+                        st.session_state.current_page = "chat"
+                        st.rerun()
 
     def otomatik_arindir_ve_grup():
         with st.spinner("Hayalet ve mükerrer kayıtlar taranıyor..."):
