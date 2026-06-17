@@ -1887,82 +1887,74 @@ else:
         # ─── SOHBET SAYFASI ────────────────────────────────────────────
         if st.session_state.current_page == "chat":
 
-            @st.fragment(run_every=3)
-            def ban_kontrol_fragment(current_uid):
+            # --- ARKA PLAN KONTROL (görünmez fragment — UI render etmez) ---
+            @st.fragment(run_every=5)
+            def arka_plan_kontrol(current_uid):
                 try:
-                    kontrol_snap = db.collection("users").document(current_uid).get()
-                    if kontrol_snap.exists:
-                        kontrol_doc = kontrol_snap.to_dict()
-                        kontrol_durum = kontrol_doc.get("durum", "Aktif")
-                        if kontrol_durum == "Pasif":
-                            ban_b = kontrol_doc.get("ban_bitis_zamani")
-                            if hasattr(ban_b, "to_datetime"):
-                                ban_b = ban_b.to_datetime()
-                            if ban_b:
-                                if ban_b.tzinfo is None: ban_b = ban_b.replace(tzinfo=timezone.utc)
-                                if datetime.now(timezone.utc) < ban_b:
-                                    st.session_state.ban_error_on_logout = "❌ Hesabınız yönetici tarafından pasifleştirildi!"
-                                    logout_user()
-                            else:
-                                st.session_state.ban_error_on_logout = "❌ Hesabınız yönetici tarafından pasif duruma getirilmiştir!"
+                    snap = db.collection("users").document(current_uid).get()
+                    if not snap.exists:
+                        return
+                    doc = snap.to_dict()
+
+                    # Ban kontrolü
+                    kontrol_durum = doc.get("durum", "Aktif")
+                    if kontrol_durum == "Pasif":
+                        ban_b = doc.get("ban_bitis_zamani")
+                        if hasattr(ban_b, "to_datetime"):
+                            ban_b = ban_b.to_datetime()
+                        if ban_b:
+                            if ban_b.tzinfo is None: ban_b = ban_b.replace(tzinfo=timezone.utc)
+                            if datetime.now(timezone.utc) < ban_b:
+                                st.session_state.ban_error_on_logout = "❌ Hesabınız yönetici tarafından pasifleştirildi!"
                                 logout_user()
+                        else:
+                            st.session_state.ban_error_on_logout = "❌ Hesabınız yönetici tarafından pasif duruma getirilmiştir!"
+                            logout_user()
+
+                    # Duyuru kontrolü — sadece veri güncelle, UI render etme
+                    yeni_duyurular = doc.get("okunmamis_duyurular", [])
+                    eski_duyurular = st.session_state.get("cached_okunmamis_duyurular", [])
+                    if yeni_duyurular != eski_duyurular:
+                        st.session_state.cached_okunmamis_duyurular = yeni_duyurular
+                        st.rerun()
                 except Exception:
                     pass
 
-            ban_kontrol_fragment(uid)
+            arka_plan_kontrol(uid)
 
-            @st.fragment(run_every=5)
-            def asenkron_duyuru_kontrol(current_uid):
-                now_ts = time.time()
-                if "last_duyuru_fetch_time" not in st.session_state:
-                    st.session_state.last_duyuru_fetch_time = 0
-                if "cached_okunmamis_duyurular" not in st.session_state:
-                    st.session_state.cached_okunmamis_duyurular = []
+            # --- DUYURU UI (fragment dışında, sadece session_state'ten oku) ---
+            okunmamis = st.session_state.get("cached_okunmamis_duyurular", [])
+            if isinstance(okunmamis, list) and okunmamis:
+                duyuru_obj = okunmamis[0]
+                d_metin = duyuru_obj.get("metin", "")
+                sender_email = duyuru_obj.get("gonderen_email", "")
+                sender_name = duyuru_obj.get("gonderen_isim", "Sistem Yöneticisi")
+                sender_color = duyuru_obj.get("gonderen_color", "#FFFFFF")
+                sender_glow = duyuru_obj.get("gonderen_glow", False)
+                sender_tag = duyuru_obj.get("gonderen_tag", "")
+                sender_rozet = duyuru_obj.get("gonderen_rozet", "")
 
-                if now_ts - st.session_state.last_duyuru_fetch_time > 5:
-                    try:
-                        fresh_user_snap = db.collection("users").document(current_uid).get()
-                        if fresh_user_snap.exists:
-                            fresh_user_doc = fresh_user_snap.to_dict()
-                            st.session_state.cached_okunmamis_duyurular = fresh_user_doc.get("okunmamis_duyurular", [])
-                        st.session_state.last_duyuru_fetch_time = now_ts
-                    except Exception:
-                        pass
+                if sender_email.strip().lower() == KURUCU_EMAIL.strip().lower():
+                    display_sender = get_styled_user_name(
+                        sender_name if sender_name else "Ayaz Kaplan",
+                        sender_color if sender_color else "#FF0000",
+                        sender_glow, sender_tag if sender_tag else "KURUCU",
+                        sender_rozet if sender_rozet else "🛠️"
+                    )
+                else:
+                    display_sender = get_styled_user_name(sender_name, sender_color, sender_glow, sender_tag, sender_rozet if sender_rozet else "🛡️")
 
-                okunmamis = st.session_state.cached_okunmamis_duyurular
-                if isinstance(okunmamis, list) and okunmamis:
-                    duyuru_obj = okunmamis[0]
-                    d_metin = duyuru_obj.get("metin", "")
-                    sender_email = duyuru_obj.get("gonderen_email", "")
-                    sender_name = duyuru_obj.get("gonderen_isim", "Sistem Yöneticisi")
-                    sender_color = duyuru_obj.get("gonderen_color", "#FFFFFF")
-                    sender_glow = duyuru_obj.get("gonderen_glow", False)
-                    sender_tag = duyuru_obj.get("gonderen_tag", "")
-                    sender_rozet = duyuru_obj.get("gonderen_rozet", "")
+                st.markdown(f"""
+                <div style="background-color: rgba(255, 0, 0, 0.15); border-left: 5px solid red; padding: 15px; border-radius: 5px; margin-bottom: 10px; box-shadow: 0 0 10px rgba(255, 0, 0, 0.4);">
+                    <div style="font-size: 1.15rem; margin-bottom: 5px;">{display_sender}:</div>
+                    <div style="color: white !important; font-size: 1.1rem; margin-left: 5px; line-height: 1.4;">{d_metin}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-                    if sender_email.strip().lower() == KURUCU_EMAIL.strip().lower():
-                        display_sender = get_styled_user_name(
-                            sender_name if sender_name else "Ayaz Kaplan",
-                            sender_color if sender_color else "#FF0000",
-                            sender_glow, sender_tag if sender_tag else "KURUCU",
-                            sender_rozet if sender_rozet else "🛠️"
-                        )
-                    else:
-                        display_sender = get_styled_user_name(sender_name, sender_color, sender_glow, sender_tag, sender_rozet if sender_rozet else "🛡️")
-
-                    st.markdown(f"""
-                    <div style="background-color: rgba(255, 0, 0, 0.15); border-left: 5px solid red; padding: 15px; border-radius: 5px; margin-bottom: 10px; box-shadow: 0 0 10px rgba(255, 0, 0, 0.4);">
-                        <div style="font-size: 1.15rem; margin-bottom: 5px;">{display_sender}:</div>
-                        <div style="color: white !important; font-size: 1.1rem; margin-left: 5px; line-height: 1.4;">{d_metin}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    if st.button("Geç ➡️", key=f"skip_btn_{duyuru_obj.get('id')}", use_container_width=True):
-                        db.collection("users").document(current_uid).update({"okunmamis_duyurular": firestore.ArrayRemove([duyuru_obj])})
-                        st.session_state.cached_okunmamis_duyurular.remove(duyuru_obj)
-                        st.rerun()
-
-            asenkron_duyuru_kontrol(uid)
+                if st.button("Geç ➡️", key=f"skip_btn_{duyuru_obj.get('id')}", use_container_width=True):
+                    db.collection("users").document(uid).update({"okunmamis_duyurular": firestore.ArrayRemove([duyuru_obj])})
+                    st.session_state.cached_okunmamis_duyurular.remove(duyuru_obj)
+                    st.rerun()
 
             # --- SOHBET ARAYÜZÜ ---
             st.title("🤖 Aslan Parçası V16.4")
