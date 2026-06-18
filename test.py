@@ -1,9 +1,3 @@
-"""
-test.py - VX tarafından oluşturuldu
-"""
+"""test.py - Boş dosya"""
 
-def main():
-    print("Merhaba VX!")
-
-if __name__ == "__main__":
-    main()
+pass
