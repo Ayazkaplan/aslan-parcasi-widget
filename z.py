@@ -1,3 +1,3 @@
-"""z.py - VX"""
+"""z.py - Boş"""
 
-print("Merhaba VX!")
+pass
