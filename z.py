@@ -1,92 +1,208 @@
 ```python
 # z.py
 
-# Mimari projelerde kullanılmak üzere fonksiyon ve sınıf tanımları
+import tkinter as tk
+import math
 
-class BinaTasarimi:
-    def __init__(self, ad, kat_sayisi, toplam_alan):
-        self.ad = ad
-        self.kat_sayisi = kat_sayisi
-        self.toplam_alan = toplam_alan
-        self.katlar = []
+class Calculator:
+    def __init__(self):
+        self.history = []
 
-    def kat_ekle(self, kat):
-        self.katlar.append(kat)
+    def add(self, a, b):
+        result = a + b
+        self.history.append(f"{a} + {b} = {result}")
+        return result
 
-    def toplam_alan_hesapla(self):
-        return sum(kat.alan for kat in self.katlar)
+    def subtract(self, a, b):
+        result = a - b
+        self.history.append(f"{a} - {b} = {result}")
+        return result
 
-    def __str__(self):
-        return f"Bina: {self.ad}, Kat Sayısı: {self.kat_sayisi}, Toplam Alan: {self.toplam_alan}"
+    def multiply(self, a, b):
+        result = a * b
+        self.history.append(f"{a} * {b} = {result}")
+        return result
 
-class Kat:
-    def __init__(self, kat_numarasi, alan, kullanici_sayisi=0):
-        self.kat_numarasi = kat_numarasi
-        self.alan = alan
-        self.kullanici_sayisi = kullanici_sayisi
-        self.odalar = []
+    def divide(self, a, b):
+        if b == 0:
+            raise ValueError("Sıfıra bölme hatası")
+        result = a / b
+        self.history.append(f"{a} / {b} = {result}")
+        return result
 
-    def oda_ekle(self, oda):
-        self.odalar.append(oda)
+    def power(self, a, b):
+        result = a ** b
+        self.history.append(f"{a} ^ {b} = {result}")
+        return result
 
-def write_to_z_py(content):
-    with open('z.py', 'w', encoding='utf-8') as file:
-        file.write(content)
+    def square_root(self, a):
+        if a < 0:
+            raise ValueError("Negatif sayıların karekökü alınamaz")
+        result = math.sqrt(a)
+        self.history.append(f"√{a} = {result}")
+        return result
 
-def main():
-    print("z.py çalıştırıldı")
+def terminal_calculator():
+    calc = Calculator()
+
+    print("Hesap Makinesi Uygulaması")
+    print("1. Toplama")
+    print("2. Çıkarma")
+    print("3. Çarpma")
+    print("4. Bölme")
+    print("5. Üs Alma")
+    print("6. Karekök")
+    print("7. İşlem Geçmişi")
+    print("0. Çıkış")
+
+    while True:
+        try:
+            secim = input("Seçiminizi yapın (0-7): ")
+
+            if secim == "0":
+                print("Çıkış yapılıyor...")
+                break
+
+            if secim not in ["1", "2", "3", "4", "5", "6", "7"]:
+                print("Geçersiz seçim. Lütfen tekrar deneyin.")
+                continue
+
+            if secim == "7":
+                print("\nİşlem Geçmişi:")
+                for islem in calc.history:
+                    print(islem)
+                print()
+                continue
+
+            if secim in ["1", "2", "3", "4", "5"]:
+                sayi1 = float(input("İlk sayıyı girin: "))
+                sayi2 = float(input("İkinci sayıyı girin: "))
+
+                if secim == "1":
+                    sonuc = calc.add(sayi1, sayi2)
+                elif secim == "2":
+                    sonuc = calc.subtract(sayi1, sayi2)
+                elif secim == "3":
+                    sonuc = calc.multiply(sayi1, sayi2)
+                elif secim == "4":
+                    sonuc = calc.divide(sayi1, sayi2)
+                elif secim == "5":
+                    sonuc = calc.power(sayi1, sayi2)
+
+                print(f"Sonuç: {sonuc}\n")
+
+            elif secim == "6":
+                sayi = float(input("Sayıyı girin: "))
+                sonuc = calc.square_root(sayi)
+                print(f"Sonuç: {sonuc}\n")
+
+        except ValueError as e:
+            print(f"Hata: {e}")
+        except Exception as e:
+            print(f"Beklenmeyen bir hata oluştu: {e}")
+
+def hesap_makinesi():
+    print("Hesaplama modunu seçin:")
+    print("1. Terminal Hesap Makinesi")
+    print("2. GUI Hesap Makinesi")
+
+    while True:
+        secim = input("Seçiminizi yapın (1/2): ")
+        if secim == "1":
+            terminal_calculator()
+            break
+        elif secim == "2":
+            gui_calculator()
+            break
+        else:
+            print("Geçersiz seçim. Lütfen tekrar deneyin.")
+
+def gui_calculator():
+    pencere = tk.Tk()
+    pencere.title("Gelişmiş Hesap Makinesi")
+    pencere.geometry("400x600")
+
+    calc = Calculator()
+    history_window = None
+
+    giris = tk.Entry(pencere, width=20, font=('Arial', 24), borderwidth=2, relief="solid")
+    giris.grid(row=0, column=0, columnspan=5, pady=10, padx=10)
+
+    def tus_basimi(tus):
+        giris.insert(tk.END, tus)
+
+    def temizle():
+        giris.delete(0, tk.END)
+
+    def hesapla():
+        try:
+            if giris.get().strip() == "":
+                return
+
+            sonuc = eval(giris.get())
+            giris.delete(0, tk.END)
+            giris.insert(0, str(sonuc))
+
+            islem = giris.get() + " = " + str(sonuc)
+            calc.history.append(islem)
+
+        except Exception as e:
+            giris.delete(0, tk.END)
+            giris.insert(0, "Hata!")
+
+    def gecmis_penceresi():
+        nonlocal history_window
+        if history_window is not None:
+            history_window.destroy()
+
+        history_window = tk.Toplevel(pencere)
+        history_window.title("İşlem Geçmişi")
+        history_window.geometry("300x400")
+
+        scrollbar = tk.Scrollbar(history_window)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        tarih_listesi = tk.Listbox(history_window, yscrollcommand=scrollbar.set, font=('Arial', 12))
+        for islem in calc.history[-10:]:
+            tarih_listesi.insert(tk.END, islem)
+
+        tarih_listesi.pack(fill=tk.BOTH, expand=True)
+        scrollbar.config(command=tarih_listesi.yview)
+
+    tuslar = [
+        ('7', 1, 0), ('8', 1, 1), ('9', 1, 2), ('/', 1, 3), ('√', 1, 4),
+        ('4', 2, 0), ('5', 2, 1), ('6', 2, 2), ('*', 2, 3), ('^', 2, 4),
+        ('1', 3, 0), ('2', 3, 1), ('3', 3, 2), ('-', 3, 3), ('C', 3, 4),
+        ('0', 4, 0), ('.', 4, 1), ('=', 4, 2), ('+', 4, 3), ('H', 4, 4)
+    ]
+
+    for (text, row, col) in tuslar:
+        if text == '=':
+            btn = tk.Button(pencere, text=text, padx=20, pady=20, font=('Arial', 18),
+                          command=hesapla)
+        elif text == 'C':
+            btn = tk.Button(pencere, text=text, padx=20, pady=20, font=('Arial', 18),
+                          command=temizle)
+        elif text == 'H':
+            btn = tk.Button(pencere, text=text, padx=20, pady=20, font=('Arial', 18),
+                          command=gecmis_penceresi)
+        elif text == '√':
+            btn = tk.Button(pencere, text=text, padx=20, pady=20, font=('Arial', 18),
+                          command=lambda t=text: tus_basimi('math.sqrt('))
+        elif text == '^':
+            btn = tk.Button(pencere, text=text, padx=20, pady=20, font=('Arial', 18),
+                          command=lambda t=text: tus_basimi('**'))
+        else:
+            btn = tk.Button(pencere, text=text, padx=20, pady=20, font=('Arial', 18),
+                          command=lambda t=text: tus_basimi(t))
+
+        btn.grid(row=row, column=col, sticky="nsew", padx=2, pady=2)
+
+    pencere.grid_columnconfigure(tuple(range(5)), weight=1)
+    pencere.grid_rowconfigure(tuple(range(5)), weight=1)
+
+    pencere.mainloop()
 
 if __name__ == "__main__":
-    main()
-
-import os
-import subprocess
-import sys
-from datetime import datetime
-
-def secure_system():
-    try:
-        # Güvenlik Duvarı Kuralları
-        firewall_cmd = [
-            "netsh", "advfirewall", "set", "allprofiles",
-            "firewallpolicy", "blockinbound,blockoutbound"
-        ]
-        subprocess.run(firewall_cmd, check=True)
-
-        # Kritik dizinleri koruma
-        protected_dirs = [
-            os.path.expanduser("~/Desktop"),
-            os.path.expanduser("~/Documents"),
-            os.path.expanduser("~/Pictures")
-        ]
-
-        for directory in protected_dirs:
-            if os.path.exists(directory):
-                for root, dirs, files in os.walk(directory):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        os.chmod(file_path, 0o400)  # Salt okunur
-
-    except Exception as e:
-        print(f"Güvenlik ayarlaması sırasında hata oluştu: {e}")
-
-import zlib
-import hashlib
-from typing import Optional
-
-class Z:
-    @staticmethod
-    def compress(data: bytes) -> bytes:
-        """Veriyi sıkıştırır."""
-        return zlib.compress(data)
-
-    @staticmethod
-    def decompress(data: bytes) -> bytes:
-        """Sıkıştırılmış veriyi açar."""
-        return zlib.decompress(data)
-
-    @staticmethod
-    def hash_sha256(data: bytes) -> str:
-        """SHA-256 hash üretir."""
-        return hashlib.sha256(data).hexdigest()
+    hesap_makinesi()
 ```
