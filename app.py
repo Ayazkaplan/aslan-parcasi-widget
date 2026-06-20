@@ -1368,12 +1368,16 @@ else:
         box-sizing: border-box !important;
         width: fit-content;
     }}
-    .clickable-bubble-container {{
-        position: relative;
-        width: 100%;
-        display: block;
-    }}
-    .clickable-bubble-container div[data-testid="stButton"] {{
+    /* User Container Select Button Overlay */
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker) {
+        position: relative !important;
+        transition: opacity 0.2s ease !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker):hover {
+        opacity: 0.94 !important;
+        cursor: pointer !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker) div[data-testid="stButton"] {
         position: absolute !important;
         top: 0 !important;
         left: 0 !important;
@@ -1381,29 +1385,62 @@ else:
         height: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
-        opacity: 0 !important;
-        z-index: 99 !important;
-    }}
-    .clickable-bubble-container div[data-testid="stButton"] button {{
+        z-index: 10 !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker) div[data-testid="stButton"] button {
         width: 100% !important;
         height: 100% !important;
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
+        color: transparent !important;
         cursor: pointer !important;
         padding: 0 !important;
         margin: 0 !important;
-    }}
-    .clickable-bubble-container:hover {{
-        filter: brightness(1.08) contrast(1.02);
-        cursor: pointer;
-    }}
-    div.msg-ops-container {{
+    }
+
+    /* Assistant Container Select Button Overlay */
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker) {
+        position: relative !important;
+        transition: opacity 0.2s ease !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker):hover {
+        opacity: 0.94 !important;
+        cursor: pointer !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker) div[data-testid="stButton"] {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        z-index: 10 !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker) div[data-testid="stButton"] button {
+        width: 100% !important;
+        height: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: transparent !important;
+        cursor: pointer !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    div.msg-ops-container {
         width: 100%;
-        margin-top: -5px;
-        margin-bottom: 10px;
-    }}
-    div.msg-ops-container div[data-testid="stButton"] button {{
+        margin-top: 5px;
+        margin-bottom: 12px;
+        display: block !important;
+    }
+    div.msg-ops-container div[data-testid="stButton"] {
+        display: inline-block !important;
+        margin: 0 4px !important;
+    }
+    div.msg-ops-container div[data-testid="stButton"] button {
         border-radius: 8px !important;
         width: 32px !important;
         height: 32px !important;
@@ -1412,21 +1449,30 @@ else:
         min-height: 32px !important;
         max-height: 32px !important;
         padding: 0 !important;
-        font-size: 14px !important;
+        font-size: 16px !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
         background-color: rgba(30,30,30,0.85) !important;
         border: 1px solid #f39c12 !important;
         box-shadow: 0 2px 6px rgba(243, 156, 18, 0.3) !important;
+        color: #fff !important;
         transition: transform 0.2s ease, background-color 0.2s ease !important;
-    }}
-    div.msg-ops-container div[data-testid="stButton"] button:hover {{
+    }
+    div.msg-ops-container div[data-testid="stButton"] button p {
+        font-size: 16px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        color: #fff !important;
+        line-height: 1 !important;
+        display: inline-block !important;
+    }
+    div.msg-ops-container div[data-testid="stButton"] button:hover {
         transform: scale(1.1) !important;
         background-color: rgba(243, 156, 18, 0.25) !important;
         border-color: #f39c12 !important;
         box-shadow: 0 4px 10px rgba(243, 156, 18, 0.5) !important;
-    }}
+    }
     .assistant-box *, .user-box *, .assistant-bubble *, .user-bubble * {{
         word-wrap: break-word !important; overflow-wrap: break-word !important;
         word-break: break-word !important; max-width: 100% !important;
@@ -2892,10 +2938,9 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                 if m["role"] == "assistant":
                     content_rendered = detect_and_render_media(m["content"])
                     with st.container():
+                        st.markdown('<div class="assistant-bubble-container-marker"></div>', unsafe_allow_html=True)
                         st.markdown(
-                            f'''<div class="clickable-bubble-container">
-                            <div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div class="assistant-bubble"><div class="header-box">Aslan Parçası</div><div style="color:white !important;">{content_rendered}</div></div></div>
-                            ''',
+                            f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div class="assistant-bubble"><div class="header-box">Aslan Parçası</div><div style="color:white !important;">{content_rendered}</div></div></div>''',
                             unsafe_allow_html=True
                         )
                         if st.button("", key=f"assistant_select_trigger_{idx}", help="Aslan parçasının cevabını seç"):
@@ -2905,11 +2950,10 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                 st.session_state.active_assistant_select_idx = idx
                                 st.session_state.active_chat_select_idx = None
                             st.rerun()
-                        st.markdown('</div>', unsafe_allow_html=True)
 
                     if st.session_state.get("active_assistant_select_idx") == idx:
                         st.markdown('<div class="msg-ops-container">', unsafe_allow_html=True)
-                        col_btn, col_empty = st.columns([0.4, 8.6])
+                        col_btn, col_empty = st.columns([1.5, 8.5])
                         with col_btn:
                             if st.button("🔄", key=f"assistant_regen_{idx}", help="Cevabı Yeniden Oluştur"):
                                 with st.spinner("Aslan Parçası analiz ediyor ve yeni bir yanıt oluşturuyor..."):
@@ -2933,11 +2977,9 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     content_rendered = detect_and_render_media(m["content"])
                     
                     with st.container():
-                        # Wrap user bubble in a clickable-bubble-container
+                        st.markdown('<div class="user-bubble-container-marker"></div>', unsafe_allow_html=True)
                         st.markdown(
-                            f'''<div class="clickable-bubble-container">
-                            <div class="user-box"><div class="user-bubble"><div class="header-box" style="text-align: right; margin-bottom: 5px;">{msg_display_name}</div><div style="color:white !important; text-align: right;">{content_rendered}</div></div><img src="{_user_avatar_url}" class="avatar"></div>
-                            ''',
+                            f'''<div class="user-box"><div class="user-bubble"><div class="header-box" style="text-align: right; margin-bottom: 5px;">{msg_display_name}</div><div style="color:white !important; text-align: right;">{content_rendered}</div></div><img src="{_user_avatar_url}" class="avatar"></div>''',
                             unsafe_allow_html=True
                         )
                         if st.button("", key=f"user_select_trigger_{idx}", help="Mesajınızı seçin"):
@@ -2947,11 +2989,10 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                 st.session_state.active_chat_select_idx = idx
                                 st.session_state.active_assistant_select_idx = None
                             st.rerun()
-                        st.markdown('</div>', unsafe_allow_html=True)
 
                     if st.session_state.get("active_chat_select_idx") == idx:
                         st.markdown('<div class="msg-ops-container">', unsafe_allow_html=True)
-                        col_space, col_btn1, col_btn2 = st.columns([7.8, 0.4, 0.4])
+                        col_space, col_btn1, col_btn2 = st.columns([7.0, 1.5, 1.5])
                         with col_btn1:
                             if st.button("✏️", key=f"chat_edit_{idx}", help="Mesajı Düzenle"):
                                 st.session_state.active_chat_edit_idx = idx
