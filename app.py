@@ -1369,15 +1369,15 @@ else:
         width: fit-content;
     }}
     /* User Container Select Button Overlay */
-    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker) {
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker) {{
         position: relative !important;
         transition: opacity 0.2s ease !important;
-    }
-    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker):hover {
+    }}
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker):hover {{
         opacity: 0.94 !important;
         cursor: pointer !important;
-    }
-    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker) div[data-testid="stButton"] {
+    }}
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker) > div.element-container:has(div[data-testid="stButton"]) {{
         position: absolute !important;
         top: 0 !important;
         left: 0 !important;
@@ -1386,8 +1386,8 @@ else:
         margin: 0 !important;
         padding: 0 !important;
         z-index: 10 !important;
-    }
-    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker) div[data-testid="stButton"] button {
+    }}
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .user-bubble-container-marker) > div.element-container:has(div[data-testid="stButton"]) button {{
         width: 100% !important;
         height: 100% !important;
         background: transparent !important;
@@ -1397,18 +1397,18 @@ else:
         cursor: pointer !important;
         padding: 0 !important;
         margin: 0 !important;
-    }
+    }}
 
     /* Assistant Container Select Button Overlay */
-    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker) {
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker) {{
         position: relative !important;
         transition: opacity 0.2s ease !important;
-    }
-    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker):hover {
+    }}
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker):hover {{
         opacity: 0.94 !important;
         cursor: pointer !important;
-    }
-    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker) div[data-testid="stButton"] {
+    }}
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker) > div.element-container:has(div[data-testid="stButton"]) {{
         position: absolute !important;
         top: 0 !important;
         left: 0 !important;
@@ -1417,8 +1417,8 @@ else:
         margin: 0 !important;
         padding: 0 !important;
         z-index: 10 !important;
-    }
-    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker) div[data-testid="stButton"] button {
+    }}
+    div[data-testid="stVerticalBlock"]:has(> div.element-container .assistant-bubble-container-marker) > div.element-container:has(div[data-testid="stButton"]) button {{
         width: 100% !important;
         height: 100% !important;
         background: transparent !important;
@@ -1428,19 +1428,19 @@ else:
         cursor: pointer !important;
         padding: 0 !important;
         margin: 0 !important;
-    }
+    }}
 
-    div.msg-ops-container {
+    div.msg-ops-container {{
         width: 100%;
         margin-top: 5px;
         margin-bottom: 12px;
         display: block !important;
-    }
-    div.msg-ops-container div[data-testid="stButton"] {
+    }}
+    div.msg-ops-container div[data-testid="stButton"] {{
         display: inline-block !important;
         margin: 0 4px !important;
-    }
-    div.msg-ops-container div[data-testid="stButton"] button {
+    }}
+    div.msg-ops-container div[data-testid="stButton"] button {{
         border-radius: 8px !important;
         width: 32px !important;
         height: 32px !important;
@@ -1458,21 +1458,21 @@ else:
         box-shadow: 0 2px 6px rgba(243, 156, 18, 0.3) !important;
         color: #fff !important;
         transition: transform 0.2s ease, background-color 0.2s ease !important;
-    }
-    div.msg-ops-container div[data-testid="stButton"] button p {
+    }}
+    div.msg-ops-container div[data-testid="stButton"] button p {{
         font-size: 16px !important;
         margin: 0 !important;
         padding: 0 !important;
         color: #fff !important;
         line-height: 1 !important;
         display: inline-block !important;
-    }
-    div.msg-ops-container div[data-testid="stButton"] button:hover {
+    }}
+    div.msg-ops-container div[data-testid="stButton"] button:hover {{
         transform: scale(1.1) !important;
         background-color: rgba(243, 156, 18, 0.25) !important;
         border-color: #f39c12 !important;
         box-shadow: 0 4px 10px rgba(243, 156, 18, 0.5) !important;
-    }
+    }}
     .assistant-box *, .user-box *, .assistant-bubble *, .user-bubble * {{
         word-wrap: break-word !important; overflow-wrap: break-word !important;
         word-break: break-word !important; max-width: 100% !important;
