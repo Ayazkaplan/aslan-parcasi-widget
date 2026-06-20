@@ -279,8 +279,7 @@ components.html("""
       'Temay': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><path d="M19 2s3 2 3 6-3 6-3 6"/><circle cx="6" cy="12" r="2"/><circle cx="10" cy="18" r="2"/><circle cx="18" cy="16" r="2"/><circle cx="6" cy="18" r="0"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10"/></svg>',
       'Sohbeti Temizle': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
       'k\\u0131\\u015f Yap': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
-      'Hesab': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
-      'Hesabım': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+      'Hesab': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
       'YouTube Portal': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
       'netici Panel': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
       'Sohbet': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
@@ -292,8 +291,7 @@ components.html("""
       'Kaydet': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>',
       'Paneline D': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
       'Ekran': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
-      'G\\u00f6nder': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
-      '\\ud83d\\udce4': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+      'G\\u00f6nder': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
       'ifre': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
       'Sil': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
       'Ayarlar': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
@@ -304,11 +302,12 @@ components.html("""
       var btns = pd.querySelectorAll('button[kind] p, button[data-testid] p');
       btns.forEach(function(p) {
         if (p.getAttribute('data-icons-done')) return;
-        var origTxt = p.textContent || '';
-        var txt = origTxt;
+        var txt = p.textContent || '';
+        // Önce emojiyi kaldır (regex'i string'den oluştur - Python surrogate sorunu için)
         var emojiRe = new RegExp('[\\uD83C-\\uDBFF][\\uDC00-\\uDFFF]|[\\u2600-\\u27BF]|\\uFE0F', 'g');
         if (emojiRe.test(txt)) {
           emojiRe.lastIndex = 0;
+          // textNode'lardan emojiyi temizle
           Array.from(p.childNodes).forEach(function(n) {
             if (n.nodeType === 3) {
               var cleanRe = new RegExp('[\\uD83C-\\uDBFF][\\uDC00-\\uDFFF]|[\\u2600-\\u27BF]|\\uFE0F', 'g');
@@ -317,8 +316,9 @@ components.html("""
           });
           txt = p.textContent || '';
         }
+        // Sonra SVG ikon ekle
         for (var key in icons) {
-          if (txt.indexOf(key) !== -1 || origTxt.indexOf(key) !== -1) {
+          if (txt.indexOf(key) !== -1) {
             var span = pd.createElement('span');
             span.className = 'st-icon-svg';
             span.innerHTML = icons[key];
@@ -332,75 +332,11 @@ components.html("""
       });
     }
 
-    function setupInputHandlers() {
-      var textareas = pd.querySelectorAll('textarea, input[data-testid="stTextInput"] input');
-      textareas.forEach(function(el) {
-        if (el.getAttribute('data-handlers-done')) return;
-        el.setAttribute('data-handlers-done', 'true');
-        
-        el.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') {
-            // Check if it is the DM chat textarea so we let the mobile keyboards naturally go to next line!
-            var keyAttr = el.getAttribute('key') || '';
-            var placeholder = el.getAttribute('placeholder') || '';
-            if (placeholder.includes('Mesaj\u0131n\u0131z...') || keyAttr.includes('dm_text_input') || placeholder.includes('Mesaj yaz...')) {
-              // Mobile / Desktop Enter must naturally add a newline and NOT submit
-              return;
-            }
-            if (e.shiftKey) {
-              if (el.tagName === 'INPUT') {
-                e.preventDefault();
-              }
-            } else {
-              e.preventDefault();
-              
-              // Safe closest fallback for mobile compatibility
-              var container = null;
-              if (el.closest) {
-                container = el.closest('div[data-testid="element-container"]');
-              } else {
-                var current = el;
-                while (current) {
-                  if (current.getAttribute && current.getAttribute('data-testid') === 'element-container') {
-                    container = current;
-                    break;
-                  }
-                  current = current.parentElement;
-                }
-              }
-              
-              var parentSection = container ? container.parentElement : null;
-              var sendBtn = null;
-              if (parentSection) {
-                sendBtn = parentSection.querySelector('button[key*="send"], button[key*="gonder"], button[key*="btn"]');
-                if (!sendBtn) {
-                  sendBtn = Array.from(parentSection.querySelectorAll('button')).find(function(b) {
-                    var text = b.textContent || '';
-                    return text.includes('\ud83d\ude80') || text.includes('\ud83d\udce4') || text.includes('G\u00f6nder') || text.includes('Send') || text.includes('Yaz');
-                  });
-                }
-              }
-              if (!sendBtn) {
-                sendBtn = pd.querySelector('button[key*="send"], button[key*="gonder"], button[key*="btn"]');
-              }
-              if (sendBtn) {
-                sendBtn.click();
-              }
-            }
-          }
-        });
-
-        el.addEventListener('focus', function() {
-          setTimeout(function() {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 300);
-        });
-      });
-    }
-
-    setTimeout(function() { injectIcons(); setupInputHandlers(); }, 500);
+    // İlk çalıştırma + MutationObserver ile yeni butonları da yakala
+    setTimeout(function() { injectIcons(); }, 500);
     var btnObs = new MutationObserver(function() {
-      setTimeout(function() { injectIcons(); setupInputHandlers(); }, 100);
+      setTimeout(injectIcons, 100);
+      // Avatar tıklama: profil yuvarlağına tıklayınca gizli file uploader açılır
       var avatar = pd.querySelector('.profil-avatar-wrap img');
       if (avatar && !avatar.dataset.clickBound) {
         avatar.dataset.clickBound = '1';
@@ -411,6 +347,7 @@ components.html("""
       }
     });
     btnObs.observe(pd.body || pd.documentElement, { childList: true, subtree: true });
+    // İlk avatar setup
     setTimeout(function() {
       var avatar = pd.querySelector('.profil-avatar-wrap img');
       if (avatar && !avatar.dataset.clickBound) {
@@ -946,18 +883,10 @@ if not st.session_state.user_logged_in:
                                 else:
                                     st.error(f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {kalan_dakika} dakika")
                             else:
-                                u_foto_backup = user_data.get("profil_foto_backup", "")
-                                db.collection("users").document(query[0].id).update({
-                                    "durum": "Aktif",
-                                    "ban_bitis_zamani": None,
-                                    "profil_foto": u_foto_backup if u_foto_backup else user_data.get("profil_foto", ""),
-                                    "profil_foto_backup": ""
-                                })
+                                db.collection("users").document(query[0].id).update({"durum": "Aktif", "ban_bitis_zamani": None})
                                 db.collection("banlanan_emails").document(clean_email).delete()
                                 user_data["durum"] = "Aktif"
                                 user_data["ban_bitis_zamani"] = None
-                                if u_foto_backup:
-                                    user_data["profil_foto"] = u_foto_backup
                         else:
                             is_banned = True
                             st.error("❌ Hesabınız pasifleştirilmiştir. Giriş yapamazsınız!")
@@ -1129,15 +1058,7 @@ else:
                 else:
                     ban_hata_mesaji = f"❌ Hesabınız pasifleştirilmiştir. Kalan süre: {kalan_dakika} dakika"
             else:
-                u_foto_backup = user_doc.get("profil_foto_backup", "")
-                db.collection("users").document(uid).update({
-                    "durum": "Aktif",
-                    "ban_bitis_zamani": None,
-                    "profil_foto": u_foto_backup if u_foto_backup else user_doc.get("profil_foto", ""),
-                    "profil_foto_backup": ""
-                })
-                if u_foto_backup:
-                    user_doc["profil_foto"] = u_foto_backup
+                db.collection("users").document(uid).update({"durum": "Aktif", "ban_bitis_zamani": None})
                 u_email_unban = user_doc.get("email", "").strip().lower()
                 db.collection("banlanan_emails").document(u_email_unban).delete()
                 user_doc["durum"] = "Aktif"
@@ -1310,11 +1231,9 @@ else:
     with st.sidebar:
         saat_gosterici()
 
-        # --- AYARLAR VE HESAPLAR STATE ---
+        # --- AYARLAR STATE ---
         if "sidebar_settings_open" not in st.session_state:
             st.session_state.sidebar_settings_open = False
-        if "sidebar_accounts_open" not in st.session_state:
-            st.session_state.sidebar_accounts_open = False
 
         if st.session_state.sidebar_settings_open:
             # ═══ AYARLAR SAYFASI (sadece Çıkış + Hesabımı Sil) ═══
@@ -1352,24 +1271,6 @@ else:
             st.divider()
             if st.button("← Geri", use_container_width=True, key="close_settings_btn"):
                 st.session_state.sidebar_settings_open = False
-                st.rerun()
-
-        elif st.session_state.sidebar_accounts_open:
-            # ═══ HESAPLAR ALT MENÜSÜ ═══
-            st.markdown("#### 👥 Hesaplar")
-            st.divider()
-
-            if st.button("👥 Arkadaş Ara", use_container_width=True, key="sub_arkadas_ara_btn"):
-                st.session_state.current_page = "arkadas_ara"
-                st.rerun()
-
-            if st.button("💬 Mesajlarım (DM)", use_container_width=True, key="sub_dm_inbox_btn"):
-                st.session_state.current_page = "dm_inbox"
-                st.rerun()
-
-            st.divider()
-            if st.button("← Geri", use_container_width=True, key="close_accounts_btn"):
-                st.session_state.sidebar_accounts_open = False
                 st.rerun()
 
         else:
@@ -1462,8 +1363,12 @@ else:
                 st.rerun()
 
             st.divider()
-            if st.button("👥 Hesaplar", use_container_width=True, key="accounts_menu_btn"):
-                st.session_state.sidebar_accounts_open = True
+            if st.button("👥 Arkadaş Ara", use_container_width=True, key="arkadas_ara_btn"):
+                st.session_state.current_page = "arkadas_ara"
+                st.rerun()
+
+            if st.button("💬 Mesajlarım (DM)", use_container_width=True, key="dm_inbox_btn"):
+                st.session_state.current_page = "dm_inbox"
                 st.rerun()
 
             if st.button("👤 Hesabım", use_container_width=True, key="hesabim_btn"):
@@ -1791,9 +1696,7 @@ else:
                         col_info, col_sec, col_act = st.columns([4, 3, 3])
                         with col_info:
                             _u_foto = u_data.get("profil_foto", "")
-                            if u_durum == "Pasif":
-                                _u_foto_src = "https://cdn-icons-png.flaticon.com/512/616/616412.png"
-                            elif _u_foto:
+                            if _u_foto:
                                 _u_foto_src = f"data:image/jpeg;base64,{_u_foto}"
                             else:
                                 _u_foto_src = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
@@ -1805,28 +1708,6 @@ else:
                             _u_styled = get_styled_user_name(u_isim, _u_color, _u_glow, _u_tag, _u_rozet)
                             st.markdown(f"### {_u_styled}", unsafe_allow_html=True)
                             st.markdown(f"📧 **E-posta:** `{u_email}`")
-
-                            # Arkadaş, Takipçi, Takip sayıları (Bug 6)
-                            _u_arkadaslar = u_data.get("arkadaslar", [])
-                            _u_takipciler = u_data.get("takipciler", [])
-                            _u_takip_ettiklerim = u_data.get("takip_ettiklerim", [])
-
-                            def resolve_and_format_usernames(id_list):
-                                if not id_list: return "Liste boş"
-                                names = []
-                                for some_id in id_list:
-                                    try:
-                                        some_doc = db.collection("users").document(some_id).get()
-                                        if some_doc.exists:
-                                            names.append(some_doc.to_dict().get("isim", "Bilinmiyor"))
-                                    except Exception:
-                                        pass
-                                return ", ".join(names) if names else "Kimse bulunamadı"
-
-                            with st.expander(f"🤝 Sosyal Bilgiler (Arkadaş: {len(_u_arkadaslar)} | Takipçi: {len(_u_takipciler)} | Takip: {len(_u_takip_ettiklerim)})"):
-                                st.markdown(f"**Arkadaşlar ({len(_u_arkadaslar)}):** {resolve_and_format_usernames(_u_arkadaslar)}")
-                                st.markdown(f"**Takipçiler ({len(_u_takipciler)}):** {resolve_and_format_usernames(_u_takipciler)}")
-                                st.markdown(f"**Takip Edilenler ({len(_u_takip_ettiklerim)}):** {resolve_and_format_usernames(_u_takip_ettiklerim)}")
                             if is_online: st.markdown("🟢 **Çevrimiçi**")
                             else:
                                 st.markdown("🔴 **Çevrimdışı**")
@@ -1882,13 +1763,7 @@ else:
                                     with c_confirm:
                                         if st.button("Onayla", key=f"confirm_ban_{u_id}", use_container_width=True):
                                             ban_bitis_zamani = datetime.now(timezone.utc) + timedelta(minutes=ban_sure)
-                                            u_foto_backup = u_data.get("profil_foto", "")
-                                            db.collection("users").document(u_id).update({
-                                                "durum": "Pasif",
-                                                "ban_bitis_zamani": ban_bitis_zamani,
-                                                "profil_foto": "",
-                                                "profil_foto_backup": u_foto_backup
-                                            })
+                                            db.collection("users").document(u_id).update({"durum": "Pasif", "ban_bitis_zamani": ban_bitis_zamani, "profil_foto": ""})
                                             db.collection("banlanan_emails").document(u_email).set({"ban_bitis_zamani": ban_bitis_zamani, "email": u_email})
                                             st.session_state[f"show_ban_{u_id}"] = False
                                             st.session_state.valid_users_cache = None
@@ -1900,13 +1775,7 @@ else:
                                             st.rerun()
                             else:
                                 if st.button("Aktifleştir", key=f"status_{u_id}", use_container_width=True):
-                                    u_foto_restored = u_data.get("profil_foto_backup", "")
-                                    db.collection("users").document(u_id).update({
-                                        "durum": "Aktif",
-                                        "ban_bitis_zamani": None,
-                                        "profil_foto": u_foto_restored if u_foto_restored else u_data.get("profil_foto", ""),
-                                        "profil_foto_backup": ""
-                                    })
+                                    db.collection("users").document(u_id).update({"durum": "Aktif", "ban_bitis_zamani": None})
                                     db.collection("banlanan_emails").document(u_email).delete()
                                     st.session_state.valid_users_cache = None
                                     st.success("Hesap aktifleştirildi.")
@@ -2287,9 +2156,6 @@ else:
     else:
         # ─── SOHBET SAYFASI ────────────────────────────────────────────
         if st.session_state.current_page == "chat":
-            if st.session_state.get("play_send_sound", False):
-                st.markdown('<audio autoplay style="display:none;"><source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav" type="audio/wav"></audio>', unsafe_allow_html=True)
-                st.session_state.play_send_sound = False
 
             # --- ARKA PLAN KONTROL (tamamen görünmez — kullanıcı deneyimini etkilemez) ---
             _bg_container = st.container()
@@ -2379,74 +2245,12 @@ else:
             bildirim_sayisi = len(gelen_istekler) + len(okunmamis_yetkili)
             bildirim_badge = f" ({bildirim_sayisi})" if bildirim_sayisi > 0 else ""
 
-            st.markdown("""<style>
-            button[key="bildirim_btn"] {
-                border-radius: 50% !important;
-                width: 44px !important;
-                height: 44px !important;
-                min-width: 44px !important;
-                max-width: 44px !important;
-                padding: 0 !important;
-                font-size: 18px !important;
-                display: inline-flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                background-color: #1a1a3a !important;
-                border: 2px solid #f39c12 !important;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
-            }
-            div[data-testid="stPopover"] button {
-                border-radius: 50% !important;
-                width: 44px !important;
-                height: 44px !important;
-                min-width: 44px !important;
-                max-width: 44px !important;
-                padding: 0 !important;
-                font-size: 18px !important;
-                display: inline-flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                background-color: #1a1a3a !important;
-                border: 2px solid #f39c12 !important;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
-            }
-            </style>""", unsafe_allow_html=True)
-
             col_title, col_bildirim = st.columns([6, 1])
             with col_title:
                 st.title("🤖 Aslan Parçası V17.3")
             with col_bildirim:
-                # Info button on top
-                with st.popover("ℹ️", help="Uygulama Bilgisi"):
-                    st.markdown("## 🏢 Hakkımızda")
-                    st.markdown("""
-**Müstakbel Şirket**, dijital iletişim ve yapay zeka alanında öncü çözümler geliştiren, geleceğin teknolojilerini bugünün ihtiyaçlarıyla buluşturan köklü bir teknoloji kuruluşudur.
-
-**Aslan Parçası V17.3**, Müstakbel Şirket bünyesinde geliştirilen amiral gemisi yapay zeka platformudur. Gerçek zamanlı sohbet, yapay zeka destekli asistan, YouTube entegrasyonu ve topluluk yönetimi tek çatı altında sunulmaktadır.
-                    """)
-                    st.divider()
-                    st.markdown("## 🎯 Misyonumuz")
-                    st.markdown("""
-Kullanıcılarımıza güvenli, hızlı ve yapay zeka destekli bir dijital iletişim ortamı sunmak; teknolojiyi herkes için erişilebilir kılarak toplulukları bir araya getirmek ve bilgiye ulaşmayı kolaylaştırmaktır.
-                    """)
-                    st.divider()
-                    st.markdown("## 🚀 Vizyonumuz")
-                    st.markdown("""
-Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye'nin en yenilikçi dijital topluluk platformu olmak; kullanıcı deneyimini sürekli iyileştirerek global ölçekte rekabet eden bir ekosistem oluşturmaktır.
-                    """)
-                    st.divider()
-                    st.markdown("## 👥 Kadromuz")
-                    st.markdown("""
-<div style="background:rgba(255,165,0,0.08);border-left:3px solid #f39c12;padding:12px 14px;border-radius:6px;">
-<b>👑 Kurucu & CEO:</b> Ayaz Kaplan<br>
-<b>🛡️ Yönetici & Tester:</b> Mehmet Sür
-</div>
-                    """, unsafe_allow_html=True)
-
-                # Notification button directly below Info button
-                # special notification badge display inside circle
-                btn_emoji = f"🔔" if bildirim_sayisi == 0 else f"🔴"
-                if st.button(btn_emoji, key="bildirim_btn", help=f"Bildirimler ({bildirim_sayisi})"):
+                st.write("")
+                if st.button(f"🔔{bildirim_badge}", key="bildirim_btn", use_container_width=True):
                     st.session_state.bildirim_panel_open = not st.session_state.bildirim_panel_open
                     st.rerun()
 
@@ -2464,27 +2268,13 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                     if istek_snap.exists:
                                         istek_d = istek_snap.to_dict()
                                         istek_isim = istek_d.get("isim", "Bilinmiyor")
-                                        istek_color = istek_d.get("isim_rengi", "#FFFFFF")
-                                        istek_glow = istek_d.get("ismin_parlakligi", False)
-                                        istek_tag = istek_d.get("tag", "")
-                                        istek_rozet = istek_d.get("rozet", "")
-                                        
-                                        # kurucu check
-                                        if istek_d.get("email", "").strip().lower() == KURUCU_EMAIL:
-                                            if not istek_tag:
-                                                istek_color = "#FF0000"
-                                                istek_glow = True
-                                                istek_tag = "KURUCU"
-                                                istek_rozet = "🛠️"
-                                        
-                                        istek_styled = get_styled_user_name(istek_isim, istek_color, istek_glow, istek_tag, istek_rozet)
                                         istek_foto = istek_d.get("profil_foto", "")
                                         istek_foto_src = f"data:image/jpeg;base64,{istek_foto}" if istek_foto else "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-                                        col_bf, col_bn, col_ba = st.columns([1, 4, 3])
+                                        col_bf, col_bn, col_ba = st.columns([1, 3, 3])
                                         with col_bf:
                                             st.markdown(f'<img src="{istek_foto_src}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;"/>', unsafe_allow_html=True)
                                         with col_bn:
-                                            st.markdown(istek_styled, unsafe_allow_html=True)
+                                            st.markdown(f"**{istek_isim}**")
                                         with col_ba:
                                             if st.button("✅ Kabul", key=f"kabul_{istek_uid}", use_container_width=True):
                                                 # Her iki tarafı arkadaş yap
@@ -2512,34 +2302,13 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     with tab_yetkili:
                         if yetkili_msj and isinstance(yetkili_msj, list):
                             for ym_idx, ym in enumerate(reversed(yetkili_msj)):
-                                ym_gonderen_uid = ym.get("gonderen_uid", "")
                                 ym_gonderen = ym.get("gonderen_isim", "Yetkili")
-                                ym_styled_gonderen = ym_gonderen
-                                if ym_gonderen_uid:
-                                    try:
-                                        sender_snap = db.collection("users").document(ym_gonderen_uid).get()
-                                        if sender_snap.exists:
-                                            s_d = sender_snap.to_dict()
-                                            s_color = s_d.get("isim_rengi", "#FFFFFF")
-                                            s_glow = s_d.get("ismin_parlakligi", False)
-                                            s_tag = s_d.get("tag", "")
-                                            s_rozet = s_d.get("rozet", "")
-                                            if s_d.get("email", "").strip().lower() == KURUCU_EMAIL:
-                                                if not s_tag:
-                                                    s_color = "#FF0000"
-                                                    s_glow = True
-                                                    s_tag = "KURUCU"
-                                                    s_rozet = "🛠️"
-                                            ym_styled_gonderen = get_styled_user_name(ym_gonderen, s_color, s_glow, s_tag, s_rozet)
-                                    except Exception:
-                                        pass
                                 ym_icerik = ym.get("icerik", "")
                                 ym_zaman = ym.get("zaman", "")
                                 ym_okundu = ym.get("okundu", False)
                                 badge = "" if ym_okundu else "🆕 "
                                 st.markdown(f"""<div style="background:rgba(243,156,18,0.1);border-left:3px solid #f39c12;padding:8px 12px;border-radius:6px;margin-bottom:6px;">
-                                    <div style="font-size:0.95rem;display:flex;align-items:center;gap:5px;"><strong>{badge}</strong>{ym_styled_gonderen} <span style="font-size:0.75em;color:#888;">({ym_zaman})</span></div>
-                                    <div style="margin-top:6px;color:#fff;">{ym_icerik}</div>
+                                    <strong>{badge}{ym_gonderen}</strong> <span style="font-size:0.75em;color:#888;">({ym_zaman})</span><br>{ym_icerik}
                                 </div>""", unsafe_allow_html=True)
                             # Okundu olarak işaretle
                             if okunmamis_yetkili:
@@ -2556,7 +2325,32 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                         st.session_state.bildirim_panel_open = False
                         st.rerun()
 
-            # ── Bilgi Butonu kaldırıldı (Zaten en üstte bulunuyor)
+            # ── Bilgi Butonu ──
+            with st.popover("ℹ️"):
+                st.markdown("## 🏢 Hakkımızda")
+                st.markdown("""
+**Müstakbel Şirket**, dijital iletişim ve yapay zeka alanında öncü çözümler geliştiren, geleceğin teknolojilerini bugünün ihtiyaçlarıyla buluşturan köklü bir teknoloji kuruluşudur.
+
+**Aslan Parçası V17.3**, Müstakbel Şirket bünyesinde geliştirilen amiral gemisi yapay zeka platformudur. Gerçek zamanlı sohbet, yapay zeka destekli asistan, YouTube entegrasyonu ve topluluk yönetimi tek çatı altında sunulmaktadır.
+                """)
+                st.divider()
+                st.markdown("## 🎯 Misyonumuz")
+                st.markdown("""
+Kullanıcılarımıza güvenli, hızlı ve yapay zeka destekli bir dijital iletişim ortamı sunmak; teknolojiyi herkes için erişilebilir kılarak toplulukları bir araya getirmek ve bilgiye ulaşmayı kolaylaştırmaktır.
+                """)
+                st.divider()
+                st.markdown("## 🚀 Vizyonumuz")
+                st.markdown("""
+Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye'nin en yenilikçi dijital topluluk platformu olmak; kullanıcı deneyimini sürekli iyileştirerek global ölçekte rekabet eden bir ekosistem oluşturmaktır.
+                """)
+                st.divider()
+                st.markdown("## 👥 Kadromuz")
+                st.markdown("""
+<div style="background:rgba(255,165,0,0.08);border-left:3px solid #f39c12;padding:12px 14px;border-radius:6px;">
+<b>👑 Kurucu & CEO:</b> Ayaz Kaplan<br>
+<b>🛡️ Yönetici & Tester:</b> Mehmet Sür
+</div>
+                """, unsafe_allow_html=True)
 
             user_doc_fresh = user_ref.get().to_dict()
             kullanici_ismi_fresh = user_doc_fresh.get('isim', kullanici_ismi)
@@ -2706,7 +2500,6 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     }
 
                     st.session_state.messages.append(user_msg)
-                    st.session_state.play_send_sound = True
                     user_ref.update({"sohbet_gecmisi": firestore.ArrayUnion([user_msg])})
 
                     cevap = ai_cevap(st.session_state.messages[-6:])
@@ -2770,16 +2563,12 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                 else:
                     k_foto_src = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-                k_friends_count = len(k_data.get("arkadaslar", []))
-                k_followers_count = len(k_data.get("takipciler", []))
-
                 with st.container(border=True):
                     col_av, col_name, col_acts = st.columns([1, 4, 3])
                     with col_av:
                         st.markdown(f'<img src="{k_foto_src}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;"/>', unsafe_allow_html=True)
                     with col_name:
                         st.markdown(f"{k_styled}", unsafe_allow_html=True)
-                        st.caption(f"👥 Arkadaş: **{k_friends_count}** | 👁️ Takipçi: **{k_followers_count}**")
                     with col_acts:
                         # Arkadaşlık durumu
                         if k_id in my_arkadaslar:
@@ -2799,13 +2588,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
 
                         # Takip butonu
                         if k_id in my_takip_ettiklerim:
-                            if st.button("🚫 Takipten Çık", key=f"takipten_cik_{k_id}_{idx}", use_container_width=True):
-                                user_ref.update({"takip_ettiklerim": firestore.ArrayRemove([k_id])})
-                                db.collection("users").document(k_id).update({
-                                    "takipciler": firestore.ArrayRemove([uid])
-                                })
-                                st.success(f"'{k_isim}' takipten çıkarıldı!")
-                                st.rerun()
+                            st.markdown("👁️ Takip Ediliyor", unsafe_allow_html=True)
                         else:
                             if st.button("👁️ Takip Et", key=f"takip_{k_id}_{idx}", use_container_width=True):
                                 user_ref.update({"takip_ettiklerim": firestore.ArrayUnion([k_id])})
@@ -2814,32 +2597,6 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                 })
                                 st.success(f"'{k_isim}' takip edildi!")
                                 st.rerun()
-
-                    # "Hesabına Bak" tuşu - Expander ile açılan detaylı profil penceresi (Bug 4)
-                    with st.expander(f"🔍 Hesabına Bak ({k_isim})"):
-                        st.markdown(f"### 👤 {k_styled}", unsafe_allow_html=True)
-                        st.write("---")
-                        
-                        _k_friends = k_data.get("arkadaslar", [])
-                        _k_following = k_data.get("takip_ettiklerim", [])
-                        _k_followers = k_data.get("takipciler", [])
-                        
-                        def resolve_names_local(ids):
-                            if not ids: return "Kimse yok"
-                            resolved = []
-                            for some_uid in ids:
-                                try:
-                                    s_doc = db.collection("users").document(some_uid).get()
-                                    if s_doc.exists:
-                                        resolved.append(s_doc.to_dict().get("isim", "Bilinmiyor"))
-                                except Exception:
-                                    pass
-                            return ", ".join(resolved) if resolved else "Kimse yok"
-                            
-                        st.markdown(f"🎯 **Takip Ettiği Kişi Sayısı:** `{len(_k_following)}`")
-                        st.markdown(f"👉 **Takip Ettiği Kişiler:** {resolve_names_local(_k_following)}")
-                        st.markdown(f"📈 **Takipçi Sayısı:** `{len(_k_followers)}`")
-                        st.markdown(f"🤝 **Arkadaşlar:** {resolve_names_local(_k_friends)}")
 
         # ═══════════════════════════════════════════════════
         # 👤 HESABIM SAYFASI
@@ -2946,10 +2703,6 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
         # 💬 DM CHAT SAYFASI (Bireysel sohbet)
         # ═══════════════════════════════════════════════════
         elif st.session_state.current_page == "dm_chat":
-            if st.session_state.get("play_send_sound", False):
-                st.markdown('<audio autoplay style="display:none;"><source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav" type="audio/wav"></audio>', unsafe_allow_html=True)
-                st.session_state.play_send_sound = False
-
             dm_partner_id = st.session_state.get("dm_partner_id", "")
             if not dm_partner_id:
                 st.session_state.current_page = "dm_inbox"
@@ -2966,43 +2719,6 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
             partner_foto = partner_data.get("profil_foto", "")
             partner_foto_src = f"data:image/jpeg;base64,{partner_foto}" if partner_foto else "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-            partner_color = partner_data.get("isim_rengi", "#FFFFFF")
-            partner_glow = partner_data.get("ismin_parlakligi", False)
-            partner_tag = partner_data.get("tag", "")
-            partner_rozet = partner_data.get("rozet", "")
-            
-            partner_email = partner_data.get("email", "").strip().lower()
-            if partner_email == KURUCU_EMAIL:
-                if not partner_tag:
-                    partner_color = "#FF0000"
-                    partner_glow = True
-                    partner_tag = "KURUCU"
-                    partner_rozet = "🛠️"
-
-            # Check if they are admin but not kurucu
-            partner_is_admin = partner_data.get("is_admin", False)
-            if partner_is_admin and partner_email != KURUCU_EMAIL:
-                if not partner_tag:
-                    partner_tag = "ADMIN"
-                    partner_rozet = "🛡️"
-
-            partner_styled_name = get_styled_user_name(partner_isim, partner_color, partner_glow, partner_tag, partner_rozet)
-
-            partner_online = partner_data.get("online", False)
-            partner_last_seen = partner_data.get("last_seen", "")
-            if hasattr(partner_last_seen, "to_datetime"):
-                partner_last_seen = partner_last_seen.to_datetime()
-
-            if partner_last_seen:
-                if partner_last_seen.tzinfo is None: partner_last_seen = partner_last_seen.replace(tzinfo=timezone.utc)
-                tr_offset = timezone(timedelta(hours=3))
-                partner_last_seen_tr = partner_last_seen.astimezone(tr_offset)
-                partner_last_seen_str = partner_last_seen_tr.strftime("%H:%M - %d.%m.%Y")
-            else:
-                partner_last_seen_str = "Bilinmiyor"
-
-            status_indicator = "🟢 Çevrimiçi" if partner_online else f"🔴 Son Görülme: {partner_last_seen_str}"
-
             # Arkadaşlık kontrolü (kurucu/yönetici hariç)
             is_friend = dm_partner_id in user_doc.get("arkadaslar", [])
             if not is_friend and not is_kurucu and not is_admin_user:
@@ -3013,7 +2729,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
             else:
                 col_dm_header, col_dm_back = st.columns([5, 1])
                 with col_dm_header:
-                    st.markdown(f'<div style="display:flex;align-items:center;gap:10px;"><img src="{partner_foto_src}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:1px solid #f39c12;"/><div><div style="font-size:1.15rem;display:flex;align-items:center;gap:5px;">{partner_styled_name}</div><div style="font-size:0.75rem;color:#888;margin-top:2px;">{status_indicator}</div></div></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="display:flex;align-items:center;gap:10px;"><img src="{partner_foto_src}" style="width:35px;height:35px;border-radius:50%;object-fit:cover;"/><strong>{partner_isim}</strong></div>', unsafe_allow_html=True)
                 with col_dm_back:
                     if st.button("←", key="dm_chat_back_btn", use_container_width=True):
                         st.session_state.current_page = "dm_inbox"
@@ -3034,25 +2750,6 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
 
                 # Mesajları göster
                 dm_container = st.container(height=400)
-                
-                # Current user styles
-                user_doc_fresh_dm = user_ref.get().to_dict()
-                u_color_fresh_dm = user_doc_fresh_dm.get("isim_rengi", "#FFFFFF")
-                u_glow_fresh_dm = user_doc_fresh_dm.get("ismin_parlakligi", False)
-                u_tag_fresh_dm = user_doc_fresh_dm.get("tag", "")
-                u_rozet_fresh_dm = user_doc_fresh_dm.get("rozet", "")
-                _user_foto_dm = user_doc_fresh_dm.get("profil_foto", "")
-                _user_avatar_url_dm = f"data:image/jpeg;base64,{_user_foto_dm}" if _user_foto_dm else USER_AVATAR
-
-                if is_kurucu:
-                    if not user_doc_fresh_dm.get("tag"):
-                        u_color_fresh_dm = "#FF0000"
-                        u_glow_fresh_dm = True
-                        u_rozet_fresh_dm = "🛠️"
-                        u_tag_fresh_dm = "KURUCU"
-
-                display_name_dm = get_styled_user_name(user_doc_fresh_dm.get('isim', kullanici_ismi), u_color_fresh_dm, u_glow_fresh_dm, u_tag_fresh_dm, u_rozet_fresh_dm)
-
                 with dm_container:
                     for dm_msg in dm_mesajlar:
                         dm_sender = dm_msg.get("gonderen", "")
@@ -3061,17 +2758,11 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                         dm_zaman = dm_msg.get("zaman", "")
 
                         if dm_sender == uid:
-                            s_foto_src = _user_avatar_url_dm
-                            s_styled = display_name_dm
                             align = "right"
                             bg_color = "rgba(243,156,18,0.2)"
-                            flex_dir = "row-reverse"
                         else:
-                            s_foto_src = partner_foto_src
-                            s_styled = partner_styled_name
                             align = "left"
                             bg_color = "rgba(255,255,255,0.05)"
-                            flex_dir = "row"
 
                         if dm_type == "gif":
                             dm_html = f'<img src="{dm_content}" style="max-width:200px;border-radius:8px;"/>'
@@ -3080,28 +2771,16 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                         else:
                             dm_html = dm_content
 
-                        st.markdown(f'''
-                        <div style="display:flex; flex-direction:{flex_dir}; align-items:flex-start; gap:10px; margin:12px 0;">
-                            <img src="{s_foto_src}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #f39c12;margin-top:2px;"/>
-                            <div style="display:flex; flex-direction:column; align-items:{"flex-end" if dm_sender == uid else "flex-start"}; max-width:75%;">
-                                <div style="font-size:0.8rem; margin-bottom:4px;">{s_styled}</div>
-                                <div style="background:{bg_color}; padding:8px 12px; border-radius:12px; font-size:0.95rem; white-space:pre-wrap; word-break:break-word;">
-                                    {dm_html}
-                                    <div style="font-size:0.65em; color:#aaa; margin-top:4px; text-align:{"right" if dm_sender == uid else "left"};">{dm_zaman}</div>
-                                </div>
-                            </div>
-                        </div>
-                        ''', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align:{align};margin:4px 0;"><div style="display:inline-block;background:{bg_color};padding:8px 12px;border-radius:12px;max-width:70%;text-align:left;">{dm_html}<div style="font-size:0.65em;color:#888;margin-top:2px;">{dm_zaman}</div></div></div>', unsafe_allow_html=True)
 
                 # Mesaj gönderme
                 st.markdown("---")
-                col_dm_input, col_dm_send = st.columns([5, 1.2])
+                col_dm_input, col_dm_send = st.columns([5, 1])
                 with col_dm_input:
-                    dm_yeni_mesaj = st.text_area("Mesaj yaz...", key="dm_text_input", label_visibility="collapsed", placeholder="Mesajınız...", height=70)
+                    dm_yeni_mesaj = st.text_input("Mesaj yaz...", key="dm_text_input", label_visibility="collapsed", placeholder="Mesajınız...")
                 with col_dm_send:
-                    if st.button("📤 Gönder", key="dm_send_btn", use_container_width=True):
+                    if st.button("📤", key="dm_send_btn", use_container_width=True):
                         if dm_yeni_mesaj.strip():
-                            st.session_state.play_send_sound = True
                             zaman_str = get_tr_time().strftime("%H:%M")
                             yeni_dm = {
                                 "gonderen": uid,
@@ -3112,16 +2791,27 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                             dm_doc_ref.set({"mesajlar": firestore.ArrayUnion([yeni_dm])}, merge=True)
                             st.rerun()
 
-                # Sesli mesaj - GIF kaldırıldı
-                voice_file = st.file_uploader("Sesli Mesaj Gönder", type=["webm", "ogg", "mp3", "wav"], key="dm_voice_upload")
-                if voice_file is not None:
-                    if st.button("🎤 Sesli Gönder", key="dm_voice_send", use_container_width=True):
-                        st.session_state.play_send_sound = True
-                        voice_b64 = base64.b64encode(voice_file.read()).decode("utf-8")
-                        zaman_str = get_tr_time().strftime("%H:%M")
-                        voice_dm = {"gonderen": uid, "icerik": voice_b64, "tip": "voice", "zaman": zaman_str}
-                        dm_doc_ref.set({"mesajlar": firestore.ArrayUnion([voice_dm])}, merge=True)
-                        st.rerun()
+                # GIF gönderme
+                col_gif, col_voice = st.columns(2)
+                with col_gif:
+                    gif_url = st.text_input("GIF URL:", key="dm_gif_input", placeholder="GIF linki yapıştır...", label_visibility="collapsed")
+                    if st.button("GIF Gönder", key="dm_gif_send", use_container_width=True):
+                        if gif_url.strip():
+                            zaman_str = get_tr_time().strftime("%H:%M")
+                            gif_dm = {"gonderen": uid, "icerik": gif_url.strip(), "tip": "gif", "zaman": zaman_str}
+                            dm_doc_ref.set({"mesajlar": firestore.ArrayUnion([gif_dm])}, merge=True)
+                            st.rerun()
+
+                # Sesli mesaj
+                with col_voice:
+                    voice_file = st.file_uploader("Sesli Mesaj", type=["webm", "ogg", "mp3", "wav"], key="dm_voice_upload", label_visibility="collapsed")
+                    if voice_file is not None:
+                        if st.button("🎤 Sesli Gönder", key="dm_voice_send", use_container_width=True):
+                            voice_b64 = base64.b64encode(voice_file.read()).decode("utf-8")
+                            zaman_str = get_tr_time().strftime("%H:%M")
+                            voice_dm = {"gonderen": uid, "icerik": voice_b64, "tip": "voice", "zaman": zaman_str}
+                            dm_doc_ref.set({"mesajlar": firestore.ArrayUnion([voice_dm])}, merge=True)
+                            st.rerun()
 
         # ═══════════════════════════════════════════════════
         # ✉️ ADMIN MESAJ GÖNDERİMİ SAYFASI
