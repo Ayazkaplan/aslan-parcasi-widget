@@ -1420,8 +1420,12 @@ else:
     /* Target direct children of button inside our operations area so writing displays correctly */
     div.element-container:has(.assistant-ops-marker) + div.element-container button * {{
         color: #ffffff !important;
-        font-size: 16px !important;
+        font-size: 20px !important;
         font-weight: bold !important;
+        line-height: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }}
     .assistant-box *, .user-box *, .assistant-bubble *, .user-bubble * {{
         word-wrap: break-word !important; overflow-wrap: break-word !important;
@@ -2895,7 +2899,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
 
                     with st.container():
                         st.markdown('<div class="assistant-ops-marker"></div>', unsafe_allow_html=True)
-                        if st.button("🔄", key=f"assistant_regen_{idx}", help="Cevabı Yeniden Oluştur"):
+                        if st.button("↻", key=f"assistant_regen_{idx}", help="Cevabı Yeniden Oluştur"):
                             with st.spinner("Aslan Parçası analiz ediyor ve yeni bir yanıt oluşturuyor..."):
                                 messages_context = st.session_state.messages[:idx]
                                 yeni_cevap = ai_cevap(messages_context[-6:])
