@@ -308,7 +308,7 @@ components.html("""
         if (p.getAttribute('data-icons-done')) return;
         var origTxt = p.textContent || '';
         var txt = origTxt;
-        if (txt.indexOf('✎') === -1 && txt.indexOf('🗑') === -1) {
+        if (txt.indexOf('✎') === -1) {
           var emojiRe = new RegExp('[\\uD83C-\\uDBFF][\\uDC00-\\uDFFF]|[\\u2600-\\u27BF]|\\uFE0F', 'g');
           if (emojiRe.test(txt)) {
             emojiRe.lastIndex = 0;
@@ -1442,29 +1442,6 @@ else:
         padding-right: 50px !important; /* Pre-calculated to stay to the left of the 40px user avatar + 10px gap */
         box-sizing: border-box !important;
         height: 32px !important;
-    }}
-
-    /* Aligns column wrapper row container horizontally to the right end with custom gaps */
-    div.element-container:has(.user-ops-marker) + div.element-container > div,
-    div.element-container:has(.user-ops-marker) + div.element-container [data-testid="stHorizontalBlock"] {{
-        display: flex !important;
-        flex-direction: row !important;
-        justify-content: flex-end !important;
-        align-items: center !important;
-        gap: 8px !important;
-        width: auto !important;
-        margin-left: auto !important;
-        margin-right: 0 !important;
-    }}
-
-    /* Keep columns tightly wrapped to be exactly 32px square buttons */
-    div.element-container:has(.user-ops-marker) + div.element-container [data-testid="column"] {{
-        flex: 0 0 32px !important;
-        width: 32px !important;
-        min-width: 32px !important;
-        max-width: 32px !important;
-        padding: 0 !important;
-        margin: 0 !important;
     }}
 
     /* Align the Streamlit button wrapper container to the right too */
@@ -3025,20 +3002,10 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
 
                     if idx == last_user_idx:
                         st.markdown('<div class="user-ops-marker"></div>', unsafe_allow_html=True)
-                        col_ops_1, col_ops_2 = st.columns([1, 1])
-                        with col_ops_1:
-                            if st.button("🗑", key=f"user_delete_trigger_{idx}"):
-                                new_chat = list(st.session_state.messages)
-                                new_chat.pop(idx)
-                                st.session_state.messages = new_chat
-                                user_ref.update({"sohbet_gecmisi": new_chat})
-                                st.success("Mesaj silindi!")
-                                st.rerun()
-                        with col_ops_2:
-                            if st.button("✎", key=f"user_edit_trigger_{idx}"):
-                                st.session_state.active_chat_edit_idx = idx
-                                st.session_state.active_chat_edit_text = m["content"]
-                                st.rerun()
+                        if st.button("✎", key=f"user_edit_trigger_{idx}"):
+                            st.session_state.active_chat_edit_idx = idx
+                            st.session_state.active_chat_edit_text = m["content"]
+                            st.rerun()
 
                     if st.session_state.get("active_chat_edit_idx") == idx:
                         edit_val = st.text_input("Mesajı düzenle:", value=st.session_state.active_chat_edit_text, key=f"chat_edit_inp_{idx}")
