@@ -1442,6 +1442,25 @@ else:
         height: 32px !important;
     }}
 
+    /* Align columns wrapper inside columns container to right-end with gap */
+    div.element-container:has(.user-ops-marker) + div.element-container > div {{
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: flex-end !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }}
+
+    /* Condense columns to tightly wrap our buttons */
+    div.element-container:has(.user-ops-marker) + div.element-container [data-testid="column"] {{
+        flex: 0 0 auto !important;
+        width: 32px !important;
+        min-width: 32px !important;
+        max-width: 32px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }}
+
     /* Align the Streamlit button wrapper container to the right too */
     div.element-container:has(.user-ops-marker) + div.element-container .stButton,
     div.element-container:has(.user-ops-marker) + div.element-container .stButton > div {{
@@ -1469,6 +1488,8 @@ else:
         color: #ffffff !important;
         cursor: pointer !important;
         transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease !important;
+        text-align: center !important;
+        overflow: hidden !important;
     }}
 
     @media (max-width: 768px) {{
@@ -1484,14 +1505,22 @@ else:
         box-shadow: 0 4px 10px rgba(168, 85, 247, 0.5) !important;
     }}
 
-    div.element-container:has(.user-ops-marker) + div.element-container button * {{
+    /* Safe child element selectors to ensure icon rendering never collapses */
+    div.element-container:has(.user-ops-marker) + div.element-container button *,
+    div.element-container:has(.user-ops-marker) + div.element-container button p,
+    div.element-container:has(.user-ops-marker) + div.element-container button span,
+    div.element-container:has(.user-ops-marker) + div.element-container button div {{
         color: #ffffff !important;
-        font-size: 20px !important;
+        font-size: 16px !important;
         font-weight: bold !important;
         line-height: 1 !important;
-        display: flex !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
+        width: 100% !important;
+        height: 100% !important;
     }}
     .assistant-box *, .user-box *, .assistant-bubble *, .user-bubble * {{
         word-wrap: break-word !important; overflow-wrap: break-word !important;
@@ -3000,10 +3029,20 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
 
                     if idx == last_user_idx:
                         st.markdown('<div class="user-ops-marker"></div>', unsafe_allow_html=True)
-                        if st.button("✎", key=f"user_edit_trigger_{idx}"):
-                            st.session_state.active_chat_edit_idx = idx
-                            st.session_state.active_chat_edit_text = m["content"]
-                            st.rerun()
+                        col_ops_1, col_ops_2 = st.columns([1, 1])
+                        with col_ops_1:
+                            if st.button("✕", key=f"user_delete_trigger_{idx}"):
+                                new_chat = list(st.session_state.messages)
+                                new_chat.pop(idx)
+                                st.session_state.messages = new_chat
+                                user_ref.update({"sohbet_gecmisi": new_chat})
+                                st.success("Mesaj silindi!")
+                                st.rerun()
+                        with col_ops_2:
+                            if st.button("✎", key=f"user_edit_trigger_{idx}"):
+                                st.session_state.active_chat_edit_idx = idx
+                                st.session_state.active_chat_edit_text = m["content"]
+                                st.rerun()
 
                     if st.session_state.get("active_chat_edit_idx") == idx:
                         edit_val = st.text_input("Mesajı düzenle:", value=st.session_state.active_chat_edit_text, key=f"chat_edit_inp_{idx}")
