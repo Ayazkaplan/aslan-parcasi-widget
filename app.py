@@ -1431,7 +1431,7 @@ else:
         justify-content: center !important;
     }}
 
-    /* User Message Ops Sibling Styles (Edit button aligned to matching right-hand bubble boundary) */
+    /* User Message Ops Sibling Styles (Edit button aligned directly beneath the right-hand profile photo) */
     div.element-container:has(.user-ops-marker) + div.element-container {{
         display: flex !important;
         flex-direction: row !important;
@@ -1440,23 +1440,27 @@ else:
         width: 100% !important;
         margin-top: -19px !important; /* Sit aligned with the bottom of user bubble */
         margin-bottom: 12px !important;
-        padding-right: 50px !important; /* Pre-calculated to stay to the left of the 40px user avatar + 10px gap */
+        padding-right: 4px !important; /* Mathematically aligned beneath the 40px profile photo (center-aligned: (40px avatar - 32px button) / 2 = 4px offset) */
         box-sizing: border-box !important;
-        height: 32px !important;
+        height: auto !important;
     }}
 
     /* Align columns wrapper inside columns container to right-end with gap */
-    div.element-container:has(.user-ops-marker) + div.element-container > div {{
+    div.element-container:has(.user-ops-marker) + div.element-container > div,
+    div.element-container:has(.user-ops-marker) + div.element-container [data-testid="stHorizontalBlock"] {{
         display: flex !important;
-        flex-direction: row !important;
+        flex-direction: row !important; /* Force side-by-side row on both mobile and desktop! */
         justify-content: flex-end !important;
+        align-items: center !important;
         gap: 8px !important;
-        width: 100% !important;
+        width: auto !important;
+        margin-left: auto !important;
+        margin-right: 0 !important;
     }}
 
-    /* Condense columns to tightly wrap our buttons */
+    /* Condense columns to tightly wrap our buttons and NEVER stack on mobile */
     div.element-container:has(.user-ops-marker) + div.element-container [data-testid="column"] {{
-        flex: 0 0 auto !important;
+        flex: 0 0 32px !important;
         width: 32px !important;
         min-width: 32px !important;
         max-width: 32px !important;
@@ -1486,7 +1490,7 @@ else:
         align-items: center !important;
         justify-content: center !important;
         background-color: rgba(30, 30, 30, 0.85) !important;
-        border: 1.5px solid #a855f7 !important; /* Purple border to fit user theme aesthetics nicely */
+        border: 1.5px solid #a855f7 !important; /* Purple border to match refresh button's golden accent but in purple */
         box-shadow: 0 2px 6px rgba(168, 85, 247, 0.3) !important;
         color: #ffffff !important;
         cursor: pointer !important;
@@ -1497,7 +1501,7 @@ else:
 
     @media (max-width: 768px) {{
         div.element-container:has(.user-ops-marker) + div.element-container {{
-            padding-right: 50px !important;
+            padding-right: 4px !important; /* Keep 4px on mobile which perfectly aligns with the smaller 32px/28px user avatar */
         }}
     }}
 
