@@ -17,7 +17,7 @@ from PIL import Image
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(
-    page_title="Aslan Parçası V17.3",
+    page_title="Aslan Parçası V17.8",
     page_icon="🦁",
     layout="centered"
 )
@@ -1034,7 +1034,7 @@ if not st.session_state.user_logged_in:
             st.rerun()
         st.stop()
 
-    st.title("🦁 Aslan Parçası V17.3")
+    st.title("🦁 Aslan Parçası V17.8")
 
     if "ban_error_on_logout" in st.session_state:
         st.error(st.session_state.ban_error_on_logout)
@@ -2481,6 +2481,74 @@ else:
                 else:
                     st.error("❌ Eşleşen bir kullanıcı bulunamadı.")
 
+            st.divider()
+            st.markdown("### 👤 Mevcut Stili Değiştirilenler")
+
+            try:
+                all_users_n = db.collection("users").get()
+                modified_users_list = []
+                for doc in all_users_n:
+                    udata = doc.to_dict()
+                    if not udata:
+                        continue
+                    if udata.get("is_admin", False):
+                        continue
+                    if udata.get("email") == KURUCU_EMAIL:
+                        continue
+                    if (udata.get("isim_rengi", "#FFFFFF") != "#FFFFFF" or 
+                        udata.get("ismin_parlakligi", False) or 
+                        udata.get("tag", "") != "" or 
+                        udata.get("rozet", "") != ""):
+                        modified_users_list.append(doc)
+
+                if modified_users_list:
+                    for m_doc in modified_users_list:
+                        m_data = m_doc.to_dict()
+                        m_id = m_doc.id
+                        m_name = m_data.get("isim", "Bilinmiyor")
+                        m_email = m_data.get("email", "")
+                        m_tag = m_data.get("tag", "")
+                        m_rozet = m_data.get("rozet", "")
+
+                        with st.container(border=True):
+                            col_m_info, col_m_act = st.columns([7, 3])
+                            with col_m_info:
+                                _m_color = m_data.get("isim_rengi", "#FFFFFF")
+                                _m_glow = m_data.get("ismin_parlakligi", False)
+                                _m_styled = get_styled_user_name(m_name, _m_color, _m_glow, m_tag, m_rozet)
+                                st.markdown(f"**Kullanıcı:** {_m_styled} ({m_email})", unsafe_allow_html=True)
+                                st.markdown(f"🏷️ **Tag:** `{m_tag}` | 🏆 **Rozet:** `{m_rozet}`")
+                            with col_m_act:
+                                show_style_reset_confirm = st.session_state.get(f"show_style_reset_{m_id}", False)
+                                if not show_style_reset_confirm:
+                                    if st.button("🔴 Süslemeleri Kaldır", key=f"style_reset_btn_{m_id}", use_container_width=True):
+                                        st.session_state[f"show_style_reset_{m_id}"] = True
+                                        st.rerun()
+                                else:
+                                    st.warning("Emin misiniz?")
+                                    c_y_s, c_n_s = st.columns(2)
+                                    with c_y_s:
+                                        if st.button("Evet", key=f"style_reset_yes_{m_id}", type="primary", use_container_width=True):
+                                            db.collection("users").document(m_id).update({
+                                                "isim_rengi": "#FFFFFF",
+                                                "ismin_parlakligi": False,
+                                                "tag": "",
+                                                "rozet": ""
+                                            })
+                                            st.session_state[f"show_style_reset_{m_id}"] = False
+                                            st.success(f"✅ {m_name} süslemeleri kaldırıldı.")
+                                            st.session_state.valid_users_cache = None
+                                            time.sleep(1)
+                                            st.rerun()
+                                    with c_n_s:
+                                        if st.button("Hayır", key=f"style_reset_no_{m_id}", use_container_width=True):
+                                            st.session_state[f"show_style_reset_{m_id}"] = False
+                                            st.rerun()
+                else:
+                    st.info("ℹ️ Süsü değiştirilmiş herhangi bir normal kullanıcı bulunmuyor.")
+            except Exception as e:
+                st.error(f"Kullanıcılar yüklenirken bir hata oluştu: {e}")
+
         st.divider()
         st.markdown("### 🛡️ Mevcut Yöneticiler")
 
@@ -2719,7 +2787,7 @@ else:
 
             col_title, col_bildirim = st.columns([6, 1])
             with col_title:
-                st.title("🤖 Aslan Parçası V17.3")
+                st.title("🤖 Aslan Parçası V17.8")
             with col_bildirim:
                 # Info button on top
                 with st.popover("ℹ️", help="Uygulama Bilgisi"):
@@ -2727,7 +2795,7 @@ else:
                     st.markdown("""
 **Müstakbel Şirket**, dijital iletişim ve yapay zeka alanında öncü çözümler geliştiren, geleceğin teknolojilerini bugünün ihtiyaçlarıyla buluşturan köklü bir teknoloji kuruluşudur.
 
-**Aslan Parçası V17.3**, Müstakbel Şirket bünyesinde geliştirilen amiral gemisi yapay zeka platformudur. Gerçek zamanlı sohbet, yapay zeka destekli asistan, YouTube entegrasyonu ve topluluk yönetimi tek çatı altında sunulmaktadır.
+**Aslan Parçası V17.8**, Müstakbel Şirket bünyesinde geliştirilen amiral gemisi yapay zeka platformudur. Gerçek zamanlı sohbet, yapay zeka destekli asistan, YouTube entegrasyonu ve topluluk yönetimi tek çatı altında sunulmaktadır.
                     """)
                     st.divider()
                     st.markdown("## 🎯 Misyonumuz")
@@ -3013,14 +3081,18 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                         with col_save:
                             if st.button("Kaydet", key=f"chat_save_edit_{idx}", use_container_width=True):
                                 if edit_val.strip():
-                                    new_chat = list(st.session_state.messages)
-                                    new_chat[idx]["content"] = edit_val.strip()
-                                    st.session_state.messages = new_chat
-                                    user_ref.update({"sohbet_gecmisi": new_chat})
-                                    st.session_state.pop("active_chat_edit_idx", None)
-                                    st.session_state.pop("active_chat_edit_text", None)
-                                    st.success("Mesaj güncellendi!")
-                                    st.rerun()
+                                    with st.spinner("Aslan Parçası yeni yanıtı hazırlıyor..."):
+                                        new_chat = [dict(msg) for msg in st.session_state.messages]
+                                        new_chat[idx]["content"] = edit_val.strip()
+                                        new_chat = new_chat[:idx+1]
+                                        cevap = ai_cevap(new_chat[-6:])
+                                        new_chat.append({"role": "assistant", "content": cevap})
+                                        st.session_state.messages = new_chat
+                                        user_ref.update({"sohbet_gecmisi": new_chat})
+                                        st.session_state.pop("active_chat_edit_idx", None)
+                                        st.session_state.pop("active_chat_edit_text", None)
+                                        st.success("Mesaj güncellendi ve yeni yanıt oluşturuldu!")
+                                        st.rerun()
                         with col_cancel:
                             if st.button("Vazgeç", key=f"chat_cancel_edit_{idx}", use_container_width=True):
                                 st.session_state.pop("active_chat_edit_idx", None)
