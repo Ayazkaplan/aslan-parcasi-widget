@@ -325,19 +325,28 @@ def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
             min-width: 0;
             box-sizing: border-box;
         }}
-        @media (max-width: 550px) {{
+        .flex-row.no-stack {{
+            flex-direction: row !important;
+        }}
+        .flex-row.no-stack .flex-item {{
+            flex: 1 !important;
+            width: auto !important;
+        }}
+
+        @media (max-width: 800px) {{
             .flex-row:not(.no-stack) {{
                 flex-direction: column !important;
                 gap: 8px;
             }}
             .flex-row:not(.no-stack) .flex-item {{
                 width: 100% !important;
+                flex: none !important;
             }}
             body {{
                 padding: 4px;
             }}
             .stage-container {{
-                padding: 6px;
+                padding: 8px;
                 border-radius: 8px;
             }}
             .editor-panel-right {{
@@ -346,21 +355,32 @@ def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
             .form-group {{
                 margin-bottom: 8px;
             }}
+            .tabs-header {{
+                flex-wrap: wrap !important;
+                gap: 4px !important;
+            }}
             .tab-btn {{
-                padding: 6px 10px;
-                font-size: 10px;
+                padding: 6px 8px !important;
+                font-size: 10px !important;
+                flex: 1 1 30% !important;
+                text-align: center !important;
+                border-radius: 4px !important;
+                white-space: normal !important;
             }}
             .top-nav-bar {{
-                padding: 4px;
-                margin-bottom: 8px;
-                gap: 4px;
+                flex-direction: column !important;
+                gap: 6px !important;
+                padding: 6px !important;
             }}
             .nav-btn {{
-                padding: 8px 4px;
-                font-size: 10px;
+                width: 100% !important;
+                padding: 8px 6px !important;
+                font-size: 11px !important;
+                flex: none !important;
             }}
             .toolbar {{
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr !important;
+                gap: 6px !important;
             }}
             div[style*="gap:15px"] {{
                 flex-direction: column !important;
@@ -435,13 +455,13 @@ def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
             cursor: pointer;
         }}
 
-        /* STATS INDICATORS ROW */
+        /* STATS INDICATORS ROW - SINGLE COLUMN BY DEFAULT FOR MOBILE */
         .indicators-row {{
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: 1fr;
             gap: 6px;
         }}
-        @media (min-width: 480px) {{
+        @media (min-width: 800px) {{
             .indicators-row {{
                 grid-template-columns: repeat(4, 1fr);
             }}
@@ -450,27 +470,41 @@ def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
             background: rgba(0,0,0,0.5);
             border: 1px solid rgba(255,255,255,0.06);
             border-radius: 8px;
-            padding: 5px 3px;
+            padding: 8px 12px;
             text-align: center;
-            font-size: 10px;
+            font-size: 11px;
             color: #bdc3c7;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }}
+        @media (min-width: 800px) {{
+            .indicator {{
+                display: block;
+                padding: 5px 3px;
+            }}
         }}
         .indicator span {{
-            display: block;
             color: #f39c12;
             font-weight: bold;
-            font-size: 12px;
-            margin-top: 1px;
+            font-size: 13px;
+        }}
+        @media (min-width: 800px) {{
+            .indicator span {{
+                display: block;
+                font-size: 12px;
+                margin-top: 1px;
+            }}
         }}
 
-        /* GRID-BASED TOOLBAR TO PREVENT OVERFLOWS ON MOBILE */
+        /* GRID-BASED TOOLBAR - SINGLE COLUMN BY DEFAULT FOR MOBILE */
         .toolbar {{
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: 1fr;
             gap: 6px;
             margin-bottom: 10px;
         }}
-        @media (min-width: 480px) {{
+        @media (min-width: 800px) {{
             .toolbar {{
                 grid-template-columns: repeat(3, 1fr);
             }}
@@ -480,8 +514,8 @@ def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
             color: white;
             border: 1px solid rgba(255,255,255,0.08);
             border-radius: 6px;
-            padding: 8px 10px;
-            font-size: 10px;
+            padding: 10px 12px;
+            font-size: 12px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.15s ease;
@@ -490,6 +524,7 @@ def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
             justify-content: center;
             gap: 4px;
             box-sizing: border-box;
+            width: 100%;
         }}
         .action-btn:hover {{
             background: #31314a;
@@ -510,7 +545,7 @@ def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
             flex-direction: column;
             gap: 8px;
         }}
-        @media (min-width: 480px) {{
+        @media (min-width: 800px) {{
             .bottom-action-bar {{
                 flex-direction: row;
             }}
@@ -1610,4 +1645,4 @@ def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
                 time.sleep(1)
                 st.rerun()
         except Exception as e:
-            st.error(f"⚠️ Teknik bir hata oluştu: {e}") 
+            st.error(f"⚠️ Teknik bir hata oluştu: {e}")
