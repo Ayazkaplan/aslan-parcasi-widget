@@ -1,1 +1,13 @@
-
+{
+  "name": "aslan-parcasi-streamlit-app",
+  "version": "1.0.0",
+  "description": "Aslan Parçası V17.9 Streamlit Web App",
+  "main": "app.py",
+  "scripts": {
+    "lint": "echo 'No JavaScript to lint'",
+    "build": "echo 'No build required for Streamlit'",
+    "dev": "streamlit run app.py --server.port 3000 --server.address 0.0.0.0",
+    "start": "streamlit run app.py --server.port 3000 --server.address 0.0.0.0"
+  },
+  "dependencies": {}
+}
