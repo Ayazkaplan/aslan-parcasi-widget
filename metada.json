@@ -1,1 +1,11 @@
-
+{
+  "name": "Aslan Parçası V17.9",
+  "description": "Müstakbel Şirket bünyesindeki amiral gemisi yapay zeka ve gerçek zamanlı topluluk sohbet platformu.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
