@@ -562,6 +562,7 @@ def get_global_announcement():
                 "text_decoration": "none",
                 "displacement_x": 0,
                 "displacement_y": 0,
+                "rotation": 0,
                 "animation_type": "none",
                 "media_url": "",
                 "media_size": 150,
@@ -601,6 +602,7 @@ def get_global_announcement():
         "text_decoration": "none",
         "displacement_x": 0,
         "displacement_y": 0,
+        "rotation": 0,
         "animation_type": "none",
         "media_url": "",
         "media_size": 150,
@@ -626,6 +628,7 @@ def render_custom_banner_html(ann_data):
     
     displacement_x = ann_data.get("displacement_x", 0)
     displacement_y = ann_data.get("displacement_y", 0)
+    rotation = ann_data.get("rotation", 0)
     
     glow_enabled = ann_data.get("glow_enabled", False)
     glow_int = ann_data.get("glow_intensity", 50)
@@ -770,7 +773,7 @@ animation: blurFade 3s infinite ease-in-out;
         body_html = f'<div>{ann_content_html}</div>'
         
     # Displacement style mapping
-    displacement_style = f"transform: translate({displacement_x}px, {displacement_y}px); opacity: {opacity};"
+    displacement_style = f"transform: translate({displacement_x}px, {displacement_y}px) rotate({rotation}deg); transform-origin: center; opacity: {opacity};"
     
     # Create web fonts if they are cursive/google-based
     font_import = ""
@@ -2650,6 +2653,484 @@ else:
                 preview_html = render_custom_banner_html(ts)
                 st.markdown(f'<div style="border: 2px dashed rgba(255,165,0,0.4); border-radius: 12px; padding: 15px; background: rgba(0,0,0,0.3); margin-bottom: 25px; overflow: visible;">{preview_html}</div>', unsafe_allow_html=True)
 
+                st.markdown("### 🎮 DOKUNMATİK OYUN PARKI (YAZIYI TUT-SÜRÜKLE, SIKIŞTIR-BÜYÜT, ÇEVİR!)")
+                st.info("Bu alandaki duyuruyu parmağınızla/mouse ile basılı tutup dilediğiniz gibi sürükleyebilir, pinch (iki parmak kıstırma) yaparak veya farenin tekerleğiyle boyutunu (+/-) ayarlayabilir, döndürebilirsiniz. Sağlanan kolay butonlarla da ayarlama yaptıktan sonra, sayfa altında yer alan 'Movable' alanlar otomatik olarak senkronize olacaktır.")
+
+                # Calculate background styling for dynamic display inside the canvas
+                bg_type_sb = ts.get("bg_type", "none")
+                bg_color_sb = ts.get("bg_color", "#111122")
+                bg_end_sb = ts.get("bg_gradient_end", "#1a1a3a")
+                bg_image_url_sb = ts.get("bg_image_url", "")
+                bg_opacity_sb = ts.get("bg_opacity", 100) / 100.0
+                padding_v_sb = ts.get("padding_vertical", 10)
+                padding_h_sb = ts.get("padding_horizontal", 15)
+                border_radius_sb = ts.get("border_radius", 12)
+                
+                bg_css_sb = "background: transparent; border: 1px dashed rgba(255,255,255,0.15); padding: 15px;"
+                if bg_type_sb == "flat":
+                    bg_css_sb = f"background: {bg_color_sb}; border: 1px solid rgba(255,255,255,0.1); border-radius: {border_radius_sb}px; padding: {padding_v_sb}px {padding_h_sb}px;"
+                elif bg_type_sb == "gradient":
+                    bg_css_sb = f"background: linear-gradient(135deg, {bg_color_sb}, {bg_end_sb}); border: 1px solid rgba(255,255,255,0.15); border-radius: {border_radius_sb}px; padding: {padding_v_sb}px {padding_h_sb}px;"
+                elif bg_type_sb == "image":
+                    overlay_op_sb = 1.0 - bg_opacity_sb
+                    bg_css_sb = f"background: linear-gradient(rgba(17,17,34,{overlay_op_sb:.2f}), rgba(17,17,34,{overlay_op_sb:.2f})), url('{bg_image_url_sb}'); background-size: cover; background-position: center; border: 1px solid rgba(255,255,255,0.15); border-radius: {border_radius_sb}px; padding: {padding_v_sb}px {padding_h_sb}px;"
+
+                clean_ts = ts.copy()
+                clean_ts["displacement_x"] = 0
+                clean_ts["displacement_y"] = 0
+                clean_ts["rotation"] = 0
+                clean_ts["bg_type"] = "none"
+                clean_ts_inner_html = render_custom_banner_html(clean_ts)
+
+                disp_x_sb = ts.get("displacement_x", 0)
+                disp_y_sb = ts.get("displacement_y", 0)
+                disp_rot_sb = ts.get("rotation", 0)
+                disp_size_sb = ts.get("size", 20)
+
+                sandbox_code = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet" />
+    <style>
+        * {{
+            box-sizing: border-box;
+            font-family: 'Space Grotesk', sans-serif;
+            margin: 0;
+            padding: 0;
+        }}
+        body {{
+            background: transparent;
+            color: #ffffff;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            padding: 5px;
+        }}
+        .stage-container {{
+            background: #0f0f1e;
+            border: 2px solid #e67e22;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 0 20px rgba(230, 126, 34, 0.15);
+            padding: 12px;
+            overflow: visible;
+        }}
+        .stage-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            border-bottom: 1px dashed rgba(230, 126, 34, 0.3);
+            padding-bottom: 8px;
+        }}
+        .stage-title {{
+            font-size: 13px;
+            font-weight: 700;
+            color: #e67e22;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: 0.5px;
+        }}
+        .status-badge {{
+            font-size: 10px;
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid rgba(46, 204, 113, 0.4);
+            padding: 2px 7px;
+            border-radius: 20px;
+            color: #2ecc71;
+            font-weight: bold;
+        }}
+        .canvas-area {{
+            position: relative;
+            width: 100%;
+            height: 250px;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 3px 10px rgba(0,0,0,0.5);
+            background-color: #111122;
+        }}
+        .canvas-area:active {{
+            cursor: grabbing;
+        }}
+        #drag-item {{
+            position: absolute;
+            transform-origin: center center;
+            transition: none;
+            will-change: transform, font-size;
+            display: inline-block;
+            text-align: center;
+            white-space: nowrap;
+        }}
+        .indicators-row {{
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 12px;
+        }}
+        .indicator {{
+            flex: 1;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 6px 4px;
+            text-align: center;
+            font-size: 11px;
+            color: #bdc3c7;
+        }}
+        .indicator span {{
+            display: block;
+            color: #f39c12;
+            font-weight: bold;
+            font-size: 13px;
+            margin-top: 2px;
+        }}
+        .toolbar {{
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }}
+        .action-btn {{
+            flex: 1;
+            min-width: 90px;
+            background: #2c3e50;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        }}
+        .action-btn:hover {{
+            background: #34495e;
+            border-color: rgba(255,255,255,0.25);
+        }}
+        .action-btn:active {{
+            transform: scale(0.96);
+        }}
+        .action-btn.danger {{
+            background: #7f8c8d;
+        }}
+        .action-btn.danger:hover {{
+            background: #95a5a6;
+        }}
+        .bottom-action-bar {{
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }}
+        .bottom-btn {{
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+        }}
+        .bottom-btn.preview-btn {{
+            background: linear-gradient(135deg, #1abc9c, #16a085);
+        }}
+        .bottom-btn.preview-btn:hover {{
+            filter: brightness(1.1);
+        }}
+        .bottom-btn.save-btn {{
+            background: linear-gradient(135deg, #e67e22, #d35400);
+            border: 1px solid #f39c12;
+        }}
+        .bottom-btn.save-btn:hover {{
+            filter: brightness(1.1);
+        }}
+        .bottom-btn:active {{
+            transform: scale(0.97);
+        }}
+    </style>
+</head>
+<body>
+    <div class="stage-container">
+        <div class="stage-header">
+            <span class="stage-title">🎯 INTERAKTİF AYARLAMA EKRANI (Duyuruyu Görsel Sürükle-Büyüt)</span>
+            <span class="status-badge">MOBİL DOKUNMATİK AKTİF</span>
+        </div>
+        
+        <!-- Canvas area mimicking real design -->
+        <div class="canvas-area" id="canvas-area" style="{bg_css_sb}">
+            <div id="drag-item" style="font-size: {disp_size_sb}px; transform: translate({disp_x_sb}px, {disp_y_sb}px) rotate({disp_rot_sb}deg);">
+                {clean_ts_inner_html}
+            </div>
+        </div>
+        
+        <!-- Live status indicators -->
+        <div class="indicators-row">
+            <div class="indicator">X Kaydırma<span id="badge-x">{disp_x_sb}px</span></div>
+            <div class="indicator">Y Kaydırma<span id="badge-y">{disp_y_sb}px</span></div>
+            <div class="indicator">Yazı Boyutu<span id="badge-size">{disp_size_sb}px</span></div>
+            <div class="indicator">Döndürme<span id="badge-rot">{disp_rot_sb}°</span></div>
+        </div>
+        
+        <!-- Buttons toolbar -->
+        <div class="toolbar">
+            <button class="action-btn" id="btn-size-minus" title="Çift parmak pinch/kıstırma veya tekerlek de kullanılabilir">📏 Boyut (-2px)</button>
+            <button class="action-btn" id="btn-size-plus" title="Çift parmak pinch/kıstırma veya tekerlek de kullanılabilir">📏 Boyut (+2px)</button>
+            <button class="action-btn" id="btn-rot-left" title="Çift parmakla çevirme hareketi de yapılabilir">↺ Çevir (-15°)</button>
+            <button class="action-btn" id="btn-rot-right" title="Çift parmakla çevirme hareketi de yapılabilir">↻ Çevir (+15°)</button>
+            <button class="action-btn danger" id="btn-reset">🎯 Sıfırla (Merkez)</button>
+        </div>
+        
+        <!-- Synchronised submit buttons directly loaded in UI -->
+        <div class="bottom-action-bar">
+            <button class="bottom-btn preview-btn" id="btn-preview">👀 Değişiklikleri Önizle</button>
+            <button class="bottom-btn save-btn" id="btn-save">💾 CANLIYA KAYDET VE YAYINLA 🚀</button>
+        </div>
+    </div>
+
+    <script>
+        const parentDoc = window.parent.document;
+        
+        // Setup initial configuration variables
+        let x = {disp_x_sb};
+        let y = {disp_y_sb};
+        let size = {disp_size_sb};
+        let rot = {disp_rot_sb};
+        
+        const dragItem = document.getElementById('drag-item');
+        const canvasArea = document.getElementById('canvas-area');
+        
+        // Update visible badge indicators in real-time
+        function updateDisplay() {{
+            document.getElementById('badge-x').innerText = x + 'px';
+            document.getElementById('badge-y').innerText = y + 'px';
+            document.getElementById('badge-size').innerText = size + 'px';
+            document.getElementById('badge-rot').innerText = rot + '°';
+        }}
+        
+        // Update styling layout
+        function applyTransforms() {{
+            dragItem.style.transform = `translate(${{x}}px, ${{y}}px) rotate(${{rot}}deg)`;
+            dragItem.style.fontSize = size + 'px';
+            updateDisplay();
+        }}
+        
+        // Inject and synchronize variables with Streamlit parent input elements
+        function writeToStreamlitInputs() {{
+            if (!parentDoc) return;
+            
+            const writeValue = (labelText, val) => {{
+                // Robust selector: match label or container containing precisely the label text
+                const searchBlocks = Array.from(parentDoc.querySelectorAll('label, p, div'));
+                for (const block of searchBlocks) {{
+                    if (block.innerText && block.innerText.trim().includes(labelText)) {{
+                        const container = block.closest('[data-testid="stNumberInput"], [data-testid="stTextInput"]');
+                        if (container) {{
+                            const input = container.querySelector('input');
+                            if (input) {{
+                                input.value = val;
+                                // Dispatch changes to trigger updates inside Streamlit framework
+                                input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                return true;
+                            }}
+                        }}
+                    }}
+                }}
+                return false;
+            }};
+            
+            writeValue("Yazı Boyutu (px)", size);
+            writeValue("Yatay Kaydırma (Yön X px)", x);
+            writeValue("Düşey Kaydırma (Yön Y px)", y);
+            writeValue("Döndürme Açısı (Derece)", rot);
+        }}
+        
+        // MULTI-TOUCH INTERACTIONS (Pinch-to-zoom and Rotation)
+        let isDragging = false;
+        let isPinching = false;
+        let startTouchX = 0;
+        let startTouchY = 0;
+        
+        let initTouchDist = 0;
+        let initFontSize = 20;
+        let initTouchAngle = 0;
+        let initRotationAngle = 0;
+        
+        // Touch events supporting 2-finger gesture pinching and rotation
+        canvasArea.addEventListener('touchstart', (e) => {{
+            if (e.touches.length === 1) {{
+                isDragging = true;
+                startTouchX = e.touches[0].clientX - x;
+                startTouchY = e.touches[0].clientY - y;
+            }} else if (e.touches.length === 2) {{
+                isDragging = false;
+                isPinching = true;
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                
+                initTouchDist = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+                initFontSize = size;
+                
+                initTouchAngle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
+                initRotationAngle = rot;
+            }}
+        }});
+        
+        canvasArea.addEventListener('touchmove', (e) => {{
+            if (isDragging && e.touches.length === 1) {{
+                x = Math.round(e.touches[0].clientX - startTouchX);
+                y = Math.round(e.touches[0].clientY - startTouchY);
+                applyTransforms();
+            }} else if (isPinching && e.touches.length === 2) {{
+                e.preventDefault(); // Stop mobile dragging viewport
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                
+                // Real-time Pinch Scaling
+                const currentDist = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+                const scaleFactor = currentDist / initTouchDist;
+                size = Math.max(8, Math.min(120, Math.round(initFontSize * scaleFactor)));
+                
+                // Real-time Rotate
+                const currentAngle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
+                const angleDifference = (currentAngle - initTouchAngle) * (180 / Math.PI);
+                rot = Math.round(initRotationAngle + angleDifference);
+                
+                applyTransforms();
+            }}
+        }}, {{ passive: false }});
+        
+        canvasArea.addEventListener('touchend', () => {{
+            isDragging = false;
+            isPinching = false;
+            writeToStreamlitInputs();
+        }});
+        
+        canvasArea.addEventListener('touchcancel', () => {{
+            isDragging = false;
+            isPinching = false;
+            writeToStreamlitInputs();
+        }});
+        
+        // MOUSE AND DESKTOP INTERACTIONS
+        let isMouseDown = false;
+        let startMouseX = 0;
+        let startMouseY = 0;
+        
+        dragItem.addEventListener('mousedown', (e) => {{
+            isMouseDown = true;
+            startMouseX = e.clientX - x;
+            startMouseY = e.clientY - y;
+            e.stopPropagation();
+        }});
+        
+        document.addEventListener('mousemove', (e) => {{
+            if (isMouseDown) {{
+                x = Math.round(e.clientX - startMouseX);
+                y = Math.round(e.clientY - startMouseY);
+                applyTransforms();
+            }}
+        }});
+        
+        document.addEventListener('mouseup', () => {{
+            if (isMouseDown) {{
+                isMouseDown = false;
+                writeToStreamlitInputs();
+            }}
+        }});
+        
+        // MOUSE WHEEL ROTATE/SCALING
+        canvasArea.addEventListener('wheel', (e) => {{
+            e.preventDefault();
+            if (e.deltaY < 0) {{
+                size = Math.min(120, size + 1);
+            }} else {{
+                size = Math.max(8, size - 1);
+            }}
+            applyTransforms();
+            writeToStreamlitInputs();
+        }}, {{ passive: false }});
+        
+        // TOOLBAR CONTROL HANDLERS
+        document.getElementById('btn-size-minus').addEventListener('click', () => {{
+            size = Math.max(8, size - 2);
+            applyTransforms();
+            writeToStreamlitInputs();
+        }});
+        
+        document.getElementById('btn-size-plus').addEventListener('click', () => {{
+            size = Math.min(120, size + 2);
+            applyTransforms();
+            writeToStreamlitInputs();
+        }});
+        
+        document.getElementById('btn-rot-left').addEventListener('click', () => {{
+            rot = (rot - 15) % 360;
+            applyTransforms();
+            writeToStreamlitInputs();
+        }});
+        
+        document.getElementById('btn-rot-right').addEventListener('click', () => {{
+            rot = (rot + 15) % 360;
+            applyTransforms();
+            writeToStreamlitInputs();
+        }});
+        
+        document.getElementById('btn-reset').addEventListener('click', () => {{
+            x = 0;
+            y = 0;
+            size = 20;
+            rot = 0;
+            applyTransforms();
+            writeToStreamlitInputs();
+        }});
+        
+        // PREVIEW / SUBMIT HANDLERS
+        document.getElementById('btn-preview').addEventListener('click', () => {{
+            writeToStreamlitInputs();
+            if (!parentDoc) return;
+            // Fetch form submit buttons inside parent document
+            const parentButtons = Array.from(parentDoc.querySelectorAll('button'));
+            const pmBtn = parentButtons.find(btn => btn.innerText && btn.innerText.includes("Önizle"));
+            if (pmBtn) {{
+                pmBtn.click();
+            }}
+        }});
+        
+        document.getElementById('btn-save').addEventListener('click', () => {{
+            writeToStreamlitInputs();
+            if (!parentDoc) return;
+            const parentButtons = Array.from(parentDoc.querySelectorAll('button'));
+            const svBtn = parentButtons.find(btn => btn.innerText && btn.innerText.includes("Tepe Duyurusunu Kaydet"));
+            if (svBtn) {{
+                svBtn.click();
+            }}
+        }});
+        
+        // Initial application setup
+        applyTransforms();
+    </script>
+</body>
+</html>"""
+
+                st.components.v1.html(sandbox_code, height=470, scrolling=False)
                 st.markdown("---")
                 
                 # Form structure - None of these inputs triggers page rerun on drag or click anymore!
@@ -2693,11 +3174,13 @@ else:
                         ann_new_opacity = st.slider("Yazı Genel Görünürlüğü (Opaklık - %):", min_value=10, max_value=100, value=ts.get("opacity", 100))
 
                     st.markdown("#### ↕️ Konumlandırma & Kaydırma (Movable)")
-                    col_disp1, col_disp2 = st.columns(2)
+                    col_disp1, col_disp2, col_disp3 = st.columns(3)
                     with col_disp1:
-                        ann_displacement_x = st.slider("Yatay Kaydırma (X Ekseni Mesafe px):", min_value=-500, max_value=500, value=ts.get("displacement_x", 0), step=5, help="Metni sağa (+) veya sola (-) kaydırır.")
+                        ann_displacement_x = st.number_input("Yatay Kaydırma (Yön X px):", min_value=-1000, max_value=1000, value=int(ts.get("displacement_x", 0)), step=1, help="Metni sağa (+) veya sola (-) kaydırır.")
                     with col_disp2:
-                        ann_displacement_y = st.slider("Düşey Kaydırma (Y Ekseni Mesafe px):", min_value=-100, max_value=100, value=ts.get("displacement_y", 0), step=2, help="Metni aşağı (+) veya yukarı (-) kaydırır.")
+                        ann_displacement_y = st.number_input("Düşey Kaydırma (Yön Y px):", min_value=-500, max_value=500, value=int(ts.get("displacement_y", 0)), step=1, help="Metni aşağı (+) veya yukarı (-) kaydırır.")
+                    with col_disp3:
+                        ann_rotation = st.number_input("Döndürme Açısı (Derece):", min_value=-360, max_value=360, value=int(ts.get("rotation", 0)), step=1, help="Metni kendi etrafında döndürür.")
 
                     st.markdown("#### ✨ Parlaklık & Gölge Efektleri")
                     col_effect1, col_effect2 = st.columns(2)
@@ -2848,6 +3331,7 @@ else:
                         "opacity": ann_new_opacity,
                         "displacement_x": ann_displacement_x,
                         "displacement_y": ann_displacement_y,
+                        "rotation": ann_rotation,
                         "bg_type": ann_new_bg_type,
                         "bg_color": ann_new_bg_color,
                         "bg_gradient_end": ann_new_bg_gradient_end,
@@ -2901,6 +3385,7 @@ else:
                         "opacity": 100,
                         "displacement_x": 0,
                         "displacement_y": 0,
+                        "rotation": 0,
                         "bg_type": "none",
                         "bg_color": "#111122",
                         "bg_gradient_end": "#1a1a3a",
