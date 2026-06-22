@@ -6,7 +6,1636 @@ import json
 import uuid
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
-from tepe_editor_page import render_tepe_editor_page
+# Tepe duyuru editörünü doğrudan app.py içine entegre ediyoruz
+def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
+    # Setup page header
+    st.markdown("""
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;">
+            <div style="background:#e67e22;border-radius:10px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 15px rgba(230,126,34,0.4);">
+                <span style="color:#fff;font-size:1.3rem;font-weight:900;">👑</span>
+            </div>
+            <div>
+                <h1 style="margin:0;font-size:1.6rem;color:#fff;letter-spacing:-0.5px;">Tepe Duyuru Bandı Editörü</h1>
+                <p style="margin:3px 0 0;font-size:0.8rem;color:#bdc3c7;">CapCut Premium Stili İnteraktif Tasarım Paneli</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    col_back, col_spacer = st.columns([2, 5])
+    with col_back:
+        if st.button("⬅️ Yönetici Paneline Dön", use_container_width=True):
+            st.session_state.current_page = "admin_main"
+            st.rerun()
+
+    st.markdown("---")
+
+    # Setup session memory for smooth preview without saving
+    if "temp_ann_settings" not in st.session_state:
+        st.session_state.temp_ann_settings = get_global_announcement()
+    
+    ts = st.session_state.temp_ann_settings
+
+    # Package and serialize initial values for the CapCut dashboard template
+    disp_x_sb = ts.get("displacement_x", 0)
+    disp_y_sb = ts.get("displacement_y", 0)
+    disp_rot_sb = ts.get("rotation", 0)
+    disp_size_sb = ts.get("size", 20)
+    ann_text_sb = ts.get("text", "").replace('"', '\\"') # escape quotes
+    ann_font_sb = ts.get("font", "sans-serif")
+    ann_align_sb = ts.get("align", "center")
+    ann_weight_sb = ts.get("font_weight", "bold")
+    ann_style_sb = ts.get("font_style", "normal")
+    ann_decoration_sb = ts.get("text_decoration", "none")
+    ann_opacity_sb = ts.get("opacity", 100)
+    ann_text_color_sb = ts.get("text_color", "#FFFFFF")
+
+    ann_glow_enabled_sb = "true" if ts.get("glow_enabled", False) else "false"
+    ann_glow_intensity_sb = ts.get("glow_intensity", 50)
+    ann_glow_color_mode_sb = ts.get("glow_color_mode", "auto")
+    ann_glow_color_fixed_sb = ts.get("glow_color_fixed", "#FFC000")
+
+    ann_shadow_enabled_sb = "true" if ts.get("shadow_enabled", False) else "false"
+    ann_shadow_intensity_sb = ts.get("shadow_intensity", 50)
+    ann_shadow_color_sb = ts.get("shadow_color", "#000000")
+
+    ann_animation_type_sb = ts.get("animation_type", "none")
+
+    ann_bg_type_sb = ts.get("bg_type", "none")
+    ann_bg_color_sb = ts.get("bg_color", "#111122")
+    ann_bg_gradient_end_sb = ts.get("bg_gradient_end", "#1a1a3a")
+    ann_bg_image_url_sb = ts.get("bg_image_url", "")
+    ann_bg_opacity_sb = ts.get("bg_opacity", 100)
+    ann_padding_vertical_sb = ts.get("padding_vertical", 10)
+    ann_padding_horizontal_sb = ts.get("padding_horizontal", 15)
+    ann_border_radius_sb = ts.get("border_radius", 12)
+
+    ann_media_url_sb = ts.get("media_url", "")
+    ann_media_align_sb = ts.get("media_align", "below")
+    ann_media_size_sb = ts.get("media_size", 150)
+
+    char_colors_json = json.dumps(list(ts.get("char_colors", [])))
+
+    # Construct the sandboxed CapCut HTML editor with double tap unlock and multi-text inputs
+    sandbox_code = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet" />
+    <style>
+        * {{
+            box-sizing: border-box;
+            font-family: 'Space Grotesk', sans-serif;
+            margin: 0;
+            padding: 0;
+        }}
+        body {{
+            background: transparent;
+            color: #ffffff;
+            overflow-x: hidden;
+            overflow-y: auto;
+            user-select: none;
+            -webkit-user-select: none;
+            padding: 5px;
+        }}
+        .stage-container {{
+            background: #0f0f1e;
+            border: 2px solid #e67e22;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 0 20px rgba(230, 126, 34, 0.15);
+            padding: 15px;
+            overflow: visible;
+        }}
+        .stage-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            border-bottom: 1px dashed rgba(230, 126, 34, 0.3);
+            padding-bottom: 10px;
+        }}
+        .stage-title {{
+            font-size: 14px;
+            font-weight: 700;
+            color: #e67e22;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: 0.5px;
+        }}
+        .status-badge {{
+            font-size: 10px;
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid rgba(46, 204, 113, 0.4);
+            padding: 3px 9px;
+            border-radius: 20px;
+            color: #2ecc71;
+            font-weight: bold;
+        }}
+        
+        .editor-wrapper {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 10px;
+        }}
+        @media (max-width: 800px) {{
+            .editor-wrapper {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+
+        .editor-panel-left {{
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }}
+        .editor-panel-right {{
+            display: flex;
+            flex-direction: column;
+            background: #131326;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 15px;
+        }}
+
+        .canvas-area {{
+            position: relative;
+            width: 100%;
+            height: 280px;
+            border-radius: 10px;
+            border: 1px dashed rgba(255,165,0,0.25);
+            background-color: #07070f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            cursor: grab;
+            box-shadow: inset 0 3px 15px rgba(0,0,0,0.8);
+        }}
+        
+        .tabs-header {{
+            display: flex;
+            gap: 4px;
+            margin-bottom: 12px;
+            border-bottom: 2px solid #202035;
+            padding-bottom: 6px;
+            overflow-x: auto;
+        }}
+        .tab-btn {{
+            background: transparent;
+            color: #8892b0;
+            border: none;
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }}
+        .tab-btn.active {{
+            background: #e67e22;
+            color: white;
+        }}
+        .tab-content {{
+            display: none;
+            height: 400px;
+            padding-right: 5px;
+            overflow-y: auto;
+        }}
+        .tab-content.active {{
+            display: block;
+        }}
+
+        .form-group {{
+            margin-bottom: 12px;
+        }}
+        .form-group label {{
+            display: block;
+            font-size: 10px;
+            color: #94a3b8;
+            margin-bottom: 5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+        .form-control {{
+            width: 100%;
+            background: #090914;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 7px 10px;
+            color: white;
+            font-size: 12px;
+            outline: none;
+            transition: all 0.2s ease;
+        }}
+        .form-control:focus {{
+            border-color: #e67e22;
+            box-shadow: 0 0 8px rgba(230,126,34,0.3);
+        }}
+        .flex-row {{
+            display: flex;
+            gap: 8px;
+        }}
+        .flex-item {{
+            flex: 1;
+        }}
+        
+        .toggle-container {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            padding: 4px 0;
+        }}
+        .toggle-switch {{
+            position: relative;
+            width: 32px;
+            height: 18px;
+            background: #202030;
+            border-radius: 9px;
+            transition: all 0.25s ease;
+        }}
+        .toggle-switch::after {{
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #ffffff;
+            top: 2px;
+            left: 2px;
+            transition: all 0.25s ease;
+        }}
+        input[type="checkbox"]:checked + .toggle-switch {{
+            background: #e67e22;
+        }}
+        input[type="checkbox"]:checked + .toggle-switch::after {{
+            left: 16px;
+        }}
+        .hidden-checkbox {{
+            display: none;
+        }}
+
+        .char-color-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 6px;
+            margin-top: 5px;
+        }}
+        .char-color-box {{
+            background: #090914;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 6px;
+            padding: 4px;
+            text-align: center;
+        }}
+        .char-color-box span {{
+            font-size: 10px;
+            color: #94a3b8;
+            display: block;
+            margin-bottom: 2px;
+        }}
+        .char-color-box input[type="color"] {{
+            width: 100%;
+            height: 22px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+        }}
+
+        .indicators-row {{
+            display: flex;
+            justify-content: space-between;
+            gap: 6px;
+        }}
+        .indicator {{
+            flex: 1;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 5px 3px;
+            text-align: center;
+            font-size: 10px;
+            color: #bdc3c7;
+        }}
+        .indicator span {{
+            display: block;
+            color: #f39c12;
+            font-weight: bold;
+            font-size: 12px;
+            margin-top: 1px;
+        }}
+
+        .toolbar {{
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }}
+        .action-btn {{
+            flex: 1;
+            min-width: 75px;
+            background: #252538;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px;
+            padding: 6px;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+        }}
+        .action-btn:hover {{
+            background: #31314a;
+            border-color: rgba(255,255,255,0.2);
+        }}
+        .action-btn:active {{
+            transform: scale(0.96);
+        }}
+        .action-btn.danger {{
+            background: #5d6d7e;
+        }}
+        .action-btn.danger:hover {{
+            background: #7f8c8d;
+        }}
+
+        .bottom-action-bar {{
+            display: flex;
+            gap: 8px;
+        }}
+        .bottom-btn {{
+            flex: 1;
+            padding: 11px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+        }}
+        .bottom-btn.preview-btn {{
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }}
+        .bottom-btn.preview-btn:hover {{
+            filter: brightness(1.1);
+        }}
+        .bottom-btn.save-btn {{
+            background: linear-gradient(135deg, #e67e22, #d35400);
+            border: 1px solid #f39c12;
+        }}
+        .bottom-btn.save-btn:hover {{
+            filter: brightness(1.1);
+        }}
+        .bottom-btn:active {{
+            transform: scale(0.97);
+        }}
+        
+        .add-text-btn {{
+            background: #27ae60 !important;
+            border-color: #2ecc71 !important;
+            color: white !important;
+            height: 30px;
+            margin-top: 5px;
+        }}
+        .text-part-row {{
+            position: relative;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 6px;
+        }}
+        .delete-part-btn {{
+            background: #c0392b !important;
+            color: white;
+            border: none;
+            width: 25px;
+            height: 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+    </style>
+</head>
+<body>
+    <div class="stage-container">
+        <input type="hidden" id="inp-size" value="{disp_size_sb}" />
+        <input type="hidden" id="inp-text" value="{ann_text_sb}" />
+
+        <div class="stage-header">
+            <span class="stage-title">🎯 KAPLAN PARÇASI - TEPE DUYURU EDİTÖRÜ</span>
+            <span class="status-badge">MOBİL / DESKTOP AKTİF</span>
+        </div>
+        
+        <div class="editor-wrapper">
+            <!-- LEFTPANEL: Preview & Coordinates -->
+            <div class="editor-panel-left">
+                <div class="canvas-area" id="canvas-area">
+                    <div id="drag-item" style="transform: translate({disp_x_sb}px, {disp_y_sb}px) rotate({disp_rot_sb}deg);">
+                        <div id="banner-wrapper"></div>
+                    </div>
+                </div>
+                
+                <div class="indicators-row">
+                    <div class="indicator">X Kaydırma<span id="badge-x">{disp_x_sb}px</span></div>
+                    <div class="indicator">Y Kaydırma<span id="badge-y">{disp_y_sb}px</span></div>
+                    <div class="indicator">Yazı Boyutu<span id="badge-size">{disp_size_sb}px</span></div>
+                    <div class="indicator">Döndürme<span id="badge-rot">{disp_rot_sb}°</span></div>
+                </div>
+                
+                <div class="toolbar">
+                    <button class="action-btn" id="btn-add-text-part" style="background:#27ae60; border-color:#2ecc71; color:white; font-weight:bold;" onclick="switchTab('tab-metin'); addTextPartInput('', true);" title="Mevcut metnin yanına yeni bir metin alanı daha ekler">➕ Yeni Yazı Alanı (+)</button>
+                    <button class="action-btn" id="btn-size-minus" title="Çift parmak zoom veya fare tekerleğiyle de ayarlanabilir">📏 Boyut (-2)</button>
+                    <button class="action-btn" id="btn-size-plus" title="Çift parmak zoom veya fare tekerleğiyle de ayarlanabilir">📏 Boyut (+2)</button>
+                    <button class="action-btn" id="btn-rot-left">↺ Çevir (-15°)</button>
+                    <button class="action-btn" id="btn-rot-right">↻ Çevir (+15°)</button>
+                    <button class="action-btn danger" id="btn-reset" title="Konumu merkeze sıfırlar">🎯 Konum Sıfırla</button>
+                    <button class="action-btn danger" id="btn-factory-reset" style="background:#c0392b; border-color:#962d22;" title="Sıfırla">🔄 Fabrika Sıfırla</button>
+                </div>
+                
+                <div class="bottom-action-bar">
+                    <button class="bottom-btn preview-btn" id="btn-preview">👀 ANLIK ÖNİZLEME YAP</button>
+                    <button class="bottom-btn save-btn" id="btn-save">💾 CANLIYA KAYDET VE YAYINLA 🚀</button>
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL -->
+            <div class="editor-panel-right">
+                <div class="tabs-header">
+                    <button class="tab-btn active" onclick="switchTab('tab-metin')">📝 Yazı & Biçim</button>
+                    <button class="tab-btn" onclick="switchTab('tab-renk')">🎨 Harf Boyama</button>
+                    <button class="tab-btn" onclick="switchTab('tab-arka')">🖼️ Arka Plan</button>
+                    <button class="tab-btn" onclick="switchTab('tab-efekt')">✨ Neon & Gölge</button>
+                    <button class="tab-btn" onclick="switchTab('tab-gorsel')">📷 Medya</button>
+                </div>
+
+                <!-- TAB 1: Yazı & Biçim (Enhanced with dynamic multi-parts input structure) -->
+                <div id="tab-metin" class="tab-content active">
+                    <div class="form-group">
+                        <label>Duyuru Metni</label>
+                        <div id="multi-text-container"></div>
+                        <button type="button" class="action-btn add-text-btn" onclick="addTextPartInput('', true)">➕ Yeni Yazı Alanı Ekle</button>
+                    </div>
+                    
+                    <div class="flex-row">
+                        <div class="form-group flex-item">
+                            <label>Hizalama</label>
+                            <select id="inp-align" class="form-control" onchange="renderPreview()">
+                                <option value="center">Orta</option>
+                                <option value="left">Sol</option>
+                                <option value="right">Sağ</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-item">
+                            <label>Yazı Tipi</label>
+                            <select id="inp-font" class="form-control" onchange="renderPreview()">
+                                <option value="sans-serif">Sans-Serif (Varsayılan)</option>
+                                <option value="Space Grotesk">Space Grotesk (Teknolojik)</option>
+                                <option value="Cinzel">Cinzel (Klasik Roma)</option>
+                                <option value="monospace">Retro Blok (Monospace)</option>
+                                <option value="cursive">El Yazısı (Cursive)</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Impact">Impact (Dar-Kalın)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex-row">
+                        <div class="form-group flex-item">
+                            <label>Kalınlık (Weight)</label>
+                            <select id="inp-font-weight" class="form-control" onchange="renderPreview()">
+                                <option value="bold">Kalın (Bold)</option>
+                                <option value="normal">Normal</option>
+                                <option value="bolder">Çok Kalın (Bolder)</option>
+                                <option value="900">Devasa Kalın (900)</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-item">
+                            <label>Stil (Style)</label>
+                            <select id="inp-font-style" class="form-control" onchange="renderPreview()">
+                                <option value="normal">Normal</option>
+                                <option value="italic">İtalik (Eğik)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex-row">
+                        <div class="form-group flex-item">
+                            <label>Süsleme (Decoration)</label>
+                            <select id="inp-text-decoration" class="form-control" onchange="renderPreview()">
+                                <option value="none">Süsleme Yok</option>
+                                <option value="underline">Altı Çizili</option>
+                                <option value="line-through">Üstü Çizili</option>
+                                <option value="overline">Üst Çizgili</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-item">
+                            <label>Varsayılan Yazı Rengi</label>
+                            <input type="color" id="inp-text-color" value="{ann_text_color_sb}" class="form-control" style="height:35px; padding:2px;" oninput="handleTextGlobalColorChange(this.value)" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Yazı Görünürlüğü (Saydamlık - %)</label>
+                        <div class="flex-row" style="align-items: center;">
+                            <input type="range" id="inp-opacity" min="10" max="100" value="{ann_opacity_sb}" class="form-control" style="flex:3;" oninput="document.getElementById('v-opacity').innerText=this.value+'%'; renderPreview()" />
+                            <span id="v-opacity" style="flex:1; text-align:right; font-size:11px; color:#e67e22; font-weight:bold;">{ann_opacity_sb}%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: Harf Boyama -->
+                <div id="tab-renk" class="tab-content">
+                    <div class="form-group" style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03); margin-bottom: 12px;">
+                        <label>⚡ Toplu & Hızlı Boyama Araçları</label>
+                        <div class="flex-row" style="margin-bottom:8px;">
+                            <input type="color" id="bulk-color-pick" value="#FFFFFF" class="form-control" style="flex:1; height:32px; padding:2px;" />
+                            <button type="button" class="action-btn" style="flex:2.2; background:#2980b9;" onclick="applyBulkColor()">Tüm Harfleri Boya</button>
+                        </div>
+                        <div class="flex-row">
+                            <input type="text" id="paint-word-target" placeholder="Boyanacak Kelime..." class="form-control" style="flex:2;" />
+                            <input type="color" id="paint-word-color" value="#FFD700" class="form-control" style="flex:1; height:32px; padding:2px;" />
+                            <button type="button" class="action-btn" style="flex:1.5; background:#8e44ad;" onclick="applyWordHighlight()">Kelimeli Boya</button>
+                        </div>
+                    </div>
+                    
+                    <label style="margin-bottom:6px; display:block; font-size:10px; font-weight:bold; color:#f39c12;">🔠 Tek Tek Harf Harf Renklendir</label>
+                    <div class="char-color-grid" id="char-colors-grid"></div>
+                </div>
+
+                <!-- TAB 3: Arka Plan -->
+                <div id="tab-arka" class="tab-content">
+                    <div class="form-group">
+                        <label>Arka Plan Tasarım Tipi</label>
+                        <select id="inp-bg-type" class="form-control" onchange="toggleBgFields(); renderPreview();">
+                            <option value="none">Arka Plan Yok</option>
+                            <option value="flat">Düz Renk</option>
+                            <option value="gradient">Renk Geçişli (Gradient)</option>
+                            <option value="image">Görsel / Hareketli GIF</option>
+                        </select>
+                    </div>
+
+                    <div id="bg-color-fields" class="flex-row">
+                        <div class="form-group flex-item">
+                            <label>Arka Plan Rengi</label>
+                            <input type="color" id="inp-bg-color" value="{ann_bg_color_sb}" class="form-control" style="height:35px; padding:2px;" oninput="renderPreview()" />
+                        </div>
+                        <div class="form-group flex-item" id="bg-gradient-field">
+                            <label>Gradient Bitiş Rengi</label>
+                            <input type="color" id="inp-bg-gradient-end" value="{ann_bg_gradient_end_sb}" class="form-control" style="height:35px; padding:2px;" oninput="renderPreview()" />
+                        </div>
+                    </div>
+
+                    <div id="bg-image-fields" class="form-group">
+                        <div class="form-group">
+                            <label>Web Görsel / GIF Linki</label>
+                            <input type="text" id="inp-bg-image-url" value="{ann_bg_image_url_sb}" placeholder="https://..." class="form-control" oninput="renderPreview()" />
+                        </div>
+                        <div class="form-group">
+                            <label>Görsel Şeffaflığı / Opaklığı</label>
+                            <div class="flex-row" style="align-items: center;">
+                                <input type="range" id="inp-bg-opacity" min="10" max="100" value="{ann_bg_opacity_sb}" class="form-control" style="flex:3;" oninput="document.getElementById('v-bg-opacity').innerText=this.value+'%'; renderPreview()" />
+                                <span id="v-bg-opacity" style="flex:1; text-align:right; font-size:11px; color:#e67e22; font-weight:bold;">{ann_bg_opacity_sb}%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex-row">
+                        <div class="form-group flex-item">
+                            <label>İç Düşey Boşluk (Padding Y)</label>
+                            <input type="number" id="inp-padding-vertical" value="{ann_padding_vertical_sb}" min="0" max="100" class="form-control" oninput="renderPreview()" />
+                        </div>
+                        <div class="form-group flex-item">
+                            <label>İç Yatay Boşluk (Padding X)</label>
+                            <input type="number" id="inp-padding-horizontal" value="{ann_padding_horizontal_sb}" min="0" max="100" class="form-control" oninput="renderPreview()" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Çerçeve Köşe Ovalleşmesi (Border Radius px)</label>
+                        <input type="number" id="inp-border-radius" value="{ann_border_radius_sb}" min="0" max="100" class="form-control" oninput="renderPreview()" />
+                    </div>
+                </div>
+
+                <!-- TAB 4: Neon & Gölge -->
+                <div id="tab-efekt" class="tab-content">
+                    <div class="form-group" style="background: rgba(0,243,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid rgba(0,243,255,0.06); margin-bottom: 12px;">
+                        <label class="toggle-container">
+                            <input type="checkbox" id="inp-glow-enabled" class="hidden-checkbox" onchange="toggleGlowFields(); renderPreview();" />
+                            <div class="toggle-switch"></div>
+                            <span style="font-size:11px; color:#ffffff; font-weight:bold;">🌌 NEON PARLAKLIK (GLOW)</span>
+                        </label>
+                        
+                        <div id="glow-intensity-wrapper" class="form-group" style="margin-top:8px;">
+                            <label>Neon Yoğunluk Gücü</label>
+                            <div class="flex-row" style="align-items: center;">
+                                <input type="range" id="inp-glow-intensity" min="0" max="100" value="{ann_glow_intensity_sb}" class="form-control" style="flex:3;" oninput="document.getElementById('v-glow-intensity').innerText=this.value; renderPreview();" />
+                                <span id="v-glow-intensity" style="flex:1; text-align:right; font-size:11px; color:#e67e22; font-weight:bold;">{ann_glow_intensity_sb}</span>
+                            </div>
+                        </div>
+                        
+                        <div id="glow-color-wrapper" class="form-group">
+                            <label>Glow Rengi Modu</label>
+                            <div style="display:flex; gap:12px; margin-bottom:8px; font-size:11px;">
+                                <label style="cursor:pointer; display:flex; align-items:center; gap:4px; text-transform:none;">
+                                    <input type="radio" name="glow_color_mode" value="auto" onchange="toggleGlowFields(); renderPreview();" /> Harf Rengiyle Aynı (Auto)
+                                </label>
+                                <label style="cursor:pointer; display:flex; align-items:center; gap:4px; text-transform:none;">
+                                    <input type="radio" name="glow_color_mode" value="fixed" onchange="toggleGlowFields(); renderPreview();" /> Özel Sabit Renk
+                                </label>
+                            </div>
+                            
+                            <div id="glow-color-fixed-picker" class="form-group" style="margin-bottom:0;">
+                                <label>Neon Sabit Rengi</label>
+                                <input type="color" id="inp-glow-color-fixed" value="{ann_glow_color_fixed_sb}" class="form-control" style="height:35px; padding:2px;" oninput="renderPreview()" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03); margin-bottom: 12px;">
+                        <label class="toggle-container">
+                            <input type="checkbox" id="inp-shadow-enabled" class="hidden-checkbox" onchange="toggleShadowFields(); renderPreview();" />
+                            <div class="toggle-switch"></div>
+                            <span style="font-size:11px; color:#ffffff; font-weight:bold;">🖤 DERİNLİK GÖLGESİ (SHADOW)</span>
+                        </label>
+                        
+                        <div id="shadow-intensity-wrapper" class="form-group" style="margin-top:8px;">
+                            <label>Gölge Derinlik Gücü</label>
+                            <div class="flex-row" style="align-items: center;">
+                                <input type="range" id="inp-shadow-intensity" min="0" max="100" value="{ann_shadow_intensity_sb}" class="form-control" style="flex:3;" oninput="document.getElementById('v-shadow-intensity').innerText=this.value; renderPreview();" />
+                                <span id="v-shadow-intensity" style="flex:1; text-align:right; font-size:11px; color:#e67e22; font-weight:bold;">{ann_shadow_intensity_sb}</span>
+                            </div>
+                        </div>
+                        
+                        <div id="shadow-color-wrapper" class="form-group" style="margin-bottom:0;">
+                            <label>Gölge Rengi</label>
+                            <input type="color" id="inp-shadow-color" value="{ann_shadow_color_sb}" class="form-control" style="height:35px; padding:2px;" oninput="renderPreview()" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>🎬 Yazı Animasyon Tipi</label>
+                        <select id="inp-animation-type" class="form-control" onchange="renderPreview()">
+                            <option value="none">Animasyon Yok</option>
+                            <option value="neon_pulse">Neon Nefes Girişi (Pulse)</option>
+                            <option value="wiggle">Dalgalanma (Wiggle Wave)</option>
+                            <option value="neon_flicker">Retro Neon Titremesi (Flicker)</option>
+                            <option value="rainbow">Gökkuşağı Renk Akışı (Rainbow)</option>
+                            <option value="pulse">Yumuşak Genişleme</option>
+                            <option value="blur_fade">Bulanıklaşan Odaklama (Blur Fade)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- TAB 5: Medya -->
+                <div id="tab-gorsel" class="tab-content">
+                    <div class="form-group">
+                        <label>Ek Görsel / Hareketli GIF URL</label>
+                        <input type="text" id="inp-media-url" value="{ann_media_url_sb}" placeholder="https://..." class="form-control" oninput="renderPreview()" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Görsel Konumu (Align)</label>
+                        <select id="inp-media-align" class="form-control" onchange="renderPreview()">
+                            <option value="below">Yazının Altında</option>
+                            <option value="above">Yazının Üstünde</option>
+                            <option value="left">Yazının Solunda</option>
+                            <option value="right">Yazının Sağında</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Görsel Genişliği (px)</label>
+                        <div class="flex-row" style="align-items: center;">
+                            <input type="range" id="inp-media-size" min="20" max="500" value="{ann_media_size_sb}" class="form-control" style="flex:3;" oninput="document.getElementById('v-media-size').innerText=this.value+'px'; renderPreview()" />
+                            <span id="v-media-size" style="flex:1; text-align:right; font-size:11px; color:#e67e22; font-weight:bold;">{ann_media_size_sb}px</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const parentDoc = window.parent.document;
+        
+        // Touch & Drag Position state
+        let x = {disp_x_sb};
+        let y = {disp_y_sb};
+        let size = {disp_size_sb};
+        let rot = {disp_rot_sb};
+        
+        // Drag unlock states
+        let dragUnlocked = false; // Locked by default
+        
+        // Global colors array
+        let charColorsArray = {char_colors_json};
+        
+        const dragItem = document.getElementById('drag-item');
+        const canvasArea = document.getElementById('canvas-area');
+        
+        // ADD LOCK/UNLOCK METRICS ON THE CANVAS
+        const lockBadge = document.createElement('div');
+        lockBadge.id = 'lock-badge';
+        lockBadge.style.cssText = `
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(15, 15, 30, 0.9);
+            border: 1px solid rgba(230, 126, 34, 0.5);
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #e67e22;
+            font-weight: bold;
+            z-index: 999999;
+            pointer-events: none;
+            transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        `;
+        lockBadge.innerHTML = '🔒 HAREKET KİLİTLİ (Açmak için Çift Tıkla)';
+        canvasArea.appendChild(lockBadge);
+
+        function updateLockUI() {{
+            if (dragUnlocked) {{
+                lockBadge.innerHTML = '🔓 HAREKET SERBEST (Sürükleyebilirsin)';
+                lockBadge.style.borderColor = 'rgba(46, 204, 113, 0.7)';
+                lockBadge.style.color = '#2ecc71';
+                lockBadge.style.boxShadow = '0 0 12px rgba(46, 204, 113, 0.4)';
+            }} else {{
+                lockBadge.innerHTML = '🔒 HAREKET KİLİTLİ (Açmak için Çift Tıkla)';
+                lockBadge.style.borderColor = 'rgba(230, 126, 34, 0.5)';
+                lockBadge.style.color = '#e67e22';
+                lockBadge.style.boxShadow = '0 4px 15px rgba(0,0,0,0.6)';
+            }}
+        }}
+
+        // Dblclick to unlock / lock
+        canvasArea.addEventListener('dblclick', (e) => {{
+            dragUnlocked = !dragUnlocked;
+            updateLockUI();
+        }});
+
+        // Double tap for mobile
+        let lastTap = 0;
+        canvasArea.addEventListener('touchstart', (e) => {{
+            const now = new Date().getTime();
+            const timesince = now - lastTap;
+            if (timesince < 300 && timesince > 0) {{
+                dragUnlocked = !dragUnlocked;
+                updateLockUI();
+                e.preventDefault();
+            }}
+            lastTap = now;
+        }});
+
+        // Warn touch when locked
+        canvasArea.addEventListener('mousedown', (e) => {{
+            if (!dragUnlocked) {{
+                lockBadge.style.transform = 'scale(1.08)';
+                lockBadge.style.background = 'rgba(192, 57, 43, 0.95)';
+                lockBadge.style.color = '#ffffff';
+                lockBadge.innerHTML = '⚠️ Çift tıklayarak kilidi açın!';
+                setTimeout(() => {{
+                    lockBadge.style.transform = 'scale(1)';
+                    lockBadge.style.background = 'rgba(15, 15, 30, 0.9)';
+                    updateLockUI();
+                }}, 1000);
+            }}
+        }});
+        
+        // Multi-text part management
+        function addTextPartInput(value, notify) {{
+            const container = document.getElementById('multi-text-container');
+            const row = document.createElement('div');
+            row.className = 'text-part-row';
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = value;
+            input.className = 'form-control inp-text-part';
+            input.placeholder = 'Yeni yazı parçası...';
+            input.oninput = handleTextChange;
+            
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'delete-part-btn';
+            delBtn.innerHTML = '🗑️';
+            delBtn.onclick = () => {{
+                row.remove();
+                handleTextChange();
+            }};
+            
+            row.appendChild(input);
+            row.appendChild(delBtn);
+            container.appendChild(row);
+            
+            if (notify) {{
+                handleTextChange();
+            }}
+        }}
+
+        function initMultiTextFields() {{
+            const initialText = `{ann_text_sb}`;
+            if (initialText.trim()) {{
+                // Fallback splitting if there is any custom marker or just take as single initial part
+                addTextPartInput(initialText, false);
+            }} else {{
+                addTextPartInput('', false);
+            }}
+        }}
+
+        // Tab switching controller
+        function switchTab(tabId) {{
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+            if (btn) btn.classList.add('active');
+            
+            const content = document.getElementById(tabId);
+            if (content) content.classList.add('active');
+        }}
+
+        // Dynamic show/hide of specific background fields
+        function toggleBgFields() {{
+            const bgType = document.getElementById('inp-bg-type').value;
+            const colorFields = document.getElementById('bg-color-fields');
+            const gradientField = document.getElementById('bg-gradient-field');
+            const imageFields = document.getElementById('bg-image-fields');
+            
+            if (bgType === "none") {{
+                colorFields.style.display = "none";
+                imageFields.style.display = "none";
+            }} else if (bgType === "flat") {{
+                colorFields.style.display = "flex";
+                gradientField.style.display = "none";
+                imageFields.style.display = "none";
+            }} else if (bgType === "gradient") {{
+                colorFields.style.display = "flex";
+                gradientField.style.display = "block";
+                imageFields.style.display = "none";
+            }} else if (bgType === "image") {{
+                colorFields.style.display = "none";
+                imageFields.style.display = "block";
+            }}
+        }}
+
+        // Dynamic show/hide of Neon Glow fields
+        function toggleGlowFields() {{
+            const glowEnabled = document.getElementById('inp-glow-enabled').checked;
+            const intensityWrapper = document.getElementById('glow-intensity-wrapper');
+            const colorWrapper = document.getElementById('glow-color-wrapper');
+            
+            if (glowEnabled) {{
+                intensityWrapper.style.display = "block";
+                colorWrapper.style.display = "block";
+                
+                const glowMode = document.querySelector('input[name="glow_color_mode"]:checked').value;
+                const fixedPicker = document.getElementById('glow-color-fixed-picker');
+                if (glowMode === "fixed") {{
+                    fixedPicker.style.display = "block";
+                }} else {{
+                    fixedPicker.style.display = "none";
+                }}
+            }} else {{
+                intensityWrapper.style.display = "none";
+                colorWrapper.style.display = "none";
+            }}
+        }}
+
+        // Dynamic show/hide of Shadow fields
+        function toggleShadowFields() {{
+            const shadowEnabled = document.getElementById('inp-shadow-enabled').checked;
+            const intensityWrapper = document.getElementById('shadow-intensity-wrapper');
+            const colorWrapper = document.getElementById('shadow-color-wrapper');
+            
+            if (shadowEnabled) {{
+                intensityWrapper.style.display = "block";
+                colorWrapper.style.display = "block";
+            }} else {{
+                intensityWrapper.style.display = "none";
+                colorWrapper.style.display = "none";
+            }}
+        }}
+
+        // Rebuild character list & handle character color bindings
+        function syncCharColorsCount(textLength) {{
+            const grid = document.getElementById('char-colors-grid');
+            const cachedColors = [...charColorsArray];
+            grid.innerHTML = '';
+            
+            // Reinitialize array
+            charColorsArray = [];
+            const textVal = document.getElementById('inp-text').value;
+            
+            for (let i = 0; i < textLength; i++) {{
+                const char = textVal[i] || ' ';
+                const originalColor = cachedColors[i] || document.getElementById('inp-text-color').value || '#FFFFFF';
+                charColorsArray.push(originalColor);
+                
+                const box = document.createElement('div');
+                box.className = 'char-color-box';
+                
+                const label = document.createElement('span');
+                label.innerText = `[${{i + 1}}] "${{char}}"`;
+                
+                const picker = document.createElement('input');
+                picker.type = 'color';
+                picker.value = originalColor;
+                picker.oninput = (e) => {{
+                    charColorsArray[i] = e.target.value;
+                    renderPreview();
+                }};
+                
+                box.appendChild(label);
+                box.appendChild(picker);
+                grid.appendChild(box);
+            }}
+        }}
+
+        function handleTextChange() {{
+            const parts = Array.from(document.querySelectorAll('.inp-text-part')).map(inp => inp.value);
+            // Join parts with space
+            const joinedText = parts.join(' ');
+            document.getElementById('inp-text').value = joinedText;
+            
+            syncCharColorsCount(joinedText.length);
+            renderPreview();
+        }}
+        
+        function handleTextGlobalColorChange(newColor) {{
+            charColorsArray = charColorsArray.map(() => newColor);
+            
+            // Sync current pickers
+            document.querySelectorAll('.char-color-box input[type="color"]').forEach(el => {{
+                el.value = newColor;
+            }});
+            renderPreview();
+        }}
+        
+        function applyBulkColor() {{
+            const targetColor = document.getElementById('bulk-color-pick').value;
+            handleTextGlobalColorChange(targetColor);
+        }}
+        
+        function applyWordHighlight() {{
+            const word = document.getElementById('paint-word-target').value.trim();
+            const color = document.getElementById('paint-word-color').value;
+            const fullText = document.getElementById('inp-text').value;
+            
+            if (!word || !fullText) return;
+            
+            let index = fullText.indexOf(word);
+            while (index !== -1) {{
+                for (let i = index; i < index + word.length; i++) {{
+                    if (i < charColorsArray.length) {{
+                        charColorsArray[i] = color;
+                    }}
+                }}
+                index = fullText.indexOf(word, index + 1);
+            }}
+            
+            // sync pickers representation
+            const pickers = document.querySelectorAll('.char-color-box input[type="color"]');
+            charColorsArray.forEach((col, idx) => {{
+                if (pickers[idx]) pickers[idx].value = col;
+            }});
+            renderPreview();
+        }}
+        
+        function renderPreview() {{
+            const wrapper = document.getElementById('banner-wrapper');
+            const textVal = document.getElementById('inp-text').value;
+            const font = document.getElementById('inp-font').value;
+            const align = document.getElementById('inp-align').value;
+            const weight = document.getElementById('inp-font-weight').value;
+            const style = document.getElementById('inp-font-style').value;
+            const decoration = document.getElementById('inp-text-decoration').value;
+            const opacity = document.getElementById('inp-opacity').value;
+            
+            const glowEnabled = document.getElementById('inp-glow-enabled').checked;
+            const glowIntensity = document.getElementById('inp-glow-intensity').value;
+            const glowMode = document.querySelector('input[name="glow_color_mode"]:checked').value;
+            const glowFixedColor = document.getElementById('inp-glow-color-fixed').value;
+            
+            const shadowEnabled = document.getElementById('inp-shadow-enabled').checked;
+            const shadowIntensity = document.getElementById('inp-shadow-intensity').value;
+            const shadowColor = document.getElementById('inp-shadow-color').value;
+            
+            const animationType = document.getElementById('inp-animation-type').value;
+            const bgType = document.getElementById('inp-bg-type').value;
+            const bgColor = document.getElementById('inp-bg-color').value;
+            const bgGradientEnd = document.getElementById('inp-bg-gradient-end').value;
+            const bgImageUrl = document.getElementById('inp-bg-image-url').value;
+            const bgOpacity = document.getElementById('inp-bg-opacity').value;
+            const padY = document.getElementById('inp-padding-vertical').value;
+            const padX = document.getElementById('inp-padding-horizontal').value;
+            const borderRadius = document.getElementById('inp-border-radius').value;
+            
+            const mediaUrl = document.getElementById('inp-media-url').value;
+            const mediaAlign = document.getElementById('inp-media-align').value;
+            const mediaSize = document.getElementById('inp-media-size').value;
+            
+            // 1. Text letter-by-letter compilation
+            let compiledTextHtml = '';
+            for (let i = 0; i < textVal.length; i++) {{
+                const char = textVal[i];
+                const col = charColorsArray[i] || '#FFFFFF';
+                
+                // compute custom text shadow for glow if enabled
+                let glowCss = '';
+                if (glowEnabled) {{
+                    const actualGlowColor = (glowMode === 'auto') ? col : glowFixedColor;
+                    const r = parseInt(glowIntensity);
+                    glowCss = `text-shadow: 0 0 ${{r/5}}px ${{actualGlowColor}}, 0 0 ${{r/2}}px ${{actualGlowColor}}, 0 0 ${{r}}px ${{actualGlowColor}};`;
+                }}
+                
+                // depth shadows
+                let shadowCss = '';
+                if (shadowEnabled) {{
+                    const sh = parseInt(shadowIntensity);
+                    const steps = Math.ceil(sh / 15);
+                    const layers = [];
+                    for(let s=1; s<=steps; s++) {{
+                        layers.push(`${{s}}px ${{s}}px ${{s*1.5}}px ${{shadowColor}}`);
+                    }}
+                    shadowCss = `filter: drop-shadow(${{layers.join(', ')}});`;
+                }}
+                
+                // Space padding normalization
+                if (char === ' ') {{
+                    compiledTextHtml += '<span style="margin-right:0.35em;"></span>';
+                }} else {{
+                    compiledTextHtml += `<span style="color:${{col}}; ${{glowCss}} ${{shadowCss}}">${{char}}</span>`;
+                }}
+            }}
+            
+            // Build the main text div with layouts
+            let animClass = '';
+            let styleTagsHeader = '';
+            
+            if (animationType === 'neon_pulse') {{
+                animClass = 'anim-neon-pulse';
+                styleTagsHeader += `
+                    @keyframes neonPulse {{
+                        0%, 100% {{ opacity: 0.35; filter: brightness(0.7); }}
+                        50% {{ opacity: 1; filter: brightness(1.2); }}
+                    }}
+                    .anim-neon-pulse {{ animation: neonPulse 2s infinite ease-in-out; }}
+                `;
+            }} else if (animationType === 'wiggle') {{
+                animClass = 'anim-wiggle';
+                styleTagsHeader += `
+                    @keyframes wiggleComp {{
+                        0%, 100% {{ transform: translateY(0) rotate(0deg); }}
+                        25% {{ transform: translateY(-4px) rotate(-1.5deg); }}
+                        75% {{ transform: translateY(4px) rotate(1.5deg); }}
+                    }}
+                    .anim-wiggle {{ animation: wiggleComp 3.5s infinite ease-in-out; }}
+                `;
+            }} else if (animationType === 'neon_flicker') {{
+                animClass = 'anim-flicker';
+                styleTagsHeader += `
+                    @keyframes neonFlicker {{
+                        0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {{ opacity: 1; }}
+                        20%, 24%, 55% {{ opacity: 0.25; filter: saturate(0.4); }}
+                    }}
+                    .anim-flicker {{ animation: neonFlicker 4s infinite linear; }}
+                `;
+            }} else if (animationType === 'rainbow') {{
+                animClass = 'anim-rainbow';
+                styleTagsHeader += `
+                    @keyframes colorRainbow {{
+                        0% {{ filter: hue-rotate(0deg); }}
+                        100% {{ filter: hue-rotate(360deg); }}
+                    }}
+                    .anim-rainbow {{ animation: colorRainbow 6s infinite linear; }}
+                `;
+            }} else if (animationType === 'pulse') {{
+                animClass = 'anim-pulse';
+                styleTagsHeader += `
+                    @keyframes softPulse {{
+                        0%, 100% {{ transform: scale(0.98); }}
+                        50% {{ transform: scale(1.02); }}
+                    }}
+                    .anim-pulse {{ animation: softPulse 2.5s infinite ease-in-out; }}
+                `;
+            }} else if (animationType === 'blur_fade') {{
+                animClass = 'anim-blur-fade';
+                styleTagsHeader += `
+                    @keyframes blurFade {{
+                        0%, 100% {{ filter: blur(4px); opacity: 0.4; }}
+                        50% {{ filter: blur(0); opacity: 1; }}
+                    }}
+                    .anim-blur-fade {{ animation: blurFade 3.5s infinite ease-in-out; }}
+                `;
+            }}
+            
+            // Write style override
+            let styleEl = document.getElementById('dynamic-anims-styles');
+            if(!styleEl) {{
+                styleEl = document.createElement('style');
+                styleEl.id = 'dynamic-anims-styles';
+                document.head.appendChild(styleEl);
+            }}
+            styleEl.innerHTML = styleTagsHeader;
+            
+            // Compose text style attributes
+            const mainTextStyle = `
+                font-family: ${{font}}, sans-serif;
+                text-align: ${{align}};
+                font-weight: ${{weight}};
+                font-style: ${{style}};
+                text-decoration: ${{decoration}};
+                opacity: ${{opacity / 100}};
+                font-size: ${{size}}px;
+                line-height: 1.25;
+                word-wrap: break-word;
+                white-space: normal;
+                display: block;
+            `;
+            
+            const finalTextHtml = `<div class="${{animClass}}" style="${{mainTextStyle}}">${{compiledTextHtml}}</div>`;
+            
+            // Build media element if url given
+            let mediaHtml = '';
+            if (mediaUrl.trim()) {{
+                const alignStylesMap = {{
+                    below: 'display:block; margin: 10px auto 0;',
+                    above: 'display:block; margin: 0 auto 10px;',
+                    left: 'display:inline-block; vertical-align:middle; margin-right:12px;',
+                    right: 'display:inline-block; vertical-align:middle; margin-left:12px;'
+                }};
+                
+                mediaHtml = `<img src="${{mediaUrl.trim()}}" style="width:${{mediaSize}}px; border-radius:8px; pointer-events:none; ${{alignStylesMap[mediaAlign] || ''}}" referrerPolicy="no-referrer" />`;
+            }}
+            
+            // Combine Layout based on Media align configurations
+            let contentCompilationHtml = '';
+            if (mediaUrl.trim()) {{
+                if (mediaAlign === 'above') {{
+                    contentCompilationHtml = mediaHtml + finalTextHtml;
+                } else if (mediaAlign === 'below') {{
+                    contentCompilationHtml = finalTextHtml + mediaHtml;
+                }} else if (mediaAlign === 'left') {{
+                    contentCompilationHtml = `<div style="display:flex; align-items:center; justify-content:${{align === 'left' ? 'flex-start' : (align === 'right' ? 'flex-end' : 'center')}}; gap:10px;">${{mediaHtml}}${{finalTextHtml}}</div>`;
+                }} else if (mediaAlign === 'right') {{
+                    contentCompilationHtml = `<div style="display:flex; align-items:center; justify-content:${{align === 'left' ? 'flex-start' : (align === 'right' ? 'flex-end' : 'center')}}; gap:10px;">${{finalTextHtml}}${{mediaHtml}}</div>`;
+                }}
+            }} else {{
+                contentCompilationHtml = finalTextHtml;
+            }}
+            
+            // Build Background Frame layout
+            let bgStyleCss = '';
+            if (bgType === 'flat') {{
+                bgStyleCss = `background: ${{bgColor}};`;
+            }} else if (bgType === 'gradient') {{
+                bgStyleCss = `background: linear-gradient(135deg, ${{bgColor}}, ${{bgGradientEnd}});`;
+            }} else if (bgType === 'image' && bgImageUrl.trim()) {{
+                bgStyleCss = `
+                    background-image: url('${{bgImageUrl.trim()}}');
+                    background-size: cover;
+                    background-position: center;
+                    background-repeat: no-repeat;
+                `;
+            }}
+            
+            // Apply overlay transparency if bg is image
+            let containerBgOverlay = '';
+            if (bgType === 'image' && bgImageUrl.trim()) {{
+                containerBgOverlay = `<div style="position:absolute; inset:0; background: rgba(0,0,0,${{ (100 - bgOpacity)/100 }}); z-index:1; pointer-events:none;"></div>`;
+            }}
+            
+            wrapper.style.cssText = `
+                position: relative;
+                width: 100%;
+                box-sizing: border-box;
+                padding: ${{padY}}px ${{padX}}px;
+                border-radius: ${{borderRadius}}px;
+                ${{bgStyleCss}}
+                overflow: hidden;
+            `;
+            wrapper.innerHTML = containerBgOverlay + `<div style="position:relative; z-index:2; width:100%;">${{contentCompilationHtml}}</div>`;
+        }}
+        
+        function updateDisplay() {{
+            document.getElementById('badge-x').innerText = x + 'px';
+            document.getElementById('badge-y').innerText = y + 'px';
+            document.getElementById('badge-size').innerText = size + 'px';
+            document.getElementById('badge-rot').innerText = rot + '°';
+            
+            document.getElementById('inp-size').value = size;
+        }}
+        
+        function applyTransforms() {{
+            dragItem.style.transform = `translate(${{x}}px, ${{y}}px) rotate(${{rot}}deg)`;
+            updateDisplay();
+        }}
+        
+        // TWO-FINGER MULTI TOUCH GESTURES (Pinch, Scaling, Rotate & Zoom)
+        let isDragging = false;
+        let isPinching = false;
+        let startTouchX = 0;
+        let startTouchY = 0;
+        
+        let initTouchDist = 0;
+        let initFontSize = 20;
+        let initTouchAngle = 0;
+        let initRotationAngle = 0;
+        
+        canvasArea.addEventListener('touchstart', (e) => {{
+            if (!dragUnlocked) return;
+            
+            if (e.touches.length === 1) {{
+                isDragging = true;
+                startTouchX = e.touches[0].clientX - x;
+                startTouchY = e.touches[0].clientY - y;
+            }} else if (e.touches.length === 2) {{
+                isDragging = false;
+                isPinching = true;
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                
+                initTouchDist = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+                initFontSize = size;
+                
+                initTouchAngle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
+                initRotationAngle = rot;
+            }}
+        }});
+        
+        canvasArea.addEventListener('touchmove', (e) => {{
+            if (!dragUnlocked) return;
+            
+            if (isDragging && e.touches.length === 1) {{
+                x = Math.round(e.touches[0].clientX - startTouchX);
+                y = Math.round(e.touches[0].clientY - startTouchY);
+                applyTransforms();
+            }} else if (isPinching && e.touches.length === 2) {{
+                e.preventDefault();
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                
+                const currentDist = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+                const scaleFactor = currentDist / initTouchDist;
+                size = Math.max(8, Math.min(120, Math.round(initFontSize * scaleFactor)));
+                
+                const currentAngle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
+                const angleDifference = (currentAngle - initTouchAngle) * (180 / Math.PI);
+                rot = Math.round(initRotationAngle + angleDifference);
+                
+                applyTransforms();
+                renderPreview();
+            }}
+        }}, {{ passive: false }});
+        
+        canvasArea.addEventListener('touchend', () => {{
+            isDragging = false;
+            isPinching = false;
+        }});
+        canvasArea.addEventListener('touchcancel', () => {{
+            isDragging = false;
+            isPinching = false;
+        }});
+        
+        // MOUSE ACTIONS (Desktop Drag supports)
+        let isMouseDown = false;
+        let startMouseX = 0;
+        let startMouseY = 0;
+        
+        dragItem.addEventListener('mousedown', (e) => {{
+            if (!dragUnlocked) {{
+                e.stopPropagation();
+                return;
+            }}
+            isMouseDown = true;
+            startMouseX = e.clientX - x;
+            startMouseY = e.clientY - y;
+            e.stopPropagation();
+        }});
+        
+        document.addEventListener('mousemove', (e) => {{
+            if (isMouseDown && dragUnlocked) {{
+                x = Math.round(e.clientX - startMouseX);
+                y = Math.round(e.clientY - startMouseY);
+                applyTransforms();
+            }}
+        }});
+        
+        document.addEventListener('mouseup', () => {{
+            isMouseDown = false;
+        }});
+        
+        // MOUSE WHEEL ROTATE/SCALING SUPPORT
+        canvasArea.addEventListener('wheel', (e) => {{
+            e.preventDefault();
+            if (e.deltaY < 0) {{
+                size = Math.min(120, size + 1);
+            }} else {{
+                size = Math.max(8, size - 1);
+            }}
+            applyTransforms();
+            renderPreview();
+        }}, {{ passive: false }});
+        
+        // MANUAL BUTTONS HANDLERS
+        document.getElementById('btn-size-minus').addEventListener('click', () => {{
+            size = Math.max(8, size - 2);
+            applyTransforms();
+            renderPreview();
+        }});
+        document.getElementById('btn-size-plus').addEventListener('click', () => {{
+            size = Math.min(120, size + 2);
+            applyTransforms();
+            renderPreview();
+        }});
+        document.getElementById('btn-rot-left').addEventListener('click', () => {{
+            rot = (rot - 15) % 360;
+            applyTransforms();
+            renderPreview();
+        }});
+        document.getElementById('btn-rot-right').addEventListener('click', () => {{
+            rot = (rot + 15) % 360;
+            applyTransforms();
+            renderPreview();
+        }});
+        document.getElementById('btn-reset').addEventListener('click', () => {{
+            x = 0;
+            y = 0;
+            size = 20;
+            rot = 0;
+            applyTransforms();
+            renderPreview();
+        }});
+        
+        document.getElementById('btn-factory-reset').addEventListener('click', () => {{
+            if (confirm("Tüm tasarım ayarlarını ve metni fabrika ayarlarına sıfırlamak istediğinize emin misiniz?")) {{
+                document.getElementById('multi-text-container').innerHTML = '';
+                addTextPartInput('', false);
+                document.getElementById('inp-text').value = "";
+                document.getElementById('inp-font').value = "sans-serif";
+                document.getElementById('inp-align').value = "center";
+                document.getElementById('inp-font-weight').value = "normal";
+                document.getElementById('inp-font-style').value = "normal";
+                document.getElementById('inp-text-decoration').value = "none";
+                document.getElementById('inp-opacity').value = 100;
+                document.getElementById('v-opacity').innerText = "100%";
+                
+                document.getElementById('inp-glow-enabled').checked = false;
+                document.getElementById('inp-glow-intensity').value = 50;
+                document.getElementById('v-glow-intensity').innerText = "50";
+                
+                const autoRadio = document.querySelector('input[name="glow_color_mode"][value="auto"]');
+                if (autoRadio) autoRadio.checked = true;
+                
+                document.getElementById('inp-glow-color-fixed').value = "#FFC000";
+                
+                document.getElementById('inp-shadow-enabled').checked = false;
+                document.getElementById('inp-shadow-intensity').value = 50;
+                document.getElementById('v-shadow-intensity').innerText = "50";
+                document.getElementById('inp-shadow-color').value = "#000000";
+                
+                document.getElementById('inp-animation-type').value = "none";
+                document.getElementById('inp-bg-type').value = "none";
+                document.getElementById('inp-bg-color').value = "#111122";
+                document.getElementById('inp-bg-gradient-end').value = "#1a1a3a";
+                document.getElementById('inp-bg-image-url').value = "";
+                document.getElementById('inp-bg-opacity').value = 100;
+                document.getElementById('v-bg-opacity').innerText = "100%";
+                document.getElementById('inp-padding-vertical').value = 10;
+                document.getElementById('inp-padding-horizontal').value = 15;
+                document.getElementById('inp-border-radius').value = 12;
+                
+                document.getElementById('inp-media-url').value = "";
+                document.getElementById('inp-media-align').value = "below";
+                document.getElementById('inp-media-size').value = 150;
+                document.getElementById('v-media-size').innerText = "150px";
+                
+                document.getElementById('inp-text-color').value = "#FFFFFF";
+                
+                x = 0;
+                y = 0;
+                size = 20;
+                rot = 0;
+                dragUnlocked = false;
+                updateLockUI();
+                charColorsArray = [];
+                
+                applyTransforms();
+                toggleBgFields();
+                toggleGlowFields();
+                toggleShadowFields();
+                syncCharColorsCount(0);
+                renderPreview();
+                
+                alert("Tüm değerler temizlendi! Canlıya aktarmak için alt kısımdaki 'CANLIYA KAYDET VE YAYINLA' butonuna basabilirsiniz.");
+            }}
+        }});
+        
+        // POPULATE DROPDOWNS AND OPTIONS FROM MODEL
+        document.getElementById('inp-font').value = "{ann_font_sb}";
+        document.getElementById('inp-align').value = "{ann_align_sb}";
+        document.getElementById('inp-font-weight').value = "{ann_weight_sb}";
+        document.getElementById('inp-font-style').value = "{ann_style_sb}";
+        document.getElementById('inp-text-decoration').value = "{ann_decoration_sb}";
+        document.getElementById('inp-animation-type').value = "{ann_animation_type_sb}";
+        document.getElementById('inp-bg-type').value = "{ann_bg_type_sb}";
+        document.getElementById('inp-media-align').value = "{ann_media_align_sb}";
+        
+        document.getElementById('inp-glow-enabled').checked = {ann_glow_enabled_sb};
+        document.getElementById('inp-shadow-enabled').checked = {ann_shadow_enabled_sb};
+ 
+        // radios
+        const glowModeVal = "{ann_glow_color_mode_sb}";
+        const radioBtn = document.querySelector(`input[name="glow_color_mode"][value="${{glowModeVal}}"]`);
+        if (radioBtn) radioBtn.checked = true;
+ 
+        // SUBMIT & SYNC PIPELINES
+        function buildFullPayloadJSON() {{
+            const text = document.getElementById('inp-text').value;
+            const font = document.getElementById('inp-font').value;
+            const align = document.getElementById('inp-align').value;
+            const sizeInp = parseInt(document.getElementById('inp-size').value) || 20;
+            const font_weight = document.getElementById('inp-font-weight').value;
+            const font_style = document.getElementById('inp-font-style').value;
+            const text_decoration = document.getElementById('inp-text-decoration').value;
+            const opacity = parseInt(document.getElementById('inp-opacity').value) || 100;
+            
+            const glow_enabled = document.getElementById('inp-glow-enabled').checked;
+            const glow_intensity = parseInt(document.getElementById('inp-glow-intensity').value) || 50;
+            const glow_color_mode = document.querySelector('input[name="glow_color_mode"]:checked').value;
+            const glow_color_fixed = document.getElementById('inp-glow-color-fixed').value;
+            
+            const shadow_enabled = document.getElementById('inp-shadow-enabled').checked;
+            const shadow_intensity = parseInt(document.getElementById('inp-shadow-intensity').value) || 50;
+            const shadow_color = document.getElementById('inp-shadow-color').value;
+            
+            const animation_type = document.getElementById('inp-animation-type').value;
+            const bg_type = document.getElementById('inp-bg-type').value;
+            const bg_color = document.getElementById('inp-bg-color').value;
+            const bg_gradient_end = document.getElementById('inp-bg-gradient-end').value;
+            const bg_image_url = document.getElementById('inp-bg-image-url').value;
+            const bg_opacity = parseInt(document.getElementById('inp-bg-opacity').value) || 100;
+            const padding_vertical = parseInt(document.getElementById('inp-padding-vertical').value) || 0;
+            const padding_horizontal = parseInt(document.getElementById('inp-padding-horizontal').value) || 0;
+            const border_radius = parseInt(document.getElementById('inp-border-radius').value) || 0;
+            
+            const media_url = document.getElementById('inp-media-url').value;
+            const media_align = document.getElementById('inp-media-align').value;
+            const media_size = parseInt(document.getElementById('inp-media-size').value) || 150;
+            const text_color = document.getElementById('inp-text-color').value;
+            
+            return JSON.stringify({{
+                "displacement_x": x,
+                "displacement_y": y,
+                "rotation": rot,
+                "size": sizeInp,
+                "text": text,
+                "font": font,
+                "align": align,
+                "font_weight": font_weight,
+                "font_style": font_style,
+                "text_decoration": text_decoration,
+                "opacity": opacity,
+                "glow_enabled": glow_enabled,
+                "glow_intensity": glow_intensity,
+                "glow_color_mode": glow_color_mode,
+                "glow_color_fixed": glow_color_fixed,
+                "shadow_enabled": shadow_enabled,
+                "shadow_intensity": shadow_intensity,
+                "shadow_color": shadow_color,
+                "animation_type": animation_type,
+                "bg_type": bg_type,
+                "bg_color": bg_color,
+                "bg_gradient_end": bg_gradient_end,
+                "bg_image_url": bg_image_url,
+                "bg_opacity": bg_opacity,
+                "padding_vertical": padding_vertical,
+                "padding_horizontal": padding_horizontal,
+                "border_radius": border_radius,
+                "media_url": media_url,
+                "media_size": media_size,
+                "media_align": media_align,
+                "char_colors": charColorsArray,
+                "text_color": text_color
+            }});
+        }}
+ 
+        function pushAndSubmit(action) {{
+            if (!parentDoc) return;
+            const jsonStr = buildFullPayloadJSON();
+            
+            const textAreas = Array.from(parentDoc.querySelectorAll('textarea'));
+            const pmTextArea = textAreas.find(ta => ta.value && (ta.value.startsWith('{{"text":') || ta.value.startsWith('{{"displacement_x":')) || ta.ariaLabel === "advanced_json_payload");
+            if (pmTextArea) {{
+                pmTextArea.value = jsonStr;
+                pmTextArea.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                pmTextArea.dispatchEvent(new Event('change', {{ bubbles: true }}));
+            }} else {{
+                const backupTa = parentDoc.querySelector('[data-testid="stTextArea"] textarea');
+                if (backupTa) {{
+                    backupTa.value = jsonStr;
+                    backupTa.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    backupTa.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                }}
+            }}
+ 
+            setTimeout(() => {{
+                const parentButtons = Array.from(parentDoc.querySelectorAll('button'));
+                let btn;
+                if (action === 'save') {{
+                    btn = parentButtons.find(b => b.innerText && b.innerText.includes("Tepe Duyurusunu Kaydet"));
+                }} else {{
+                    btn = parentButtons.find(b => b.innerText && b.innerText.includes("Düzenlemeyi Önizle"));
+                }}
+                if (btn) {{
+                    btn.click();
+                }}
+            }}, 150);
+        }}
+ 
+        document.getElementById('btn-preview').addEventListener('click', () => pushAndSubmit('preview'));
+        document.getElementById('btn-save').addEventListener('click', () => pushAndSubmit('save'));
+ 
+        // Bootstrap on startup
+        initMultiTextFields();
+        syncCharColorsCount(document.getElementById('inp-text').value.length);
+        toggleBgFields();
+        toggleGlowFields();
+        toggleShadowFields();
+        renderPreview();
+        applyTransforms();
+    </script>
+</body>
+</html>"""
+
+    # Embed and sync sandbox onto modern Streamlit interface
+    st.components.v1.html(sandbox_code, height=920, scrolling=True)
+    st.markdown("---")
+    
+    # Hidden form processed via JS pipelines
+    with st.form("ann_edit_form", clear_on_submit=False):
+        json_default = json.dumps(ts, ensure_ascii=False)
+        json_input_val = st.text_area("advanced_json_payload", value=json_default, key="advanced_json_payload_key", label_visibility="collapsed")
+        
+        # Complete stealth style sheet to hide this fallback form representation entirely in the background
+        st.markdown("""
+            <style>
+            div[data-testid="stForm"] {
+                padding: 0px !important;
+                border: none !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                margin: 0px !important;
+            }
+            div[data-testid="stForm"] div[data-testid="stTextArea"]:has(textarea[aria-label="advanced_json_payload"]) {
+                display: none !important;
+            }
+            div[data-testid="stForm"] button[data-testid="stFormSubmitButton"] {
+                display: none !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        btn_preview = st.form_submit_button("Düzenlemeyi Önizle")
+        btn_save = st.form_submit_button("Tepe Duyurusunu Kaydet")
+
+    # Process JSON updates back into memory / database
+    if btn_preview or btn_save:
+        try:
+            updated_payload = json.loads(json_input_val)
+            st.session_state.temp_ann_settings = updated_payload
+            
+            if btn_save:
+                db.collection("settings").document("global_announcement").set(updated_payload)
+                st.success("✅ Tepe duyurusu başarıyla kaydedildi ve canlı yayına alındı!")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.success("👀 Önizleme başarıyla güncellendi! Yukarıdaki editör panelinden sonucu görebilirsiniz.")
+                time.sleep(1)
+                st.rerun()
+        except Exception as e:
+            st.error(f"Teknik hata oluştu: {e}")
 import re
 from datetime import datetime, timezone, timedelta
 import time
@@ -18,8 +1647,8 @@ from PIL import Image
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(
-    page_title="Aslan Parçası V17.9",
-    page_icon="🦁",
+    page_title="Kaplan Parçası V17.9",
+    page_icon="🐯",
     layout="centered"
 )
 
@@ -450,7 +2079,7 @@ if not OPENROUTER_API_KEY:
 
 # --- TEMALAR ---
 TEMALAR = {
-    "🦁 Aslan İni": "linear-gradient(135deg, #0f2027, #203a43, #2c5364)",
+    "🐯 Kaplan İni": "linear-gradient(135deg, #0f2027, #203a43, #2c5364)",
     "👑 Kraliyet": "linear-gradient(135deg, #1a0000, #4a0000, #8b0000)",
     "🌲 Orman Derinliği": "linear-gradient(135deg, #061700, #142f10, #2c4a2c)",
     "💻 Teknoloji": "linear-gradient(135deg, #000428, #004e92)",
@@ -796,16 +2425,35 @@ animation: blurFade 3s infinite ease-in-out;
     return "\n".join(stripped_lines)
 
 
-def get_styled_user_name(u_name, u_color, u_glow, u_tag, u_rozet):
-    color_val = u_color if u_color else "#FFFFFF"
+def get_styled_user_name(u_name, u_color=None, u_glow=False, u_tag=None, u_rozet=None, email=None, is_admin=False):
+    clean_name = str(u_name).strip().replace(" 👑", "").replace("🛠️", "").strip().lower()
+    clean_email = str(email).strip().lower() if email else ""
+    
+    # 🌟 FORCE FOUNDER STYLING Rules
+    if clean_email == "ayazscma92@gmail.com" or clean_name == "ayaz kaplan":
+        color_val = "#FF0000"
+        u_glow = True
+        u_tag = "KURUCU"
+        u_rozet = "🛠️"
+    # 🌟 FORCE ADMIN STYLING Rules
+    elif is_admin or u_tag == "YÖNETİCİ" or clean_name == "yönetici":
+        color_val = u_color if u_color else "#9b59b6"
+        u_glow = True
+        u_tag = "YÖNETİCİ"
+        u_rozet = "🛡️"
+    else:
+        color_val = u_color if u_color else "#FFFFFF"
+    
     glow_css = f"text-shadow: 0 0 10px {color_val}, 0 0 20px {color_val}, 0 0 30px {color_val};" if u_glow else ""
     tag_html = ""
     if u_tag:
         tag_html = f'<span style="font-size:0.8em; color:{color_val}; {glow_css} margin-right:5px;">[{u_tag}]</span>'
+    
     isim_html = f'<span style="color:{color_val}; {glow_css} font-weight:bold;">{u_name}</span>'
     rozet_html = ""
     if u_rozet:
         rozet_html = f'<span style="margin-left:5px; filter: drop-shadow(0 0 6px {color_val});">{u_rozet}</span>' if u_glow else f'<span style="margin-left:5px;">{u_rozet}</span>'
+    
     return f"{tag_html}{isim_html}{rozet_html}"
 
 def get_tr_time():
@@ -976,7 +2624,7 @@ def sifre_kaydet_firebase(uid, yeni_sifre):
         print(f"[ŞİFRE KAYIT HATASI] {e}")
 
 # --- LOCAL STORAGE COMPONENT ---
-COMP_DIR = os.path.join(tempfile.gettempdir(), "aslan_ls_component")
+COMP_DIR = os.path.join(tempfile.gettempdir(), "kaplan_ls_component")
 os.makedirs(COMP_DIR, exist_ok=True)
 HTML_PATH = os.path.join(COMP_DIR, "index.html")
 
@@ -993,7 +2641,7 @@ with open(HTML_PATH, "w", encoding="utf-8") as f:
       window.onload = function() {
           sendMessage("streamlit:componentReady", {apiVersion: 1});
           sendMessage("streamlit:setFrameHeight", {height: 0});
-          var val = localStorage.getItem("aslan_passkey");
+          var val = localStorage.getItem("kaplan_passkey");
           sendMessage("streamlit:setComponentValue", {value: val ? val : "NOT_FOUND"});
       };
     </script></head>
@@ -1004,7 +2652,7 @@ with open(HTML_PATH, "w", encoding="utf-8") as f:
 get_local_storage = components.declare_component("get_local_storage", path=COMP_DIR)
 
 # --- VOICE RECORDER COMPONENT ---
-VOICE_COMP_DIR = os.path.join(tempfile.gettempdir(), "aslan_voice_recorder")
+VOICE_COMP_DIR = os.path.join(tempfile.gettempdir(), "kaplan_voice_recorder")
 os.makedirs(VOICE_COMP_DIR, exist_ok=True)
 VOICE_HTML_PATH = os.path.join(VOICE_COMP_DIR, "index.html")
 
@@ -1171,7 +2819,7 @@ def logout_user():
 
 # --- SESSİZ ARKA PLAN GÖREVLİLERİ ---
 if st.session_state.get("trigger_clear_token", False):
-    components.html("<script>localStorage.removeItem('aslan_passkey');</script>", height=0, width=0)
+    components.html("<script>localStorage.removeItem('kaplan_passkey');</script>", height=0, width=0)
     st.markdown("<h3 style='text-align:center; color:white; margin-top:20vh;'>Çıkış yapılıyor...</h3>", unsafe_allow_html=True)
     st.session_state.trigger_clear_token = False
     time.sleep(0.5)
@@ -1179,7 +2827,7 @@ if st.session_state.get("trigger_clear_token", False):
 
 if st.session_state.get("trigger_save_token"):
     uid = st.session_state.trigger_save_token
-    components.html(f"<script>localStorage.setItem('aslan_passkey', '{uid}');</script>", height=0, width=0)
+    components.html(f"<script>localStorage.setItem('kaplan_passkey', '{uid}');</script>", height=0, width=0)
     st.session_state.trigger_save_token = None
 
 # --- ADIM 1: TOKEN OKUMA ---
@@ -1296,7 +2944,7 @@ if not st.session_state.user_logged_in:
             st.rerun()
         st.stop()
 
-    st.title("🦁 Aslan Parçası V17.9")
+    st.title("🐯 Kaplan Parçası V17.9")
 
     if "ban_error_on_logout" in st.session_state:
         st.error(st.session_state.ban_error_on_logout)
@@ -2379,7 +4027,7 @@ else:
                                     content = msg.get("content", "")
                                     if role == "separator": formatted_lines.append(f"\n{content}\n")
                                     elif role == "user": formatted_lines.append(f"[Kullanıcı]: {content}")
-                                    elif role == "assistant": formatted_lines.append(f"[Aslan Parçası]: {content}")
+                                    elif role == "assistant": formatted_lines.append(f"[Kaplan Parçası]: {content}")
                                 full_transcript = "\n".join(formatted_lines)
                                 with st.expander("💾 Arşivlenmiş Son 10 Sohbet Mesajı (Yönetici Görünümü)"):
                                     st.text_area("Yedeklenen Sohbetler:", value=full_transcript, height=200, disabled=True, key=f"backup_view_{u_id}")
@@ -4413,7 +6061,7 @@ else:
         # ─── SOHBET SAYFASI ────────────────────────────────────────────
         if st.session_state.current_page == "chat":
             if st.session_state.get("play_send_sound", False):
-                st.markdown('<audio autoplay style="display:none;"><source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav" type="audio/wav"></audio>', unsafe_allow_html=True)
+                st.markdown('<audio autoplay style="display:none;"><source src="https://assets.mixkit.co/active_storage/sfx/1344/1344-84.wav" type="audio/wav"></audio>', unsafe_allow_html=True)
                 st.session_state.play_send_sound = False
 
             # --- ARKA PLAN KONTROL (tamamen görünmez — kullanıcı deneyimini etkilemez) ---
@@ -4551,7 +6199,7 @@ else:
 
             col_title, col_bildirim = st.columns([6, 1])
             with col_title:
-                st.title("🤖 Aslan Parçası V17.9")
+                st.title("🤖 Kaplan Parçası V17.9")
             with col_bildirim:
                 # Info button on top
                 with st.popover("ℹ️", help="Uygulama Bilgisi"):
@@ -4559,7 +6207,7 @@ else:
                     st.markdown("""
 **Müstakbel Şirket**, dijital iletişim ve yapay zeka alanında öncü çözümler geliştiren, geleceğin teknolojilerini bugünün ihtiyaçlarıyla buluşturan köklü bir teknoloji kuruluşudur.
 
-**Aslan Parçası V17.9**, Müstakbel Şirket bünyesinde geliştirilen amiral gemisi yapay zeka platformudur. Gerçek zamanlı sohbet, yapay zeka destekli asistan, YouTube entegrasyonu ve topluluk yönetimi tek çatı altında sunulmaktadır.
+**Kaplan Parçası V17.9**, Müstakbel Şirket bünyesinde geliştirilen amiral gemisi yapay zeka platformudur. Gerçek zamanlı sohbet, yapay zeka destekli asistan, YouTube entegrasyonu ve topluluk yönetimi tek çatı altında sunulmaktadır.
                     """)
                     st.divider()
                     st.markdown("## 🎯 Misyonumuz")
@@ -4722,6 +6370,23 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                 user_tag_fresh_ai = current_doc.get("tag", "")
                 user_rozet_fresh_ai = current_doc.get("rozet", "")
 
+                # 🌐 AUTOMATIC WEB SEARCH (Internet/Google Chrome Integration)
+                search_context = ""
+                last_user_query = ""
+                if mesajlar:
+                    for msg in reversed(mesajlar):
+                        if msg.get("role") == "user":
+                            last_user_query = msg.get("content", "")
+                            break
+                if last_user_query:
+                    search_results = web_ara(last_user_query)
+                    if search_results:
+                        search_context = (
+                            f"\n\n🌍 LIVE CHROME INTERNET SEARCH RESULTS FOR '{last_user_query}':\n"
+                            f"{search_results}\n"
+                            f"Use this live information to answer the user accurately and fully as a clever Tiger (Kaplan Parçası)."
+                        )
+
                 if is_kurucu:
                     rol_tanimi = "Kurucu ve Sistem Sahibi (Ayaz Kaplan)"
                     hitap_tarzi = "Kurucum, Reis, Kurucum Ayaz, Reis Ayaz Kaplan"
@@ -4733,7 +6398,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                 else:
                     rol_tanimi = "Normal Sistem Kullanıcısı"
                     hitap_tarzi = f"Doğrudan ismiyle ({current_name}), Reis veya Dostum"
-                    uslub = "Samimi, aslan gibi dik duruşlu, sıcak, yardımsever ama aşırı resmiyet veya kurucu/yöneticiye duyulan rütbeli hitapları içermeyen saygın bir üslup."
+                    uslub = "Samimi, kaplan gibi dik duruşlu, sıcak, yardımsever ama aşırı resmiyet veya kurucu/yöneticiye duyulan rütbeli hitapları içermeyen saygın bir üslup."
 
                 tag_tanimi = f"Tagı: [{user_tag_fresh_ai}]" if user_tag_fresh_ai else "Tagı: Bulunmuyor"
                 rozet_tanimi = f"Rozeti: [{user_rozet_fresh_ai}]" if user_rozet_fresh_ai else "Rozeti: Bulunmuyor"
@@ -4744,7 +6409,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                 tr_tarih_ai = get_tr_time().strftime("%d.%m.%Y")
 
                 sistem_mesaji = (
-                    "Senin adın Aslan Parçası. Kurucun ve yaratıcın Ayaz Kaplan'dır. "
+                    "Senin adın Kaplan Parçası. Kurucun ve yaratıcın Ayaz Kaplan'dır. "
                     "Resmi yöneticin Mehmet Sür'dür. Müstakbel Şirket bünyesinde görev yapıyorsun. "
                     "Bu iki bilgiyi kesinlikle ve her zaman bil: Kurucu = Ayaz Kaplan, Resmi Yönetici = Mehmet Sür.\n"
                     "Sohbet ettiğin kullanıcının anlık veritabanı yetki ve rütbe bilgileri aşağıda belirtilmiştir.\n\n"
@@ -4765,7 +6430,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     f"5. Eğer normal bir kullanıcı ise ona samimi ve asil bir duruşla 'Reis', 'Dostum' veya doğrudan ismiyle hitap et.\n\n"
                     "⚠️ EK KURALLAR:\n"
                     "- Geçmiş sohbetlerdeki eski veya hatalı isimleri tamamen unut.\n"
-                    "- Her koşulda aslan gibi dik, asil, kararlı, zeki ve kurallara bağlı bir yapay zeka ol.\n"
+                    "- Her koşulda kaplan gibi dik, asil, kararlı, zeki ve kurallara bağlı bir yapay zeka ol.\n"
                     "- Kesinlikle ve hiçbir koşulda, yıldızlar (asterisk - *) veya parantezler içinde fiziksel hareketler, jestler, mimikler veya rol yapma eylemleri (*eğilerek selam verir*, *saygıyla eğilir*, *başını eğer* vb.) yazma, bunları canlandırma. Doğrudan ve asil bir konuşma yürüt, fiziksel hareket betimlemelerinden tamamen kaçın.\n\n"
                     "📝 TÜRKÇE KARAKTER DÜZELTME TALİMATI:\n"
                     "Kullanıcılar bazen Türkçe özel karakterleri kullanmadan yazar. Aşağıdaki dönüşümleri zihninde otomatik olarak yap ve mesajı düzgün Türkçe olarak anla:\n"
@@ -4776,6 +6441,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     "- 'c' yerine 'ç' olabilir (ornegin: 'cok' → 'çok', 'icmek' → 'içmek')\n"
                     "- 'g' yerine 'ğ' olabilir (ornegin: 'dogru' → 'doğru', 'yagmur' → 'yağmur')\n"
                     "Bu tür yazımlarda kullanıcıyı düzeltme, sadece mesajı doğru anla ve doğru Türkçe ile yanıt ver."
+                    f"{search_context}"
                 )
                 payload = {"model": MODEL, "messages": [{"role": "system", "content": sistem_mesaji}] + mesajlar}
                 headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY}"}
@@ -4802,14 +6468,14 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     content_rendered = detect_and_render_media(m["content"])
                     with st.container():
                         st.markdown(
-                            f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div class="assistant-bubble"><div class="header-box">Aslan Parçası</div><div style="color:white !important;">{content_rendered}</div></div></div>''',
+                            f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div class="assistant-bubble"><div class="header-box">Kaplan Parçası</div><div style="color:white !important;">{content_rendered}</div></div></div>''',
                             unsafe_allow_html=True
                         )
 
                     if idx == last_assistant_idx:
                         st.markdown('<div class="assistant-ops-marker"></div>', unsafe_allow_html=True)
                         if st.button("↻", key=f"assistant_regen_{idx}"):
-                            with st.spinner("Aslan Parçası analiz ediyor ve yeni bir yanıt oluşturuyor..."):
+                            with st.spinner("Kaplan Parçası analiz ediyor ve yeni bir yanıt oluşturuyor..."):
                                 messages_context = st.session_state.messages[:idx]
                                 yeni_cevap = ai_cevap(messages_context[-6:])
                                 new_chat = list(st.session_state.messages)
@@ -4846,7 +6512,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                         with col_save:
                             if st.button("Kaydet", key=f"chat_save_edit_{idx}", use_container_width=True):
                                 if edit_val.strip():
-                                    with st.spinner("Aslan Parçası yeni yanıtı hazırlıyor..."):
+                                    with st.spinner("Kaplan Parçası yeni yanıtı hazırlıyor..."):
                                         new_chat = [dict(msg) for msg in st.session_state.messages]
                                         new_chat[idx]["content"] = edit_val.strip()
                                         new_chat = new_chat[:idx+1]
@@ -5275,7 +6941,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
         # ═══════════════════════════════════════════════════
         elif st.session_state.current_page == "dm_chat":
             if st.session_state.get("play_send_sound", False):
-                st.markdown('<audio autoplay style="display:none;"><source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav" type="audio/wav"></audio>', unsafe_allow_html=True)
+                st.markdown('<audio autoplay style="display:none;"><source src="https://assets.mixkit.co/active_storage/sfx/1344/1344-84.wav" type="audio/wav"></audio>', unsafe_allow_html=True)
                 st.session_state.play_send_sound = False
 
             dm_partner_id = st.session_state.get("dm_partner_id", "")
@@ -5426,7 +7092,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                         st.markdown(f'''
                         <div style="display:flex; flex-direction:{flex_dir}; align-items:flex-start; gap:10px; margin:12px 0; width:100%;">
                             <img src="{s_foto_src}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #f39c12;margin-top:2px;flex-shrink:0;"/>
-                            <div style="display:flex; flex-direction:column; align-items:{align_items_inner}; max-width:75%; width:100%;">
+                            <div style="display:flex; flex-direction:column; align-items:{align_items_inner}; max-width:75%;">
                                 <div style="font-size:0.8rem; margin-bottom:4px; text-align:{align};">{s_styled}</div>
                                 <div style="background:{bg_color}; {voice_padding_css} border-radius:12px; font-size:0.95rem; white-space:pre-wrap; word-break:break-word; {bubble_width_css} max-width:100%; box-sizing:border-box;">
                                     {dm_html}
@@ -5556,7 +7222,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
       </div>
       <div>
         <div style="font-size:1.6rem;font-weight:800;color:#fff;letter-spacing:-0.5px;line-height:1.1;">YouTube Portalı</div>
-        <div style="font-size:0.78rem;color:#777;margin-top:1px;">Aslan Parçası · Gömülü Oynatıcı & Arama</div>
+        <div style="font-size:0.78rem;color:#777;margin-top:1px;">Kaplan Parçası · Gömülü Oynatıcı & Arama</div>
         """ + (f"<div style='font-size:0.7rem;color:#f39c12;margin-top:2px;'>▶ Şu an çalan: {st.session_state.yt_playing_title[:40]}{'...' if len(st.session_state.yt_playing_title)>40 else ''}</div>" if st.session_state.get("yt_playing_id") else "") + """
       </div>
     </div>""", unsafe_allow_html=True)
