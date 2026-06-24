@@ -5395,151 +5395,194 @@ else:
             return valid_users
 
     # ═══════════════════════════════════════════════════
-    # 🎵 GLOBAL OYNATICI (her render'da çizilir; Streamlit aynı iframe'i
-    # koruduğu için sayfa değişince oynatma/ses kesilmez)
+    # 🎵 GLOBAL OYNATICI (Persistent Parent-Level Player)
     # ═══════════════════════════════════════════════════
     if st.session_state.get("yt_playing_id"):
         _gvid = re.sub(r'[^a-zA-Z0-9_\-]', '', st.session_state.yt_playing_id)
+        _gts = int(st.session_state.yt_ts_dict.get(_gvid, 0))
         
-        if st.session_state.get("global_player_rendered_vid") == _gvid and st.session_state.get("global_player_html_cached"):
-            player_html = st.session_state.global_player_html_cached
-        else:
-            _gts = int(st.session_state.yt_ts_dict.get(_gvid, 0))
-            player_html = f"""
-                    <style>
-                        html, body {{ margin:0; padding:0; height:100%; background:transparent; overflow:hidden; }}
-                        #ap-gp-wrap {{ position:absolute; inset:0; background:#000; border-radius:10px; overflow:hidden; }}
-                        #global-yt-player {{ position:absolute; inset:0; width:100%; height:100%; }}
-                        #global-yt-player iframe {{ width:100% !important; height:100% !important; }}
-                        #ap-unmute {{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.55); cursor:pointer; z-index:5; }}
-                    </style>
-                    <div id="ap-gp-wrap">
-                        <div id="global-yt-player"></div>
-                        <div id="ap-unmute">
-                            <div style="background:#FF0000;color:#fff;font-weight:800;font-size:1rem;padding:12px 24px;border-radius:30px;box-shadow:0 6px 22px rgba(0,0,0,.55);display:flex;align-items:center;gap:8px;">
-                                🔊 Sesi Aç
-                            </div>
+        player_html = f"""
+        <script>
+        (function() {{
+            var VID = '{_gvid}';
+            var startT = {_gts};
+            var SK = 'ytpos_' + VID;
+            
+            try {{
+                var savedT = parseFloat(window.parent.localStorage.getItem(SK) || '0') || 0;
+                if (savedT > startT) startT = savedT;
+            }} catch(e) {{}}
+
+            var pDoc = window.parent.document;
+            var playerContainer = pDoc.getElementById('ap-persistent-yt-container');
+            
+            if (!playerContainer) {{
+                playerContainer = pDoc.createElement('div');
+                playerContainer.id = 'ap-persistent-yt-container';
+                playerContainer.style.position = 'fixed';
+                playerContainer.style.zIndex = '99990';
+                playerContainer.style.background = '#000';
+                playerContainer.style.borderRadius = '10px';
+                playerContainer.style.overflow = 'hidden';
+                playerContainer.style.display = 'block';
+                playerContainer.style.width = '0px';
+                playerContainer.style.height = '0px';
+                playerContainer.style.top = '-9999px';
+                playerContainer.style.left = '-9999px';
+                playerContainer.style.opacity = '0.01';
+                playerContainer.style.pointerEvents = 'none';
+                
+                playerContainer.innerHTML = `
+                    <div id="persistent-yt-player" style="position:absolute; inset:0; width:100%; height:100%;"></div>
+                    <div id="persistent-unmute" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.65); cursor:pointer; z-index:5;">
+                        <div style="background:#FF0000;color:#fff;font-weight:800;font-size:1rem;padding:12px 24px;border-radius:30px;box-shadow:0 6px 22px rgba(0,0,0,.55);display:flex;align-items:center;gap:8px;user-select:none;">
+                            🔊 Sesi Aç
                         </div>
                     </div>
-                    <script>
-                    (function() {{
-                        var VID = '{_gvid}';
-                        var SK = 'ytpos_' + VID;
-                        var startT = {_gts};
-                        try {{
-                            var savedT = parseFloat(localStorage.getItem(SK) || '0') || 0;
-                            if (savedT > startT) startT = savedT;
-                        }} catch(e) {{}}
-
-                        // --- Kendi iframe'imizi sabitleyip portal/sohbet durumuna göre konumlandır ---
-                        var fe = null;
-                        try {{ fe = window.frameElement; }} catch(e) {{ fe = null; }}
-                        if (fe) {{
-                            fe.style.position = 'fixed';
-                            fe.style.zIndex = '99990';
-                            fe.style.border = '0';
-                            fe.style.background = 'transparent';
-                            fe.style.willChange = 'top, left, width, height';
-                        }}
-                        function getAnchor() {{
-                            try {{ return window.parent.document.getElementById('ap-portal-anchor'); }}
-                            catch(e) {{ return null; }}
-                        }}
-                        var _lastTop = '', _lastLeft = '', _lastW = '', _lastH = '';
-                        var _hidden = false;
-                        function place() {{
-                            if (!fe) return;
-                            var a = getAnchor();
-                            if (a) {{
-                                var r = a.getBoundingClientRect();
-                                var nTop = Math.max(r.top, 0) + 'px';
-                                var nLeft = r.left + 'px';
-                                var nW = r.width + 'px';
-                                var nH = r.height + 'px';
-                                if (nTop !== _lastTop || nLeft !== _lastLeft || nW !== _lastW || nH !== _lastH) {{
-                                    fe.style.top = nTop;
-                                    fe.style.left = nLeft;
-                                    fe.style.width = nW;
-                                    fe.style.height = nH;
-                                    _lastTop = nTop; _lastLeft = nLeft; _lastW = nW; _lastH = nH;
-                                }}
-                                if (_hidden) {{
-                                    fe.style.opacity = '1';
-                                    fe.style.pointerEvents = 'auto';
-                                    _hidden = false;
-                                }}
-                            }} else {{
-                                if (!_hidden) {{
-                                    fe.style.top = '-9999px';
-                                    fe.style.left = '-9999px';
-                                    fe.style.width = '300px';
-                                    fe.style.height = '200px';
-                                    fe.style.opacity = '0.01';
-                                    fe.style.pointerEvents = 'none';
-                                    _hidden = true;
-                                    _lastTop = ''; _lastLeft = ''; _lastW = ''; _lastH = '';
-                                }}
+                `;
+                pDoc.body.appendChild(playerContainer);
+                
+                // Load YouTube API if not loaded
+                if (!window.parent.YT) {{
+                    var tag = pDoc.createElement('script');
+                    tag.src = "https://www.youtube.com/iframe_api";
+                    var firstScriptTag = pDoc.getElementsByTagName('script')[0];
+                    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                }}
+                
+                window.parent.__yt_player_instance = null;
+                window.parent.__yt_current_vid = null;
+            }}
+            
+            function createPlayer(vid, startSeconds) {{
+                if (window.parent.__yt_current_vid === vid) return;
+                window.parent.__yt_current_vid = vid;
+                
+                var unmuteBtn = playerContainer.querySelector('#persistent-unmute');
+                if (unmuteBtn) unmuteBtn.style.display = 'flex';
+                
+                if (window.parent.__yt_player_instance) {{
+                    try {{ window.parent.__yt_player_instance.destroy(); }} catch(e) {{}}
+                }}
+                
+                // We must replace the target div to ensure clean recreation
+                var playerDiv = playerContainer.querySelector('#persistent-yt-player');
+                if (!playerDiv) {{
+                    var newDiv = pDoc.createElement('div');
+                    newDiv.id = 'persistent-yt-player';
+                    newDiv.style.position = 'absolute';
+                    newDiv.style.inset = '0';
+                    newDiv.style.width = '100%';
+                    newDiv.style.height = '100%';
+                    playerContainer.insertBefore(newDiv, playerContainer.firstChild);
+                }}
+                
+                window.parent.__yt_player_instance = new window.parent.YT.Player('persistent-yt-player', {{
+                    height: '100%',
+                    width: '100%',
+                    videoId: vid,
+                    playerVars: {{
+                        'autoplay': 1,
+                        'controls': 1,
+                        'rel': 0,
+                        'showinfo': 0,
+                        'modestbranding': 1,
+                        'enablejsapi': 1,
+                        'playsinline': 1,
+                        'start': Math.floor(startSeconds)
+                    }},
+                    events: {{
+                        'onReady': function(event) {{
+                            try {{ event.target.mute(); }} catch(ex) {{}}
+                            try {{ event.target.playVideo(); }} catch(ex) {{}}
+                            
+                            var enableSound = function() {{
+                                try {{
+                                    event.target.unMute();
+                                    event.target.setVolume(100);
+                                    event.target.playVideo();
+                                }} catch(e) {{}}
+                                if (unmuteBtn) unmuteBtn.style.display = 'none';
+                            }};
+                            
+                            if (unmuteBtn) {{
+                                unmuteBtn.onclick = enableSound;
+                                unmuteBtn.ontouchstart = enableSound;
                             }}
-                            requestAnimationFrame(place);
+                            
+                            // Save playhead position
+                            setInterval(function() {{
+                                try {{
+                                    var t = window.parent.__yt_player_instance.getCurrentTime();
+                                    if (t > 0) window.parent.localStorage.setItem(SK, String(t));
+                                }} catch(ex) {{}}
+                            }}, 3000);
                         }}
-                        requestAnimationFrame(place);
-
-                        var tag = document.createElement('script');
-                        tag.src = 'https://www.youtube.com/iframe_api';
-                        document.head.appendChild(tag);
-
-                        var gp;
-                        window.onYouTubeIframeAPIReady = function() {{
-                            gp = new YT.Player('global-yt-player', {{
-                                height: '100%',
-                                width: '100%',
-                                videoId: VID,
-                                playerVars: {{
-                                    autoplay: 1,
-                                    controls: 1,
-                                    rel: 0,
-                                    modestbranding: 1,
-                                    enablejsapi: 1,
-                                    playsinline: 1,
-                                    start: Math.floor(startT)
-                                }},
-                                events: {{
-                                    onReady: function(event) {{
-                                        // Tarayıcı politikası: sesli otomatik oynatma engellidir.
-                                        // Bu yüzden sessiz başlat, kullanıcı tek dokunuşla sesi açar.
-                                        try {{ event.target.mute(); }} catch(ex) {{}}
-                                        if (startT > 0) {{ try {{ event.target.seekTo(startT, true); }} catch(ex) {{}} }}
-                                        try {{ event.target.playVideo(); }} catch(ex) {{}}
-                                        setInterval(function() {{
-                                            try {{
-                                                var t = gp.getCurrentTime();
-                                                if (t > 0) localStorage.setItem(SK, String(t));
-                                            }} catch(ex) {{}}
-                                        }}, 3000);
-                                    }}
-                                }}
-                            }});
-                        }};
-
-                        var btn = document.getElementById('ap-unmute');
-                        function enableSound() {{
-                            try {{ gp.unMute(); gp.setVolume(100); gp.playVideo(); }} catch(e) {{}}
-                            if (btn) btn.style.display = 'none';
-                        }}
-                        if (btn) {{
-                            btn.addEventListener('click', enableSound);
-                            btn.addEventListener('touchstart', enableSound);
-                        }}
-                    }})();
-                    </script>
-            """
-            st.session_state.global_player_rendered_vid = _gvid
-            st.session_state.global_player_html_cached = player_html
-
+                    }}
+                }});
+            }}
+            
+            // Check and load
+            if (window.parent.YT && window.parent.YT.Player) {{
+                createPlayer(VID, startT);
+            }} else {{
+                var checkYT = setInterval(function() {{
+                    if (window.parent.YT && window.parent.YT.Player) {{
+                        clearInterval(checkYT);
+                        createPlayer(VID, startT);
+                    }}
+                }}, 100);
+            }}
+            
+            // Layout alignment tracking loop
+            var _lastTop = '', _lastLeft = '', _lastW = '', _lastH = '';
+            var _hidden = false;
+            
+            function trackAnchor() {{
+                var a = pDoc.getElementById('ap-portal-anchor');
+                if (a) {{
+                    var r = a.getBoundingClientRect();
+                    var nTop = Math.max(r.top, 0) + 'px';
+                    var nLeft = r.left + 'px';
+                    var nW = r.width + 'px';
+                    var nH = r.height + 'px';
+                    
+                    if (nTop !== _lastTop || nLeft !== _lastLeft || nW !== _lastW || nH !== _lastH) {{
+                        playerContainer.style.top = nTop;
+                        playerContainer.style.left = nLeft;
+                        playerContainer.style.width = nW;
+                        playerContainer.style.height = nH;
+                        _lastTop = nTop; _lastLeft = nLeft; _lastW = nW; _lastH = nH;
+                    }}
+                    if (_hidden) {{
+                        playerContainer.style.opacity = '1';
+                        playerContainer.style.pointerEvents = 'auto';
+                        _hidden = false;
+                    }}
+                }} else {{
+                    if (!_hidden) {{
+                        playerContainer.style.top = '-9999px';
+                        playerContainer.style.left = '-9999px';
+                        playerContainer.style.width = '300px';
+                        playerContainer.style.height = '200px';
+                        playerContainer.style.opacity = '0.01';
+                        playerContainer.style.pointerEvents = 'none';
+                        _hidden = true;
+                        _lastTop = ''; _lastLeft = ''; _lastW = ''; _lastH = '';
+                    }}
+                }}
+                requestAnimationFrame(trackAnchor);
+            }}
+            
+            trackAnchor();
+            
+        }})();
+        </script>
+        """
+        
         components.html(
             player_html,
-            height=0,
-            key="global_youtube_player_stable",
+            height=0
         )
 
     # --- SAYFA YÖNLENDİRME ---
@@ -7989,58 +8032,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                             s_tag = s_d.get("tag", "")
                                             s_rozet = s_d.get("rozet", "")
                                             if s_d.get("email", "").strip().lower() == KURUCU_EMAIL:
-                                                if not s_tag:
-                                                    s_color = "#FF0000"
-                                                    s_glow = True
-                                                    s_tag = "KURUCU"
-                                                    s_rozet = "🛠️"
-                                            ym_styled_gonderen = get_styled_user_name(ym_gonderen, s_color, s_glow, s_tag, s_rozet, email=s_d.get("email"), is_admin=s_d.get("is_admin", False))
-                                    except Exception:
-                                        pass
-                                ym_icerik = ym.get("icerik", "")
-                                ym_zaman = ym.get("zaman", "")
-                                ym_okundu = ym.get("okundu", False)
-                                badge = "" if ym_okundu else "🆕 "
-                                st.markdown(f"""<div style="background:rgba(243,156,18,0.1);border-left:3px solid #f39c12;padding:8px 12px;border-radius:6px;margin-bottom:6px;">
-                                    <div style="font-size:0.95rem;display:flex;align-items:center;gap:5px;"><strong>{badge}</strong>{ym_styled_gonderen} <span style="font-size:0.75em;color:#888;">({ym_zaman})</span></div>
-                                    <div style="margin-top:6px;color:#fff;">{ym_icerik}</div>
-                                </div>""", unsafe_allow_html=True)
-                            # Okundu olarak işaretle
-                            if okunmamis_yetkili:
-                                guncellenmis = []
-                                for ym in yetkili_msj:
-                                    ym_copy = dict(ym)
-                                    ym_copy["okundu"] = True
-                                    guncellenmis.append(ym_copy)
-                                user_ref.update({"yetkili_mesajlari": guncellenmis})
-                        else:
-                            st.caption("Yetkili mesajı yok.")
-
-                    if st.button("Kapat", key="bildirim_kapat_btn", use_container_width=True):
-                        st.session_state.bildirim_panel_open = False
-                        st.rerun()
-
-            # --- Fresh User Info and Display Name ---
-            user_doc_fresh = user_ref.get().to_dict()
-            kullanici_ismi_fresh = user_doc_fresh.get('isim', kullanici_ismi)
-
-            u_color_fresh = user_doc_fresh.get("isim_rengi", "#FFFFFF")
-            u_glow_fresh = user_doc_fresh.get("ismin_parlakligi", False)
-            u_tag_fresh = user_doc_fresh.get("tag", "")
-            u_rozet_fresh = user_doc_fresh.get("rozet", "")
-            _user_foto = user_doc_fresh.get("profil_foto", "")
-            _user_avatar_url = f"data:image/jpeg;base64,{_user_foto}" if _user_foto else USER_AVATAR
-
-            if is_kurucu:
-                if not user_doc_fresh.get("tag"):
-                    u_color_fresh = "#FF0000"
-                    u_glow_fresh = True
-                    u_rozet_fresh = "🛠️"
-                    u_tag_fresh = "KURUCU"
-
-            display_name = get_styled_user_name(kullanici_ismi_fresh, u_color_fresh, u_glow_fresh, u_tag_fresh, u_rozet_fresh, email=email, is_admin=is_admin_user)
-
-            def ai_cevap(mesajlar):
+                                                       def ai_cevap(mesajlar):
                 current_doc = user_ref.get().to_dict()
                 current_name = current_doc.get("isim", "Kullanıcı")
                 is_admin_user_fresh = current_doc.get("is_admin", False)
@@ -8058,23 +8050,36 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                 
                 search_results = ""
                 thinking_process = ""
+                
+                # OPTIMIZATION: Only search when the query actually contains informational keywords.
+                should_search = False
                 if last_user_query:
+                    q_lower = last_user_query.lower()
+                    search_keywords = [
+                        "ara", "bul", "kimdir", "nedir", "kaç", "ne zaman", "hava durumu", 
+                        "son durum", "son dakika", "haber", "şampiyon", "skor", "maç", 
+                        "gelişme", "fiyat", "dolar", "euro", "altın", "borsa", "kim", 
+                        "nerede", "nasıl", "neden", "araştır", "google", "chrome"
+                    ]
+                    if len(q_lower) >= 3 and any(kw in q_lower for kw in search_keywords):
+                        should_search = True
+
+                if should_search and last_user_query:
                     search_results = web_ara(last_user_query)
                     if search_results:
                         search_context = (
                             f"\n\n🌍 LIVE CHROME INTERNET SEARCH RESULTS FOR '{last_user_query}':\n"
                             f"{search_results}\n"
-                            f"Use this live information to answer the user accurately and fully as a clever Tiger (Kaplan Parçası)."
+                            f"Use this live information to answer the user accurately and fully."
                         )
                         thinking_process = (
                             f"Kullanıcının '{last_user_query}' sorgusu için canlı arama motoru tetiklendi. "
-                            f"Elde edilen web sonuçları ve kaynaklar Kaplan Parçası tarafından saniyeler içinde analiz edilerek doğrulandı. "
-                            f"Gereksiz ezbere ve uydurma tahminlerden kaçınıldı, en güncel gerçekler süzülerek cevap sentezlendi."
+                            f"Elde edilen web sonuçları ve kaynaklar Kaplan Parçası tarafından saniyeler içinde analiz edilerek doğrulandı."
                         )
                     else:
-                        thinking_process = f"Sorgu ('{last_user_query}') analiz edildi. Mevcut yerel sistem hafızası ve bağlam kontrol edildi. Güvenli ve kurallara uygun yanıt oluşturma aşamasına geçildi."
+                        thinking_process = f"Sorgu ('{last_user_query}') analiz edildi. Mevcut yerel sistem hafızası kontrol edildi."
                 else:
-                    thinking_process = "Sohbet akışı ve geçmiş konuşma bağlamı analiz edildi. Belirlenen kişilik ve hiyerarşi kuralları doğrulanarak asil yanıt hazırlandı."
+                    thinking_process = "Sohbet akışı ve geçmiş konuşma bağlamı analiz edildi. Güvenli ve kurallara uygun yanıt oluşturma aşamasına geçildi."
 
                 if is_kurucu:
                     rol_tanimi = "Kurucu ve Sistem Sahibi (Ayaz Kaplan)"
@@ -8102,9 +8107,6 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     "Resmi yöneticin Mehmet Sür'dür. Müstakbel Şirket bünyesinde görev yapıyorsun. "
                     "Bu iki bilgiyi kesinlikle ve her zaman bil: Kurucu = Ayaz Kaplan, Resmi Yönetici = Mehmet Sür.\n"
                     "Sohbet ettiğin kullanıcının anlık veritabanı yetki ve rütbe bilgileri aşağıda belirtilmiştir.\n\n"
-                    f"🕐 GÜNCEL TÜRK ZAMAN BİLGİSİ (UTC+3):\n"
-                    f"- Şu anki Türkiye saati: {tr_saat_ai}\n"
-                    f"- Bugünün tarihi: {tr_tarih_ai}\n\n"
                     f"👤 KONUŞTUĞUN KİŞİNİN BİLGİLERİ:\n"
                     f"- Kullanıcı Adı: {current_name}\n"
                     f"- Sistem Rolü/Hiyerarşisi: {rol_tanimi}\n"
@@ -8117,21 +8119,14 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     f"3. Eğer karşındaki kişi Kurucun (Ayaz Kaplan) ise ona kesinlikle her fırsatta 'Kurucum' veya 'Reis' diye hitap et.\n"
                     f"4. Eğer karşındaki kişi bir Yönetici ise ona kesinlikle 'Yöneticim' şeklinde rütbeli ve saygılı hitaplar kullan.\n"
                     f"5. Eğer normal bir kullanıcı ise ona samimi ve asil bir duruşla 'Reis', 'Dostum' veya doğrudan ismiyle hitap et.\n\n"
-                    "⚠️ EK KURALLAR:\n"
-                    "- Geçmiş sohbetlerdeki eski veya hatalı isimleri tamamen unut.\n"
-                    "- Gelişmeler, haberler, güncel olaylar, spor müsabakaları ve futbol şampiyonlukları hakkındaki soruları cevaplarken, kesinlikle ezbere tahmin veya uydurma bilgiler verme. Canlı internet arama sonuçlarındaki ('LIVE CHROME INTERNET SEARCH RESULTS') güncel ve gerçek bilgilere sadık kal. Bugünün tarihi 24 Haziran 2026'dır. Dolayısıyla 2023-2024, 2024-2025 ve en son biten 2025-2026 Süper Lig sezonları tamamen tamamlanmıştır ve şampiyonları bellidir (Örn: 2023-24 Galatasaray, 2024-25 Galatasaray, 2025-26 Galatasaray şampiyon olmuştur). Arama sonuçlarında bu şampiyonları bularak veya bildiğin üzere kullanıcıya doğrudan ve net olarak söyle. Sadece henüz başlamamış gelecek sezonlar (örneğin 2026-2027 sezonu veya sonrası) için 'bu sezon henüz tamamlanmadı' cevabını ver. Geçmiş sezonlar için uydurma bilgiler verme, arama sonuçlarından doğrulanmış gerçekleri asilce aktar!\n"
-                    "- Mizah ve Espri Anlayışı: Tıpkı yeni ChatGPT gibi, zeki, yerinde ve doğal bir mizah anlayışına sahip ol. Her mesaja zırt pırt espri sıkıştırma. Sadece kullanıcı seninle samimi olmaya başlarsa veya ortam/konu buna çok elverişliyse 'gerektiği yerde' ince, zekice espriler yap. Eğer kullanıcı esprilerden rahatsız olduğunu belirtirse veya daha ciddi bir tonda konuşuyorsa, espri yapmayı tamamen bırak ve son derece ciddi/saygın bir tona geç.\n"
-                    "- Her koşulda kaplan gibi dik, asil, kararlı, zeki ve kurallara bağlı bir yapay zeka ol.\n"
-                    "- Kesinlikle ve hiçbir koşulda, yıldızlar (asterisk - *) veya parantezler içinde fiziksel hareketler, jestler, mimikler veya rol yapma eylemleri (*eğilerek selam verir*, *saygıyla eğilir*, *başını eğer* vb.) yazma, bunları canlandırma. Doğrudan ve asil bir konuşma yürüt, fiziksel hareket betimlemelerinden tamamen kaçın.\n\n"
+                    "⚠️ ÖNEMLİ KURALLAR (BOŞ YAPMAMA VE GEREKSİZ DETAY VERMEME):\n"
+                    "- ASLA BOŞ YAPMA. Sadece ve sadece kullanıcının sorduğu soruya odaklan. Kullanıcının sormadığı hiçbir konuya (tarih, güncel saat, futbol, şampiyonluklar vb.) asla girme. Kendiliğinden tarih veya futbol şampiyonluğu anlatma.\n"
+                    "- Eğer kullanıcı futbol veya lig şampiyonu ile ilgili bir soru sormadıysa, futbol/Galatasaray şampiyonluğu hakkında ASLA tek bir kelime dahi bahsetme! Sadece ve doğrudan sorulan soruyu yanıtla.\n"
+                    "- Bugünün tarihi veya zaman bilgisi sorulmadığı sürece yanıtlara tarih veya saati ekleme.\n"
+                    "- Kesinlikle ve hiçbir koşulda, yıldızlar (asterisk - *) veya parantezler içinde fiziksel hareketler, jestler, mimikler veya rol yapma eylemleri (*doğrulur*, *eğilerek selam verir*, *saygıyla eğilir*, *başını eğer*, *gülümser* vb.) yazma, bunları canlandırma. Tamamen doğrudan, asil ve düzgün bir konuşma metni üret, fiziksel hareket betimlemelerinden kesinlikle kaçın.\n"
+                    "- Mizah ve Espri Anlayışı: Zeki ve yerinde olsun. Her mesaja zorlama espri sıkıştırma. Kullanıcı ciddi konuşuyorsa tamamen ciddi ve vakur kal.\n\n"
                     "📝 TÜRKÇE KARAKTER DÜZELTME TALİMATI:\n"
-                    "Kullanıcılar bazen Türkçe özel karakterleri kullanmadan yazar. Aşağıdaki dönüşümleri zihninde otomatik olarak yap ve mesajı düzgün Türkçe olarak anla:\n"
-                    "- 'u' yerine 'ü' olabilir (ornegin: 'guzul' → 'güzül/güzel', 'dusunuyorum' → 'düşünüyorum')\n"
-                    "- 'o' yerine 'ö' olabilir (ornegin: 'gormek' → 'görmek', 'donmek' → 'dönmek')\n"
-                    "- 'i' yerine 'ı' olabilir (ornegin: 'iyi' → 'ıyı' değil ama 'acik' → 'açık')\n"
-                    "- 's' yerine 'ş' olabilir (ornegin: 'seker' → 'şeker', 'dusunce' → 'düşünce')\n"
-                    "- 'c' yerine 'ç' olabilir (ornegin: 'cok' → 'çok', 'icmek' → 'içmek')\n"
-                    "- 'g' yerine 'ğ' olabilir (ornegin: 'dogru' → 'doğru', 'yagmur' → 'yağmur')\n"
-                    "Bu tür yazımlarda kullanıcıyı düzeltme, sadece mesajı doğru anla ve doğru Türkçe ile yanıt ver.\n"
+                    "Kullanıcılar bazen Türkçe özel karakterleri kullanmadan yazabilir. Bu tür yazımlarda kullanıcıyı düzeltme, sadece mesajı doğru anla ve doğru Türkçe ile yanıt ver.\n"
                     f"{search_context}"
                 )
                 
@@ -8905,7 +8900,33 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     if not dm_mesajlar:
                         st.info("Sohbete başla! İlk mesajını gönder.")
                     else:
-                        st.markdown('<style>.dm-chat-box-container p {margin: 0 !important; padding: 0 !important;}</style>', unsafe_allow_html=True)
+                        st.markdown("""
+                        <style>
+                        .dm-chat-box-container p { margin: 0 !important; padding: 0 !important; }
+                        div[data-testid="stColumn"] button {
+                            background: transparent !important;
+                            border: none !important;
+                            box-shadow: none !important;
+                            padding: 0 !important;
+                            margin: 0 !important;
+                            min-height: unset !important;
+                            height: 32px !important;
+                            width: 32px !important;
+                            display: inline-flex !important;
+                            align-items: center !important;
+                            justify-content: center !important;
+                            cursor: pointer !important;
+                        }
+                        div[data-testid="stColumn"] button p {
+                            font-size: 1.25rem !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                        }
+                        div[data-testid="stColumn"] button:hover {
+                            transform: scale(1.15) !important;
+                        }
+                        </style>
+                        """, unsafe_allow_html=True)
                         for idx, dm_msg in enumerate(dm_mesajlar):
                             dm_sender = dm_msg.get("gonderen", "")
                             dm_content = dm_msg.get("icerik", "")
@@ -8952,13 +8973,14 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                 f'</div></div></div>'
                             )
 
-                            # Place message and a trash bin button next to each message
-                            if flex_dir == "row-reverse":
-                                col_del, col_msg = st.columns([1, 12])
-                                with col_msg:
-                                    st.markdown(msg_bubble, unsafe_allow_html=True)
-                                with col_del:
-                                    if not is_deleted:
+                            # Render the main message bubble
+                            st.markdown(msg_bubble, unsafe_allow_html=True)
+
+                            # Under the bubble, place the delete button cleanly on the correct side (under the avatar)
+                            if not is_deleted:
+                                if flex_dir == "row-reverse":
+                                    col_space, col_del = st.columns([10.5, 1.5])
+                                    with col_del:
                                         if st.button("🗑️", key=f"del_dm_{dm_conv_id}_{idx}", help="Mesajı sil"):
                                             try:
                                                 doc_snap = dm_doc_ref.get()
@@ -8971,14 +8993,9 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                                         st.rerun()
                                             except Exception as e:
                                                 st.error(f"Hata: {e}")
-                                    else:
-                                        st.write("<div style='opacity:0.3; padding-top:15px; text-align:center;'>🗑️</div>", unsafe_allow_html=True)
-                            else:
-                                col_msg, col_del = st.columns([12, 1])
-                                with col_msg:
-                                    st.markdown(msg_bubble, unsafe_allow_html=True)
-                                with col_del:
-                                    if not is_deleted:
+                                else:
+                                    col_del, col_space = st.columns([1.5, 10.5])
+                                    with col_del:
                                         if st.button("🗑️", key=f"del_dm_{dm_conv_id}_{idx}", help="Mesajı sil"):
                                             try:
                                                 doc_snap = dm_doc_ref.get()
@@ -8991,8 +9008,6 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                                         st.rerun()
                                             except Exception as e:
                                                 st.error(f"Hata: {e}")
-                                    else:
-                                        st.write("<div style='opacity:0.3; padding-top:15px; text-align:center;'>🗑️</div>", unsafe_allow_html=True)
 
                 # Mesaj gönderme
                 st.markdown("---")
