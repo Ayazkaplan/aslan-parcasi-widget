@@ -4108,6 +4108,7 @@ with open(VOICE_HTML_PATH, "w", encoding="utf-8") as f:
       let recording = false;
       let audioCtx;
       let micStream;
+      let recordedMimeType = 'audio/webm';
 
       function sendMessage(type, data) {
         window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, data), "*");
@@ -4124,31 +4125,50 @@ with open(VOICE_HTML_PATH, "w", encoding="utf-8") as f:
         
         if (!recording) {
           try {
-            // Access mic with custom constraints to prevent aggressive browser noise-suppression lowering the volume
+            // Access mic with standard high-quality constraints
             micStream = await navigator.mediaDevices.getUserMedia({
               audio: {
                 echoCancellation: true,
-                noiseSuppression: false,
+                noiseSuppression: true,
                 autoGainControl: true
               }
             });
             
-            // Web Audio API for massive volume amplification (8x gain)
+            // Web Audio API for safe volume amplification
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') {
+              await audioCtx.resume();
+            }
             const source = audioCtx.createMediaStreamSource(micStream);
             const gainNode = audioCtx.createGain();
-            gainNode.gain.value = 8.0; // Gain coefficient (8.0 times louder)
+            gainNode.gain.setValueAtTime(3.5, audioCtx.currentTime); // 3.5x clean gain without harsh distortion
             const destination = audioCtx.createMediaStreamAudioDestination();
             
             source.connect(gainNode);
             gainNode.connect(destination);
             
-            mediaRecorder = new MediaRecorder(destination.stream);
+            let options = {};
+            recordedMimeType = 'audio/webm';
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+              options = { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 128000 };
+              recordedMimeType = 'audio/webm;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+              options = { mimeType: 'audio/webm', audioBitsPerSecond: 128000 };
+              recordedMimeType = 'audio/webm';
+            } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+              options = { mimeType: 'audio/ogg', audioBitsPerSecond: 128000 };
+              recordedMimeType = 'audio/ogg';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+              options = { mimeType: 'audio/mp4', audioBitsPerSecond: 128000 };
+              recordedMimeType = 'audio/mp4';
+            }
+            
+            mediaRecorder = new MediaRecorder(destination.stream, options);
             chunks = [];
             
             mediaRecorder.ondataavailable = e => chunks.push(e.data);
             mediaRecorder.onstop = () => {
-              const blob = new Blob(chunks, { type: 'audio/webm' });
+              const blob = new Blob(chunks, { type: recordedMimeType });
               const url = URL.createObjectURL(blob);
               preview.src = url;
               preview.style.display = "block";
@@ -5450,11 +5470,12 @@ else:
                                 if (!_hidden) {{
                                     fe.style.top = '-9999px';
                                     fe.style.left = '-9999px';
-                                    fe.style.width = '1px';
-                                    fe.style.height = '1px';
-                                    fe.style.opacity = '0';
+                                    fe.style.width = '300px';
+                                    fe.style.height = '200px';
+                                    fe.style.opacity = '0.01';
                                     fe.style.pointerEvents = 'none';
                                     _hidden = true;
+                                    _lastTop = ''; _lastLeft = ''; _lastW = ''; _lastH = '';
                                 }}
                             }}
                             requestAnimationFrame(place);
@@ -8149,18 +8170,10 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     
                     thinking_html = ""
                     if search_query or thinking_process:
-                        results_rendered = search_results.replace("\n", "<br/>") if search_results else "İnternet arama sonuçları temiz."
                         thinking_html = (
-                            f'<details style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; margin: 4px 0 10px 0; cursor: pointer; max-width: 100%; box-sizing: border-box; text-align: left;" open>'
-                            f'<summary style="font-weight: 600; color: #f39c12; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; outline: none; list-style: none;">'
-                            f'🔍 🧠 <span><b>Araştırma & Düşünme Süreci (Research & Thinking Agent)</b></span>'
-                            f'</summary>'
-                            f'<div style="font-size: 0.8rem; color: #ccc; margin-top: 8px; padding-left: 10px; border-left: 2px solid #f39c12; display: flex; flex-direction: column; gap: 6px; text-align: left;">'
-                            f'<div><strong>⚡ Hedef Sorgu:</strong> <code>{search_query if search_query else "Genel Sohbet Analizi"}</code></div>'
-                            f'<div><strong>🌐 Bulunan Canlı Kaynaklar:</strong><br/>{results_rendered}</div>'
-                            f'<div><strong>🧠 Düşünme & Doğrulama Süreci:</strong> {thinking_process}</div>'
+                            f'<div style="font-size: 0.8rem; color: #f39c12; margin: 2px 0 8px 0; display: flex; align-items: center; gap: 6px; font-weight: 500; font-style: italic; opacity: 0.9;">'
+                            f'🧠 <span>Düşünülüyor...</span>'
                             f'</div>'
-                            f'</details>'
                         )
 
                     if idx == last_assistant_idx and ("animated_message_indices" not in st.session_state or idx not in st.session_state.animated_message_indices):
@@ -8171,16 +8184,20 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                         import time
                         placeholder = st.empty()
                         words = m["content"].split()
-                        # Dynamic step size to make the writing effect look great and not too slow
-                        step = max(1, len(words) // 25)
-                        for i in range(1, len(words) + 1, step):
-                            sub_text = " ".join(words[:i])
-                            rendered_sub = detect_and_render_media(sub_text)
-                            placeholder.markdown(
-                                f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div class="assistant-bubble"><div class="header-box">Kaplan Parçası</div>{thinking_html}<div style="color:white !important;">{rendered_sub}</div></div></div>''',
-                                unsafe_allow_html=True
-                            )
-                            time.sleep(0.04)
+                        total_words = len(words)
+                        
+                        if total_words > 0:
+                            # Calculate dynamic delay and step to make short messages look natural and long messages fast
+                            delay = min(0.08, 1.8 / total_words)
+                            step = 1 if total_words < 40 else max(1, total_words // 40)
+                            for i in range(1, total_words + 1, step):
+                                sub_text = " ".join(words[:i])
+                                rendered_sub = detect_and_render_media(sub_text)
+                                placeholder.markdown(
+                                    f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div class="assistant-bubble"><div class="header-box">Kaplan Parçası</div>{thinking_html}<div style="color:white !important;">{rendered_sub}</div></div></div>''',
+                                    unsafe_allow_html=True
+                                )
+                                time.sleep(delay * step)
                         placeholder.markdown(
                             f'''<div class="assistant-box"><img src="{AVATAR_URL}" class="avatar"><div class="assistant-bubble"><div class="header-box">Kaplan Parçası</div>{thinking_html}<div style="color:white !important;">{content_rendered}</div></div></div>''',
                             unsafe_allow_html=True
