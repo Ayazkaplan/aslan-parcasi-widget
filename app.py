@@ -7960,9 +7960,18 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                         if gelen_istekler:
                             for istek_uid in gelen_istekler:
                                 try:
-                                    istek_snap = db.collection("users").document(istek_uid).get()
-                                    if istek_snap.exists:
-                                        istek_d = istek_snap.to_dict()
+                                    if "user_cache" not in st.session_state:
+                                        st.session_state.user_cache = {}
+                                    if istek_uid in st.session_state.user_cache:
+                                        istek_d = st.session_state.user_cache[istek_uid]
+                                    else:
+                                        istek_snap = db.collection("users").document(istek_uid).get()
+                                        if istek_snap.exists:
+                                            istek_d = istek_snap.to_dict()
+                                            st.session_state.user_cache[istek_uid] = istek_d
+                                        else:
+                                            istek_d = None
+                                    if istek_d:
                                         istek_isim = istek_d.get("isim", "Bilinmiyor")
                                         istek_color = istek_d.get("isim_rengi", "#FFFFFF")
                                         istek_glow = istek_d.get("ismin_parlakligi", False)
@@ -8024,15 +8033,75 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                 ym_styled_gonderen = ym_gonderen
                                 if ym_gonderen_uid:
                                     try:
-                                        sender_snap = db.collection("users").document(ym_gonderen_uid).get()
-                                        if sender_snap.exists:
-                                            s_d = sender_snap.to_dict()
+                                        if "user_cache" not in st.session_state:
+                                            st.session_state.user_cache = {}
+                                        if ym_gonderen_uid in st.session_state.user_cache:
+                                            s_d = st.session_state.user_cache[ym_gonderen_uid]
+                                        else:
+                                            sender_snap = db.collection("users").document(ym_gonderen_uid).get()
+                                            if sender_snap.exists:
+                                                s_d = sender_snap.to_dict()
+                                                st.session_state.user_cache[ym_gonderen_uid] = s_d
+                                            else:
+                                                s_d = None
+                                        if s_d:
                                             s_color = s_d.get("isim_rengi", "#FFFFFF")
                                             s_glow = s_d.get("ismin_parlakligi", False)
                                             s_tag = s_d.get("tag", "")
                                             s_rozet = s_d.get("rozet", "")
                                             if s_d.get("email", "").strip().lower() == KURUCU_EMAIL:
-                                                       def ai_cevap(mesajlar):
+                                                if not s_tag:
+                                                    s_color = "#FF0000"
+                                                    s_glow = True
+                                                    s_tag = "KURUCU"
+                                                    s_rozet = "🛠️"
+                                            ym_styled_gonderen = get_styled_user_name(ym_gonderen, s_color, s_glow, s_tag, s_rozet, email=s_d.get("email"), is_admin=s_d.get("is_admin", False))
+                                    except Exception:
+                                        pass
+                                ym_icerik = ym.get("icerik", "")
+                                ym_zaman = ym.get("zaman", "")
+                                ym_okundu = ym.get("okundu", False)
+                                badge = "" if ym_okundu else "🆕 "
+                                st.markdown(f"""<div style="background:rgba(243,156,18,0.1);border-left:3px solid #f39c12;padding:8px 12px;border-radius:6px;margin-bottom:6px;">
+                                    <div style="font-size:0.95rem;display:flex;align-items:center;gap:5px;"><strong>{badge}</strong>{ym_styled_gonderen} <span style="font-size:0.75em;color:#888;">({ym_zaman})</span></div>
+                                    <div style="margin-top:6px;color:#fff;">{ym_icerik}</div>
+                                </div>""", unsafe_allow_html=True)
+                            # Okundu olarak işaretle
+                            if okunmamis_yetkili:
+                                guncellenmis = []
+                                for ym in yetkili_msj:
+                                    ym_copy = dict(ym)
+                                    ym_copy["okundu"] = True
+                                    guncellenmis.append(ym_copy)
+                                user_ref.update({"yetkili_mesajlari": guncellenmis})
+                        else:
+                            st.caption("Yetkili mesajı yok.")
+
+                    if st.button("Kapat", key="bildirim_kapat_btn", use_container_width=True):
+                        st.session_state.bildirim_panel_open = False
+                        st.rerun()
+
+            # --- Fresh User Info and Display Name ---
+            user_doc_fresh = user_ref.get().to_dict()
+            kullanici_ismi_fresh = user_doc_fresh.get('isim', kullanici_ismi)
+
+            u_color_fresh = user_doc_fresh.get("isim_rengi", "#FFFFFF")
+            u_glow_fresh = user_doc_fresh.get("ismin_parlakligi", False)
+            u_tag_fresh = user_doc_fresh.get("tag", "")
+            u_rozet_fresh = user_doc_fresh.get("rozet", "")
+            _user_foto = user_doc_fresh.get("profil_foto", "")
+            _user_avatar_url = f"data:image/jpeg;base64,{_user_foto}" if _user_foto else USER_AVATAR
+
+            if is_kurucu:
+                if not user_doc_fresh.get("tag"):
+                    u_color_fresh = "#FF0000"
+                    u_glow_fresh = True
+                    u_rozet_fresh = "🛠️"
+                    u_tag_fresh = "KURUCU"
+
+            display_name = get_styled_user_name(kullanici_ismi_fresh, u_color_fresh, u_glow_fresh, u_tag_fresh, u_rozet_fresh, email=email, is_admin=is_admin_user)
+
+            def ai_cevap(mesajlar):
                 current_doc = user_ref.get().to_dict()
                 current_name = current_doc.get("isim", "Kullanıcı")
                 is_admin_user_fresh = current_doc.get("is_admin", False)
@@ -8119,11 +8188,11 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                     f"3. Eğer karşındaki kişi Kurucun (Ayaz Kaplan) ise ona kesinlikle her fırsatta 'Kurucum' veya 'Reis' diye hitap et.\n"
                     f"4. Eğer karşındaki kişi bir Yönetici ise ona kesinlikle 'Yöneticim' şeklinde rütbeli ve saygılı hitaplar kullan.\n"
                     f"5. Eğer normal bir kullanıcı ise ona samimi ve asil bir duruşla 'Reis', 'Dostum' veya doğrudan ismiyle hitap et.\n\n"
-                    "⚠️ ÖNEMLİ KURALLAR (BOŞ YAPMAMA VE GEREKSİZ DETAY VERMEME):\n"
-                    "- ASLA BOŞ YAPMA. Sadece ve sadece kullanıcının sorduğu soruya odaklan. Kullanıcının sormadığı hiçbir konuya (tarih, güncel saat, futbol, şampiyonluklar vb.) asla girme. Kendiliğinden tarih veya futbol şampiyonluğu anlatma.\n"
-                    "- Eğer kullanıcı futbol veya lig şampiyonu ile ilgili bir soru sormadıysa, futbol/Galatasaray şampiyonluğu hakkında ASLA tek bir kelime dahi bahsetme! Sadece ve doğrudan sorulan soruyu yanıtla.\n"
-                    "- Bugünün tarihi veya zaman bilgisi sorulmadığı sürece yanıtlara tarih veya saati ekleme.\n"
-                    "- Kesinlikle ve hiçbir koşulda, yıldızlar (asterisk - *) veya parantezler içinde fiziksel hareketler, jestler, mimikler veya rol yapma eylemleri (*doğrulur*, *eğilerek selam verir*, *saygıyla eğilir*, *başını eğer*, *gülümser* vb.) yazma, bunları canlandırma. Tamamen doğrudan, asil ve düzgün bir konuşma metni üret, fiziksel hareket betimlemelerinden kesinlikle kaçın.\n"
+                    "⚠️ ÖNEMLİ KURALLAR (BOŞ YAPMAMA VE NETLİK):\n"
+                    "- Sadece ve doğrudan kullanıcının son mesajındaki güncel sorusuna odaklan. Kullanıcı sormadığı sürece başka hiçbir konudan (geçmiş konulardan, tarihten, güncel saatten, futboldan, spor kulüplerinden veya şampiyonluklardan) asla bahsetme. Unutma, sormadığı şeyleri cevaplamak kesinlikle yasaktır.\n"
+                    "- Geçmiş konuşmalarda kalmış ve bu mesajda sorulmamış konuları/soruları kendiliğinden tekrar açma ve cevaplama.\n"
+                    "- Tarih veya zaman bilgisi istenmediği sürece yanıtlara tarih veya saati ekleme.\n"
+                    "- Kesinlikle ve hiçbir koşulda, yıldızlar (asterisk - *) veya parantezler içinde fiziksel hareketler, jestler, mimikler veya rol yapma eylemleri (*doğrulur*, *eğilerek selam verir*, *saygıyla eğilir*, *başını eğer*, *gülümser* vb.) yazma, bunları canlandırma. Tamamen doğrudan, asil ve düzgün bir konuşma metni üret.\n"
                     "- Mizah ve Espri Anlayışı: Zeki ve yerinde olsun. Her mesaja zorlama espri sıkıştırma. Kullanıcı ciddi konuşuyorsa tamamen ciddi ve vakur kal.\n\n"
                     "📝 TÜRKÇE KARAKTER DÜZELTME TALİMATI:\n"
                     "Kullanıcılar bazen Türkçe özel karakterleri kullanmadan yazabilir. Bu tür yazımlarda kullanıcıyı düzeltme, sadece mesajı doğru anla ve doğru Türkçe ile yanıt ver.\n"
@@ -8903,26 +8972,26 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                         st.markdown("""
                         <style>
                         .dm-chat-box-container p { margin: 0 !important; padding: 0 !important; }
-                        div[data-testid="stColumn"] button {
+                        .dm-trash-btn button {
                             background: transparent !important;
                             border: none !important;
                             box-shadow: none !important;
                             padding: 0 !important;
-                            margin: 0 !important;
-                            min-height: unset !important;
-                            height: 32px !important;
-                            width: 32px !important;
-                            display: inline-flex !important;
+                            margin: 4px auto 0 auto !important;
+                            font-size: 1.25rem !important;
+                            display: flex !important;
                             align-items: center !important;
                             justify-content: center !important;
+                            width: 32px !important;
+                            height: 32px !important;
                             cursor: pointer !important;
                         }
-                        div[data-testid="stColumn"] button p {
+                        .dm-trash-btn button p {
                             font-size: 1.25rem !important;
                             margin: 0 !important;
                             padding: 0 !important;
                         }
-                        div[data-testid="stColumn"] button:hover {
+                        .dm-trash-btn button:hover {
                             transform: scale(1.15) !important;
                         }
                         </style>
@@ -8963,24 +9032,22 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                             voice_padding_css = "padding: 6px 10px;" if is_voice else "padding: 8px 12px;"
 
                             msg_bubble = (
-                                f'<div class="dm-chat-box-container" style="display:flex; flex-direction:{flex_dir}; align-items:flex-start; gap:8px; margin:4px 0; width:100%;">'
-                                f'<img src="{s_foto_src}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid #f39c12;margin-top:2px;flex-shrink:0;"/>'
-                                f'<div style="display:flex; flex-direction:column; align-items:{align_items_inner}; max-width:75%;">'
+                                f'<div style="display:flex; flex-direction:column; align-items:{align_items_inner}; max-width:100%;">'
                                 f'<div style="font-size:0.75rem; color:#ccc; margin-bottom:2px; text-align:{align};">{s_styled}</div>'
                                 f'<div style="background:{bg_color}; {voice_padding_css} border-radius:10px; font-size:0.9rem; white-space:pre-wrap; word-break:break-word; {bubble_width_css} max-width:100%; box-sizing:border-box; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">'
                                 f'{dm_html}'
                                 f'<div style="font-size:0.65em; color:#888; margin-top:3px; text-align:{align};">{dm_zaman}</div>'
-                                f'</div></div></div>'
+                                f'</div></div>'
                             )
 
-                            # Render the main message bubble
-                            st.markdown(msg_bubble, unsafe_allow_html=True)
-
-                            # Under the bubble, place the delete button cleanly on the correct side (under the avatar)
-                            if not is_deleted:
-                                if flex_dir == "row-reverse":
-                                    col_space, col_del = st.columns([10.5, 1.5])
-                                    with col_del:
+                            if flex_dir == "row-reverse":
+                                col_msg, col_side = st.columns([11, 1])
+                                with col_msg:
+                                    st.markdown(msg_bubble, unsafe_allow_html=True)
+                                with col_side:
+                                    st.markdown(f'<img src="{s_foto_src}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid #f39c12;display:block;margin:2px auto 0 auto;flex-shrink:0;"/>', unsafe_allow_html=True)
+                                    if not is_deleted:
+                                        st.markdown('<div class="dm-trash-btn">', unsafe_allow_html=True)
                                         if st.button("🗑️", key=f"del_dm_{dm_conv_id}_{idx}", help="Mesajı sil"):
                                             try:
                                                 doc_snap = dm_doc_ref.get()
@@ -8993,9 +9060,13 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                                         st.rerun()
                                             except Exception as e:
                                                 st.error(f"Hata: {e}")
-                                else:
-                                    col_del, col_space = st.columns([1.5, 10.5])
-                                    with col_del:
+                                        st.markdown('</div>', unsafe_allow_html=True)
+                            else:
+                                col_side, col_msg = st.columns([1, 11])
+                                with col_side:
+                                    st.markdown(f'<img src="{s_foto_src}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid #f39c12;display:block;margin:2px auto 0 auto;flex-shrink:0;"/>', unsafe_allow_html=True)
+                                    if not is_deleted:
+                                        st.markdown('<div class="dm-trash-btn">', unsafe_allow_html=True)
                                         if st.button("🗑️", key=f"del_dm_{dm_conv_id}_{idx}", help="Mesajı sil"):
                                             try:
                                                 doc_snap = dm_doc_ref.get()
@@ -9008,6 +9079,9 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                                         st.rerun()
                                             except Exception as e:
                                                 st.error(f"Hata: {e}")
+                                        st.markdown('</div>', unsafe_allow_html=True)
+                                with col_msg:
+                                    st.markdown(msg_bubble, unsafe_allow_html=True)
 
                 # Mesaj gönderme
                 st.markdown("---")
