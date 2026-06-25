@@ -1303,11 +1303,11 @@ def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }}
-        .form-control, input, select, textarea {{
+        .form-control, input, select, textarea, input[type="text"] {{
             width: 100% !important;
-            background: #090914 !important;
-            background-color: #090914 !important;
-            border: 1px solid rgba(255,255,255,0.15) !important;
+            background: #0f0f1e !important;
+            background-color: #0f0f1e !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
             border-radius: 6px !important;
             padding: 7px 10px !important;
             color: #ffffff !important;
@@ -2166,7 +2166,8 @@ def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
             
             const glowEnabled = document.getElementById('inp-glow-enabled').checked;
             const glowIntensity = document.getElementById('inp-glow-intensity').value;
-            const glowMode = document.querySelector('input[name="glow_color_mode"]:checked').value;
+            const glowMode_el = document.querySelector('input[name="glow_color_mode"]:checked');
+            const glowMode = glowMode_el ? glowMode_el.value : "auto";
             const glowFixedColor = document.getElementById('inp-glow-color-fixed').value;
             
             const shadowEnabled = document.getElementById('inp-shadow-enabled').checked;
@@ -2619,7 +2620,8 @@ def render_tepe_editor_page(db, is_kurucu, get_global_announcement):
             
             const glow_enabled = document.getElementById('inp-glow-enabled').checked;
             const glow_intensity = parseInt(document.getElementById('inp-glow-intensity').value) || 50;
-            const glow_color_mode = document.querySelector('input[name="glow_color_mode"]:checked').value;
+            const glow_color_mode_el = document.querySelector('input[name="glow_color_mode"]:checked');
+            const glow_color_mode = glow_color_mode_el ? glow_color_mode_el.value : "auto";
             const glow_color_fixed = document.getElementById('inp-glow-color-fixed').value;
             
             const shadow_enabled = document.getElementById('inp-shadow-enabled').checked;
@@ -4874,14 +4876,17 @@ else:
         color: #F8F9FA !important;
         font-weight: 600 !important;
     }}
-    .stTextArea textarea, .stTextInput input, .stSelectbox div {{
+    .stTextArea textarea, .stTextInput input, .stSelectbox select, .stSelectbox [data-baseweb="select"] {{
         color: #FFFFFF !important;
-        background-color: rgba(255, 255, 255, 0.1) !important;
+        background-color: #0f0f1e !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
     }}
-    [data-baseweb="select"] * {{ color: #FFFFFF !important; }}
+    [data-baseweb="select"] *, [data-baseweb="popover"] * {{
+        color: #FFFFFF !important;
+        background-color: #0f0f1e !important;
+    }}
     [data-testid="stWidgetLabel"] p {{ color: #F8F9FA !important; }}
     .assistant-box {{
         margin-bottom: 15px;
@@ -6333,11 +6338,11 @@ else:
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }}
-        .form-control, input, select, textarea {{
+        .form-control, input, select, textarea, input[type="text"] {{
             width: 100% !important;
-            background: #090914 !important;
-            background-color: #090914 !important;
-            border: 1px solid rgba(255,255,255,0.15) !important;
+            background: #0f0f1e !important;
+            background-color: #0f0f1e !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
             border-radius: 6px !important;
             padding: 7px 10px !important;
             color: #ffffff !important;
@@ -7020,7 +7025,8 @@ else:
             
             const glow_enabled = document.getElementById('inp-glow-enabled').checked;
             const glow_intensity = parseInt(document.getElementById('inp-glow-intensity').value) || 50;
-            const glow_color_mode = document.querySelector('input[name="glow_color_mode"]:checked').value;
+            const glow_color_mode_el = document.querySelector('input[name="glow_color_mode"]:checked');
+            const glow_color_mode = glow_color_mode_el ? glow_color_mode_el.value : "auto";
             const glow_color_fixed = document.getElementById('inp-glow-color-fixed').value;
             
             const shadow_enabled = document.getElementById('inp-shadow-enabled').checked;
@@ -7365,7 +7371,8 @@ else:
             
             const glow_enabled = document.getElementById('inp-glow-enabled').checked;
             const glow_intensity = parseInt(document.getElementById('inp-glow-intensity').value) || 50;
-            const glow_color_mode = document.querySelector('input[name="glow_color_mode"]:checked').value;
+            const glow_color_mode_el = document.querySelector('input[name="glow_color_mode"]:checked');
+            const glow_color_mode = glow_color_mode_el ? glow_color_mode_el.value : "auto";
             const glow_color_fixed = document.getElementById('inp-glow-color-fixed').value;
             
             const shadow_enabled = document.getElementById('inp-shadow-enabled').checked;
@@ -7839,8 +7846,10 @@ else:
             with _bg_container:
                 st.markdown('<div style="display:none !important; height:0; overflow:hidden;"></div>', unsafe_allow_html=True)
 
-                @st.fragment(run_every=15)
+                @st.fragment(run_every=30)
                 def arka_plan_kontrol(current_uid):
+                    if st.session_state.get("current_page") == "admin_tepe_duyuru":
+                        return
                     try:
                         snap = db.collection("users").document(current_uid).get()
                         if not snap.exists:
@@ -7913,7 +7922,16 @@ else:
 
                 if st.button("Geç ➡️", key=f"skip_btn_{duyuru_obj.get('id')}", use_container_width=True):
                     db.collection("users").document(uid).update({"okunmamis_duyurular": firestore.ArrayRemove([duyuru_obj])})
-                    st.session_state.cached_okunmamis_duyurular.remove(duyuru_obj)
+                    if "cached_okunmamis_duyurular" in st.session_state:
+                        try:
+                            st.session_state.cached_okunmamis_duyurular.remove(duyuru_obj)
+                        except Exception:
+                            pass
+                    if "cached_duyuru_ids" in st.session_state:
+                        try:
+                            st.session_state.cached_duyuru_ids.discard(duyuru_obj.get("id", ""))
+                        except Exception:
+                            pass
                     st.rerun()
 
             # --- SOHBET ARAYÜZÜ ---
@@ -8884,6 +8902,8 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
         # ═══════════════════════════════════════════════════
         elif st.session_state.current_page == "dm_chat":
             if st.session_state.get("play_send_sound", False):
+                # Play backup HTML audio element for 100% reliable native playback
+                st.markdown('<audio autoplay style="display:none;"><source src="https://assets.mixkit.co/active_storage/sfx/1344/1344-84.wav" type="audio/wav"></audio>', unsafe_allow_html=True)
                 # Pleasant synthetic wave blip sound using Web Audio API (instant and ultra reliable)
                 st.components.v1.html("""
                 <script>
@@ -8917,7 +8937,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                   } catch(e) {}
                 })();
                 </script>
-                """, height=0, width=0)
+                """, height=1, width=1)
                 st.session_state.play_send_sound = False
 
             dm_partner_id = st.session_state.get("dm_partner_id", "")
@@ -9026,6 +9046,8 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                 st.session_state[msg_count_key] = current_count
                 
                 if play_receive_sound:
+                    # Play backup HTML audio element for 100% reliable native playback (double-ping sound)
+                    st.markdown('<audio autoplay style="display:none;"><source src="https://assets.mixkit.co/active_storage/sfx/1359/1359-84.wav" type="audio/wav"></audio>', unsafe_allow_html=True)
                     # Pleasant synthetic double blip using Web Audio API
                     st.components.v1.html("""
                     <script>
@@ -9073,7 +9095,7 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                       } catch(e) {}
                     })();
                     </script>
-                    """, height=0, width=0)
+                    """, height=1, width=1)
 
                 # Mesajları göster
                 dm_container = st.container(height=400)
@@ -9103,27 +9125,47 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                         st.markdown("""
                         <style>
                         .dm-chat-box-container p { margin: 0 !important; padding: 0 !important; }
-                        .dm-trash-btn button {
-                            background: transparent !important;
+                        .dm-delete-anchor ~ div[data-testid="stButton"] {
+                            display: flex !important;
+                            justify-content: center !important;
+                            align-items: center !important;
+                            width: 100% !important;
+                        }
+                        .dm-delete-anchor ~ div[data-testid="stButton"] button {
+                            background: #e74c3c !important;
                             border: none !important;
-                            box-shadow: none !important;
-                            padding: 0 !important;
-                            margin: 4px auto 0 auto !important;
-                            font-size: 1.25rem !important;
+                            border-radius: 50% !important;
+                            color: #ffffff !important;
+                            font-size: 13px !important;
                             display: flex !important;
                             align-items: center !important;
                             justify-content: center !important;
-                            width: 32px !important;
-                            height: 32px !important;
+                            width: 26px !important;
+                            height: 26px !important;
+                            min-width: 26px !important;
+                            min-height: 26px !important;
+                            max-width: 26px !important;
+                            max-height: 26px !important;
+                            margin: 4px auto 0 auto !important;
+                            padding: 0 !important;
                             cursor: pointer !important;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
+                            transition: all 0.2s ease !important;
                         }
-                        .dm-trash-btn button p {
-                            font-size: 1.25rem !important;
+                        .dm-delete-anchor ~ div[data-testid="stButton"] button:hover {
+                            background: #c0392b !important;
+                            transform: scale(1.1) !important;
+                            color: #ffffff !important;
+                        }
+                        .dm-delete-anchor ~ div[data-testid="stButton"] button p,
+                        .dm-delete-anchor ~ div[data-testid="stButton"] button * {
+                            color: #ffffff !important;
+                            font-size: 13px !important;
                             margin: 0 !important;
                             padding: 0 !important;
-                        }
-                        .dm-trash-btn button:hover {
-                            transform: scale(1.15) !important;
+                            display: flex !important;
+                            align-items: center !important;
+                            justify-content: center !important;
                         }
                         </style>
                         """, unsafe_allow_html=True)
@@ -9133,6 +9175,9 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                             dm_type = dm_msg.get("tip", "text")
                             dm_zaman = dm_msg.get("zaman", "")
                             is_deleted = dm_msg.get("silindi", False) or dm_content == "Mesaj Silindi"
+
+                            if is_deleted:
+                                continue
 
                             if dm_sender == uid:
                                 s_foto_src = _user_avatar_url_dm
@@ -9149,16 +9194,14 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                 flex_dir = "row"
                                 align_items_inner = "flex-start"
 
-                            if is_deleted:
-                                dm_html = '<span style="color:#888; font-style:italic;">Mesaj Silindi</span>'
-                            elif dm_type == "gif":
+                            if dm_type == "gif":
                                 dm_html = f'<img src="{dm_content}" style="max-width:200px;border-radius:8px;" referrerPolicy="no-referrer"/>'
                             elif dm_type == "voice":
                                 dm_html = f'<audio controls src="data:audio/webm;base64,{dm_content}" style="width:100%; max-width:240px; display:block; margin-top:5px; height:40px; outline:none;"></audio>'
                             else:
                                 dm_html = detect_and_render_media(dm_content)
 
-                            is_voice = (dm_type == "voice") and not is_deleted
+                            is_voice = (dm_type == "voice")
                             bubble_width_css = "width: 260px;" if is_voice else "width: fit-content;"
                             voice_padding_css = "padding: 6px 10px;" if is_voice else "padding: 8px 12px;"
 
@@ -9177,40 +9220,36 @@ Yapay zeka ve gerçek zamanlı iletişim teknolojilerini birleştirerek Türkiye
                                     st.markdown(msg_bubble, unsafe_allow_html=True)
                                 with col_side:
                                     st.markdown(f'<img src="{s_foto_src}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid #f39c12;display:block;margin:2px auto 0 auto;flex-shrink:0;"/>', unsafe_allow_html=True)
-                                    if not is_deleted:
-                                        st.markdown('<div class="dm-trash-btn">', unsafe_allow_html=True)
-                                        if st.button("🗑️", key=f"del_dm_{dm_conv_id}_{idx}", help="Mesajı sil"):
-                                            try:
-                                                doc_snap = dm_doc_ref.get()
-                                                if doc_snap.exists:
-                                                    current_messages = doc_snap.to_dict().get("mesajlar", [])
-                                                    if idx < len(current_messages):
-                                                        current_messages[idx]["icerik"] = "Mesaj Silindi"
-                                                        current_messages[idx]["silindi"] = True
-                                                        dm_doc_ref.update({"mesajlar": current_messages})
-                                                        st.rerun()
-                                            except Exception as e:
-                                                st.error(f"Hata: {e}")
-                                        st.markdown('</div>', unsafe_allow_html=True)
+                                    st.markdown('<div class="dm-delete-anchor"></div>', unsafe_allow_html=True)
+                                    if st.button("🗑️", key=f"del_dm_{dm_conv_id}_{idx}", help="Mesajı sil"):
+                                        try:
+                                            doc_snap = dm_doc_ref.get()
+                                            if doc_snap.exists:
+                                                current_messages = doc_snap.to_dict().get("mesajlar", [])
+                                                if idx < len(current_messages):
+                                                    current_messages[idx]["icerik"] = "Mesaj Silindi"
+                                                    current_messages[idx]["silindi"] = True
+                                                    dm_doc_ref.update({"mesajlar": current_messages})
+                                                    st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Hata: {e}")
                             else:
                                 col_side, col_msg = st.columns([1, 11])
                                 with col_side:
                                     st.markdown(f'<img src="{s_foto_src}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid #f39c12;display:block;margin:2px auto 0 auto;flex-shrink:0;"/>', unsafe_allow_html=True)
-                                    if not is_deleted:
-                                        st.markdown('<div class="dm-trash-btn">', unsafe_allow_html=True)
-                                        if st.button("🗑️", key=f"del_dm_{dm_conv_id}_{idx}", help="Mesajı sil"):
-                                            try:
-                                                doc_snap = dm_doc_ref.get()
-                                                if doc_snap.exists:
-                                                    current_messages = doc_snap.to_dict().get("mesajlar", [])
-                                                    if idx < len(current_messages):
-                                                        current_messages[idx]["icerik"] = "Mesaj Silindi"
-                                                        current_messages[idx]["silindi"] = True
-                                                        dm_doc_ref.update({"mesajlar": current_messages})
-                                                        st.rerun()
-                                            except Exception as e:
-                                                st.error(f"Hata: {e}")
-                                        st.markdown('</div>', unsafe_allow_html=True)
+                                    st.markdown('<div class="dm-delete-anchor"></div>', unsafe_allow_html=True)
+                                    if st.button("🗑️", key=f"del_dm_{dm_conv_id}_{idx}", help="Mesajı sil"):
+                                        try:
+                                            doc_snap = dm_doc_ref.get()
+                                            if doc_snap.exists:
+                                                current_messages = doc_snap.to_dict().get("mesajlar", [])
+                                                if idx < len(current_messages):
+                                                    current_messages[idx]["icerik"] = "Mesaj Silindi"
+                                                    current_messages[idx]["silindi"] = True
+                                                    dm_doc_ref.update({"mesajlar": current_messages})
+                                                    st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Hata: {e}")
                                 with col_msg:
                                     st.markdown(msg_bubble, unsafe_allow_html=True)
 
