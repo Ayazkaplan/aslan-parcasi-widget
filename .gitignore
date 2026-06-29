@@ -3,4 +3,4 @@ firebase-key.json
 __pycache__/
 *.py[cod]
 .env
-.streamlit/secrets.toml
+.web/ 
