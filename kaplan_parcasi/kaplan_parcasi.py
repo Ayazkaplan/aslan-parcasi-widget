@@ -9677,7 +9677,7 @@ class AICognitiveStatePart18(rx.State):
         
         return AICognitiveStatePart18.run_typing_tick()
 
-    @rx.background
+    @rx.event(background=True)
     async def run_typing_tick(self):
         """Asistan cevabını kelime kelime canlandıran asenkron döngü"""
         async with self:
@@ -9735,7 +9735,7 @@ class AICognitiveStatePart18(rx.State):
 
         return AICognitiveStatePart18.run_typing_tick_for_index(idx)
 
-    @rx.background
+    @rx.event(background=True)
     async def run_typing_tick_for_index(self, idx: int):
         async with self:
             words = self.full_target_response.split()
@@ -10686,7 +10686,7 @@ class SocialNetworkStatePart19(rx.State):
             # 2. Asenkron Oto-Cevap Simüle Et
             return SocialNetworkStatePart19.run_dm_reply_sim()
 
-    @rx.background
+    @rx.event(background=True)
     async def run_dm_reply_sim(self):
         await rx.sleep(1.5)
         async with self:
@@ -11847,7 +11847,7 @@ class SocialAndMediaStatePart20(rx.State):
         # Geri dönüş oto-cevap simülasyonunu tetikle
         return SocialAndMediaStatePart20.trigger_partner_autoreply()
 
-    @rx.background
+    @rx.event(background=True)
     async def trigger_partner_autoreply(self):
         await rx.sleep(1.8)
         async with self:
@@ -13642,5 +13642,191 @@ def render_bölüm_21_youtube_portal_center() -> rx.Component:
         width="100%",
         id="bolum_21_portal_root"
     )
+
+
+# =========================================================================
+# 🦁 MASTER NAVIGATION & REFLEX APP REGISTRATION
+# =========================================================================
+
+class MainNavigationState(rx.State):
+    active_section: str = "bolum_21"  # Default to YouTube Portal System (Bölüm 21)
+
+    def set_section(self, section: str):
+        self.active_section = section
+
+
+def make_section_tab(name: str, key: str) -> rx.Component:
+    is_active = MainNavigationState.active_section == key
+    return rx.button(
+        name,
+        on_click=lambda: MainNavigationState.set_section(key),
+        variant="solid" if is_active else "ghost",
+        color_scheme="orange" if is_active else "gray",
+        size="sm",
+        width="100%",
+        style={
+            "justify-content": "flex-start",
+            "border-radius": "8px",
+            "padding": "10px",
+            "font-size": "0.85rem",
+        }
+    )
+
+
+def index() -> rx.Component:
+    return rx.box(
+        rx.hstack(
+            # Sidebar Navigation (Left Panel for Desktop)
+            rx.vstack(
+                rx.hstack(
+                    rx.text("🦁", font_size="1.5rem"),
+                    rx.vstack(
+                        rx.heading("KAPLAN PARÇASI", font_size="1rem", color="#ffffff"),
+                        rx.text("Entegre Reflex Sistemi", font_size="0.65rem", color="#a8a29e"),
+                        spacing="0",
+                    ),
+                    spacing="3",
+                    align_items="center",
+                    margin_bottom="15px",
+                ),
+                rx.divider(border_color="rgba(255,255,255,0.08)"),
+                
+                rx.scroll_area(
+                    rx.vstack(
+                        make_section_tab("🎬 Bölüm 21: YouTube Portal", "bolum_21"),
+                        make_section_tab("📱 Bölüm 20: Medya Merkezi", "bolum_20"),
+                        make_section_tab("💬 Bölüm 19: Sosyal Yönetici", "bolum_19"),
+                        make_section_tab("🤖 Bölüm 18: Bilişsel Sohbet", "bolum_18"),
+                        make_section_tab("🧵 Bölüm 17: Sohbet Odaları", "bolum_17"),
+                        make_section_tab("🔑 Bölüm 16: Rol Yöneticisi", "bolum_16"),
+                        make_section_tab("🧭 Bölüm 15: CapCut & Hareket", "bolum_15"),
+                        make_section_tab("📢 Bölüm 14: Global YT & Yönetim", "bolum_14"),
+                        make_section_tab("⏰ Bölüm 13: Profil & Saat", "bolum_13"),
+                        make_section_tab("🎤 Bölüm 12: Ses & Giriş", "bolum_12"),
+                        make_section_tab("📚 Bölüm 11: Moderasyon & Sözlük", "bolum_11"),
+                        make_section_tab("🏷️ Bölüm 10: Taslak & HTML", "bolum_10"),
+                        make_section_tab("📦 Bölüm 09: Şablon Kütüphanesi", "bolum_09"),
+                        make_section_tab("🖐️ Bölüm 08: Dokunmatik Hareket", "bolum_08"),
+                        make_section_tab("👁️ Bölüm 07: Önizleme Paneli", "bolum_07"),
+                        make_section_tab("🔒 Bölüm 06: Kilit & Renk Matrisi", "bolum_06"),
+                        make_section_tab("📊 Bölüm 05: Göstergeler", "bolum_05"),
+                        make_section_tab("🎨 Bölüm 04: Word Painter", "bolum_04"),
+                        make_section_tab("📐 Bölüm 03: Canvas Alanı", "bolum_03"),
+                        make_section_tab("✨ Bölüm 02: Efekt & Medya", "bolum_02"),
+                        make_section_tab("👑 Bölüm 01: Tepe Duyuru Editörü", "bolum_01"),
+                        spacing="1",
+                        width="100%",
+                        align_items="stretch",
+                    ),
+                    height="85vh",
+                    width="100%",
+                ),
+                width="280px",
+                height="100vh",
+                padding="20px",
+                background_color="#090915",
+                border_right="1px solid rgba(255, 255, 255, 0.05)",
+                display=["none", "none", "flex"],  # Hide on mobile, show on md/desktop
+            ),
+            
+            # Main Content Area (Right Panel)
+            rx.box(
+                rx.vstack(
+                    # Mobile Navigation Header
+                    rx.hstack(
+                        rx.text("🦁", font_size="1.5rem"),
+                        rx.select.root(
+                            rx.select.trigger(style={"background": "#121225", "border-color": "rgba(255,255,255,0.08)"}),
+                            rx.select.content(
+                                rx.select.group(
+                                    rx.select.item("🎬 Bölüm 21: YouTube Portal", value="bolum_21"),
+                                    rx.select.item("📱 Bölüm 20: Medya Merkezi", value="bolum_20"),
+                                    rx.select.item("💬 Bölüm 19: Sosyal Yönetici", value="bolum_19"),
+                                    rx.select.item("🤖 Bölüm 18: Bilişsel Sohbet", value="bolum_18"),
+                                    rx.select.item("🧵 Bölüm 17: Sohbet Odaları", value="bolum_17"),
+                                    rx.select.item("🔑 Bölüm 16: Rol Yöneticisi", value="bolum_16"),
+                                    rx.select.item("🧭 Bölüm 15: CapCut & Hareket", value="bolum_15"),
+                                    rx.select.item("📢 Bölüm 14: Global YT & Yönetim", value="bolum_14"),
+                                    rx.select.item("⏰ Bölüm 13: Profil & Saat", value="bolum_13"),
+                                    rx.select.item("🎤 Bölüm 12: Ses & Giriş", value="bolum_12"),
+                                    rx.select.item("📚 Bölüm 11: Moderasyon & Sözlük", value="bolum_11"),
+                                    rx.select.item("🏷️ Bölüm 10: Taslak & HTML", value="bolum_10"),
+                                    rx.select.item("📦 Bölüm 09: Şablon Kütüphanesi", value="bolum_09"),
+                                    rx.select.item("🖐️ Bölüm 08: Dokunmatik Hareket", value="bolum_08"),
+                                    rx.select.item("👁️ Bölüm 07: Önizleme Paneli", value="bolum_07"),
+                                    rx.select.item("🔒 Bölüm 06: Kilit & Renk Matrisi", value="bolum_06"),
+                                    rx.select.item("📊 Bölüm 05: Göstergeler", value="bolum_05"),
+                                    rx.select.item("🎨 Bölüm 04: Word Painter", value="bolum_04"),
+                                    rx.select.item("📐 Bölüm 03: Canvas Alanı", value="bolum_03"),
+                                    rx.select.item("✨ Bölüm 02: Efekt & Medya", value="bolum_02"),
+                                    rx.select.item("👑 Bölüm 01: Tepe Duyuru Editörü", value="bolum_01"),
+                                )
+                            ),
+                            value=MainNavigationState.active_section,
+                            on_change=MainNavigationState.set_section,
+                        ),
+                        width="100%",
+                        padding="10px 20px",
+                        background_color="#090915",
+                        border_bottom="1px solid rgba(255, 255, 255, 0.05)",
+                        display=["flex", "flex", "none"],  # Show on mobile, hide on desktop
+                        justify_content="space-between",
+                        align_items="center",
+                    ),
+                    
+                    # Content Canvas
+                    rx.box(
+                        rx.cond(MainNavigationState.active_section == "bolum_01", render_tepe_editor_page_reflex()),
+                        rx.cond(MainNavigationState.active_section == "bolum_02", render_efekt_ve_medya_panel_reflex()),
+                        rx.cond(MainNavigationState.active_section == "bolum_03", render_canvas_area_reflex()),
+                        rx.cond(MainNavigationState.active_section == "bolum_04", rx.vstack(render_word_painter_panel_reflex(), render_tab_navigation_reflex())),
+                        rx.cond(MainNavigationState.active_section == "bolum_05", render_indicators_and_toolbar_reflex()),
+                        rx.cond(MainNavigationState.active_section == "bolum_06", rx.vstack(render_lock_status_badge_reflex(), render_char_color_picker_matrix_reflex())),
+                        rx.cond(MainNavigationState.active_section == "bolum_07", render_preview_panel_reflex()),
+                        rx.cond(MainNavigationState.active_section == "bolum_08", render_touch_gestures_control_reflex()),
+                        rx.cond(MainNavigationState.active_section == "bolum_09", render_template_library_reflex()),
+                        rx.cond(MainNavigationState.active_section == "bolum_10", rx.vstack(render_info_popover_button(), render_drafts_manager_panel(), render_custom_banner_html_reflex())),
+                        rx.cond(MainNavigationState.active_section == "bolum_11", rx.vstack(render_moderation_card_reflex(), render_search_and_youtube_reflex(), render_firebase_dictionary_helper())),
+                        rx.cond(MainNavigationState.active_section == "bolum_12", rx.vstack(render_voice_recorder_component_reflex(), render_login_register_panel(), render_password_reset_panel())),
+                        rx.cond(MainNavigationState.active_section == "bolum_13", rx.vstack(render_saat_gosterici_reflex(), render_sidebar_settings_panel_reflex(), render_sidebar_accounts_submenu_reflex(), render_sidebar_profile_card_reflex(), render_avatar_uploader_component(), render_profile_and_theme_settings_panel())),
+                        rx.cond(MainNavigationState.active_section == "bolum_14", rx.vstack(render_global_yt_player_component(), render_yönetici_panel_navigation(), render_user_directory_dashboard(), render_banned_reports_log_panel(), render_universal_announcement_console())),
+                        rx.cond(MainNavigationState.active_section == "bolum_15", render_bölüm_15_gesture_controller()),
+                        rx.cond(MainNavigationState.active_section == "bolum_16", render_bölüm_16_role_manager()),
+                        rx.cond(MainNavigationState.active_section == "bolum_17", render_bölüm_17_chat_threads_manager()),
+                        rx.cond(MainNavigationState.active_section == "bolum_18", render_bölüm_18_cognitive_chat_manager()),
+                        rx.cond(MainNavigationState.active_section == "bolum_19", render_bölüm_19_social_manager()),
+                        rx.cond(MainNavigationState.active_section == "bolum_20", render_bölüm_20_media_center()),
+                        rx.cond(MainNavigationState.active_section == "bolum_21", render_bölüm_21_youtube_portal_center()),
+                        padding="30px",
+                        width="100%",
+                        max_width="1200px",
+                        margin="0 auto",
+                    ),
+                    width="100%",
+                ),
+                flex="1",
+                height="100vh",
+                background_color="#03030b",
+                overflow_y="auto",
+            ),
+            spacing="0",
+            width="100%",
+            height="100vh",
+        ),
+        background_color="#020205",
+        font_family="system-ui, -apple-system, sans-serif",
+        min_height="100vh",
+        width="100%",
+    )
+
+
+app = rx.App(
+    theme=rx.theme(
+        appearance="dark",
+        has_background=True,
+        accent_color="orange",
+    )
+)
+app.add_page(index)
 
 
