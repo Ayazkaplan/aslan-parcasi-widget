@@ -1,4 +1,4 @@
-streamlit
+reflex
 requests
 firebase-admin
 youtube-search-python
